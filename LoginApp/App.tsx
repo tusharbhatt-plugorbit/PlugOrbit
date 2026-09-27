@@ -22,16 +22,18 @@ function App(): React.JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Theme Colors matching the exact PlugOrbit design
+  // High-Contrast Theme Palette (WCAG AAA Compliant)
   const theme = {
-    bg: '#0A111E',
-    cardBg: '#111C2E',
-    accentLime: '#9FE870',
-    textWhite: '#FFFFFF',
-    textMuted: '#94A3B8',
-    inputBg: '#1A273A',
-    inputBorder: '#293A52',
-    buttonBorder: '#26354A',
+    bg: '#060A12',           // Deep Obsidian Dark Background
+    cardBg: '#111827',       // High Contrast Card Container
+    accentLime: '#A2F067',   // Electric Lime Green Accent
+    textWhite: '#FFFFFF',    // Pure White Primary Text
+    textMuted: '#CBD5E1',    // Slate 200 High Contrast Subtext
+    textPlaceholder: '#9CA3AF',
+    inputBg: '#1F2937',      // Distinct Dark Input Field Background
+    inputBorder: '#374151',  // Sharp High Contrast Borders
+    secondaryBtnBg: '#111827',
+    secondaryBtnBorder: '#374151',
   };
 
   const handleLogin = () => {
@@ -53,7 +55,7 @@ function App(): React.JSX.Element {
     }, 1000);
   };
 
-  // --- WELCOME / LANDING SCREEN (MATCHING DESIGN) ---
+  // --- WELCOME / LANDING SCREEN ---
   if (screen === 'welcome') {
     return (
       <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
@@ -70,11 +72,11 @@ function App(): React.JSX.Element {
             <Text style={styles.tagline}>Charge Smarter. Travel Further.</Text>
           </View>
 
-          {/* EV Hero Illustration */}
+          {/* Clean EV Hero Image (without brand text / names) */}
           <View style={styles.illustrationCard}>
             <Image
               source={{
-                uri: 'https://images.unsplash.com/photo-1563720223185-11003d516935?q=80&w=1000&auto=format&fit=crop',
+                uri: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=1000&auto=format&fit=crop',
               }}
               style={styles.heroImage}
               resizeMode="cover"
@@ -102,7 +104,7 @@ function App(): React.JSX.Element {
             <Pressable
               style={({pressed}) => [
                 styles.secondaryBtn,
-                pressed && {backgroundColor: '#172438'},
+                pressed && {backgroundColor: '#1E293B'},
               ]}
               onPress={() => setScreen('login')}>
               <Text style={styles.secondaryBtnText}>
@@ -152,7 +154,7 @@ function App(): React.JSX.Element {
             <TextInput
               style={styles.input}
               placeholder="name@example.com"
-              placeholderTextColor={theme.textMuted}
+              placeholderTextColor={theme.textPlaceholder}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -167,7 +169,7 @@ function App(): React.JSX.Element {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Enter password"
-                placeholderTextColor={theme.textMuted}
+                placeholderTextColor={theme.textPlaceholder}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -241,7 +243,7 @@ function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0A111E',
+    backgroundColor: '#060A12',
   },
 
   welcomeContainer: {
@@ -258,22 +260,23 @@ const styles = StyleSheet.create({
   },
 
   logoBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 2,
-    borderColor: '#9FE870',
+    borderColor: '#A2F067',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    backgroundColor: '#0F1A2A',
   },
 
   logoIcon: {
-    fontSize: 24,
+    fontSize: 26,
   },
 
   brandTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.5,
@@ -288,10 +291,11 @@ const styles = StyleSheet.create({
   },
 
   tagline: {
-    fontSize: 14,
-    color: '#94A3B8',
+    fontSize: 15,
+    color: '#CBD5E1',
     textAlign: 'center',
     marginTop: 6,
+    fontWeight: '500',
   },
 
   illustrationCard: {
@@ -300,9 +304,9 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#111C2E',
-    borderWidth: 1,
-    borderColor: '#1E2D42',
+    backgroundColor: '#111827',
+    borderWidth: 1.5,
+    borderColor: '#374151',
   },
 
   heroImage: {
@@ -321,13 +325,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#334155',
+    backgroundColor: '#475569',
     marginHorizontal: 4,
   },
 
   activeDot: {
-    width: 22,
-    backgroundColor: '#9FE870',
+    width: 24,
+    backgroundColor: '#A2F067',
   },
 
   buttonGroup: {
@@ -337,23 +341,23 @@ const styles = StyleSheet.create({
   primaryBtn: {
     height: 54,
     borderRadius: 14,
-    backgroundColor: '#9FE870',
+    backgroundColor: '#A2F067',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   primaryBtnText: {
-    color: '#0A111E',
+    color: '#000000',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   secondaryBtn: {
     height: 54,
     borderRadius: 14,
-    backgroundColor: '#111C2E',
-    borderWidth: 1,
-    borderColor: '#26354A',
+    backgroundColor: '#111827',
+    borderWidth: 1.5,
+    borderColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -361,7 +365,7 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   // Auth Screen Styles
@@ -378,25 +382,26 @@ const styles = StyleSheet.create({
   },
 
   backButtonText: {
-    color: '#9FE870',
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#A2F067',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
   authCard: {
-    backgroundColor: '#111C2E',
+    backgroundColor: '#111827',
     borderRadius: 20,
     padding: 24,
-    borderWidth: 1,
-    borderColor: '#1E2D42',
+    borderWidth: 1.5,
+    borderColor: '#374151',
   },
 
   logoBadgeSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 2,
-    borderColor: '#9FE870',
+    borderColor: '#A2F067',
+    backgroundColor: '#0F1A2A',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -404,19 +409,19 @@ const styles = StyleSheet.create({
   },
 
   logoIconSmall: {
-    fontSize: 20,
+    fontSize: 22,
   },
 
   authTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
   },
 
   authSubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#CBD5E1',
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 24,
@@ -428,27 +433,27 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#E2E8F0',
+    fontWeight: '700',
+    color: '#F3F4F6',
     marginBottom: 8,
   },
 
   input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#293A52',
-    backgroundColor: '#1A273A',
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#374151',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 15,
     fontSize: 15,
     color: '#FFFFFF',
   },
 
   passwordContainer: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#293A52',
-    backgroundColor: '#1A273A',
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#374151',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,7 +462,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 14,
+    paddingHorizontal: 15,
     fontSize: 15,
     color: '#FFFFFF',
   },
@@ -467,8 +472,8 @@ const styles = StyleSheet.create({
   },
 
   showText: {
-    color: '#9FE870',
-    fontWeight: '600',
+    color: '#A2F067',
+    fontWeight: '700',
     fontSize: 14,
   },
 
@@ -478,9 +483,9 @@ const styles = StyleSheet.create({
   },
 
   forgotText: {
-    color: '#9FE870',
+    color: '#A2F067',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   switchRow: {
@@ -490,14 +495,14 @@ const styles = StyleSheet.create({
   },
 
   switchText: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
     fontSize: 14,
   },
 
   switchLink: {
-    color: '#9FE870',
+    color: '#A2F067',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });
 
