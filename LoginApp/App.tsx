@@ -1,10 +1,11 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -12,6 +13,61 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
+
+type Screen = 'welcome' | 'login' | 'signup';
+type AuthStep = 'identify' | 'verify';
+type IdentifierType = 'email' | 'phone' | null;
+
+const OTP_LENGTH = 6;
+const RESEND_SECONDS = 30;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Decide whether the user typed an email address or a mobile number.
+function detectIdentifierType(value: string): IdentifierType {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.includes('@')) {
+    return EMAIL_REGEX.test(trimmed) ? 'email' : null;
+  }
+  if (/^\+?[\d\s()-]+$/.test(trimmed)) {
+    const digits = trimmed.replace(/\D/g, '');
+    return digits.length >= 7 && digits.length <= 15 ? 'phone' : null;
+  }
+  return null;
+}
+
+const lightAuthTheme = {
+  bg: '#F6F8FB',
+  cardBg: '#FFFFFF',
+  cardBorder: '#D7EDE3',
+  primary: '#0B9467',
+  primarySoft: '#E7F7F0',
+  text: '#0F172A',
+  textMuted: '#475569',
+  textSubtle: '#94A3B8',
+  inputBg: '#EEF2F7',
+  inputBorder: '#D5DDE8',
+  divider: '#E2E8F0',
+  buttonText: '#FFFFFF',
+};
+
+const darkAuthTheme: typeof lightAuthTheme = {
+  bg: '#060A12',
+  cardBg: '#111827',
+  cardBorder: '#374151',
+  primary: '#A2F067',
+  primarySoft: '#1A2A14',
+  text: '#FFFFFF',
+  textMuted: '#CBD5E1',
+  textSubtle: '#9CA3AF',
+  inputBg: '#1F2937',
+  inputBorder: '#374151',
+  divider: '#1F2937',
+  buttonText: '#000000',
+};
 
 function App(): React.JSX.Element {
   return (
@@ -22,13 +78,7 @@ function App(): React.JSX.Element {
 }
 
 function AppContent(): React.JSX.Element {
-  // Navigation State: 'welcome' | 'login' | 'signup'
-  const [screen, setScreen] = useState<'welcome' | 'login' | 'signup'>('welcome');
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [screen, setScreen] = useState<Screen>('welcome');
 
   // High-Contrast Theme Palette (WCAG AAA Compliant)
   const theme = {
@@ -42,25 +92,6 @@ function AppContent(): React.JSX.Element {
     inputBorder: '#374151',  // Sharp High Contrast Borders
     secondaryBtnBg: '#111827',
     secondaryBtnBorder: '#374151',
-  };
-
-  const handleLogin = () => {
-    if (!email.trim()) {
-      Alert.alert('Validation', 'Please enter your email.');
-      return;
-    }
-
-    if (!password.trim()) {
-      Alert.alert('Validation', 'Please enter your password.');
-      return;
-    }
-
-    setLoading(true);
-
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Success', `Welcome back, ${email}!`);
-    }, 1000);
   };
 
   // --- WELCOME / LANDING SCREEN ---
@@ -125,124 +156,352 @@ function AppContent(): React.JSX.Element {
     );
   }
 
-  // --- LOGIN / SIGNUP SCREEN ---
+  // --- LOGIN / SIGNUP SCREEN (OTP based) ---
   return (
-    <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
-      <StatusBar barStyle="light-content" />
+    <AuthScreen
+      mode={screen}
+      onSwitchMode={() => setScreen(screen === 'login' ? 'signup' : 'login')}
+      onBack={() => setScreen('welcome')}
+    />
+  );
+}
+
+type AuthScreenProps = {
+  mode: 'login' | 'signup';
+  onSwitchMode: () => void;
+  onBack: () => void;
+};
+
+function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.Element {
+  const [darkMode, setDarkMode] = useState(false);
+  const [step, setStep] = useState<AuthStep>('identify');
+  const [identifier, setIdentifier] = useState('');
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const otpInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+
+  const t = darkMode ? darkAuthTheme : lightAuthTheme;
+  const isSignup = mode === 'signup';
+  const identifierType = detectIdentifierType(identifier);
+
+  // Reset the flow whenever the user switches between Sign In and Sign Up.
+  useEffect(() => {
+    setStep('identify');
+    setOtp('');
+    setResendIn(0);
+    setLoading(false);
+  }, [mode]);
+
+  // Countdown for the "Resend code" link.
+  useEffect(() => {
+    if (resendIn <= 0) {
+      return;
+    }
+    const timer = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  // TODO: replace the simulated delays below with calls to the backend OTP endpoints.
+  const sendCode = () => {
+    if (!identifierType) {
+      Alert.alert(
+        'Validation',
+        'Please enter a valid mobile number or email address.',
+      );
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setOtp('');
+      setStep('verify');
+      setResendIn(RESEND_SECONDS);
+      Alert.alert(
+        'Code Sent',
+        `A ${OTP_LENGTH}-digit verification code has been sent to ${identifier.trim()}.`,
+      );
+    }, 1000);
+  };
+
+  const verifyCode = () => {
+    if (otp.length !== OTP_LENGTH) {
+      Alert.alert('Validation', `Please enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      Alert.alert(
+        isSignup ? 'Account Created' : 'Success',
+        isSignup
+          ? 'Your PlugOrbit account is ready!'
+          : `Welcome back, ${identifier.trim()}!`,
+      );
+    }, 1000);
+  };
+
+  const editIdentifier = () => {
+    setStep('identify');
+    setOtp('');
+    setResendIn(0);
+  };
+
+  const inputLabelBadge =
+    identifierType === 'email'
+      ? '✉️ Email'
+      : identifierType === 'phone'
+      ? '📱 Mobile'
+      : '⚡ Auto-Detect';
+
+  return (
+    <SafeAreaView style={[styles.safeArea, {backgroundColor: t.bg}]}>
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
       <KeyboardAvoidingView
-        style={styles.container}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        
-        {/* Back Button */}
-        <Pressable
-          style={styles.backButton}
-          onPress={() => setScreen('welcome')}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </Pressable>
+        <ScrollView
+          contentContainerStyle={styles.authScroll}
+          keyboardShouldPersistTaps="handled">
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={[styles.backButtonText, {color: t.primary}]}>
+              ← Back
+            </Text>
+          </Pressable>
 
-        <View style={styles.authCard}>
-          <View style={styles.logoBadgeSmall}>
-            <Text style={styles.logoIconSmall}>⚡</Text>
-          </View>
-
-          <Text style={styles.authTitle}>
-            {screen === 'login' ? 'Sign In' : 'Create Account'}
-          </Text>
-
-          <Text style={styles.authSubtitle}>
-            {screen === 'login'
-              ? 'Enter your details to access your PlugOrbit account.'
-              : 'Join PlugOrbit to start charging smarter everywhere.'}
-          </Text>
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="name@example.com"
-              placeholderTextColor={theme.textPlaceholder}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Enter password"
-                placeholderTextColor={theme.textPlaceholder}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
+          <View
+            style={[
+              styles.authCard,
+              {backgroundColor: t.cardBg, borderColor: t.cardBorder},
+            ]}>
+            {/* Logo & Theme Toggle */}
+            <View style={styles.cardHeaderRow}>
+              <View
+                style={[
+                  styles.logoBadgeSmall,
+                  {backgroundColor: t.primarySoft, borderColor: t.cardBorder},
+                ]}>
+                <Text style={styles.logoIconSmall}>⚡</Text>
+              </View>
               <Pressable
-                style={styles.showButton}
-                onPress={() => setShowPassword(!showPassword)}>
-                <Text style={styles.showText}>
-                  {showPassword ? 'Hide' : 'Show'}
+                accessibilityRole="switch"
+                accessibilityState={{checked: darkMode}}
+                accessibilityLabel="Toggle dark mode"
+                onPress={() => setDarkMode(!darkMode)}
+                style={[
+                  styles.themeToggle,
+                  {backgroundColor: t.cardBg, borderColor: t.inputBorder},
+                ]}>
+                <Text
+                  style={[
+                    styles.themeToggleIcon,
+                    darkMode && styles.themeToggleIconRight,
+                  ]}>
+                  {darkMode ? '☀️' : '🌙'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.authTitle, {color: t.text}]}>
+              {step === 'verify'
+                ? 'Verify Code'
+                : isSignup
+                ? 'Create Account'
+                : 'Welcome Back'}
+            </Text>
+
+            <Text style={[styles.authSubtitle, {color: t.textMuted}]}>
+              {step === 'verify'
+                ? `Enter the ${OTP_LENGTH}-digit code we sent to`
+                : isSignup
+                ? 'Join PlugOrbit to connect to 50k+ supercharging stations.'
+                : 'Sign in to continue charging smarter with PlugOrbit.'}
+            </Text>
+
+            {step === 'identify' ? (
+              <>
+                {/* Google Sign-In */}
+                <Pressable
+                  style={({pressed}) => [
+                    styles.googleBtn,
+                    {backgroundColor: t.cardBg, borderColor: t.inputBorder},
+                    pressed && {opacity: 0.85},
+                  ]}
+                  onPress={() =>
+                    Alert.alert('Google', 'Google sign-in is coming soon.')
+                  }>
+                  <View style={styles.googleIcon}>
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                  <Text style={[styles.googleBtnText, {color: t.text}]}>
+                    {isSignup ? 'Sign Up with Google' : 'Sign In with Google'}
+                  </Text>
+                </Pressable>
+
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={[styles.dividerLine, {backgroundColor: t.divider}]} />
+                  <Text style={[styles.dividerText, {color: t.textSubtle}]}>
+                    OR CONTINUE WITH
+                  </Text>
+                  <View style={[styles.dividerLine, {backgroundColor: t.divider}]} />
+                </View>
+
+                {/* Mobile Number or Email Input */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={[styles.label, {color: t.text}]}>
+                      Mobile Number or Email ID
+                    </Text>
+                    <View
+                      style={[
+                        styles.detectBadge,
+                        {backgroundColor: t.primarySoft, borderColor: t.cardBorder},
+                      ]}>
+                      <Text style={[styles.detectBadgeText, {color: t.primary}]}>
+                        {inputLabelBadge}
+                      </Text>
+                    </View>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: t.inputBg,
+                        borderColor: t.inputBorder,
+                        color: t.text,
+                      },
+                    ]}
+                    placeholder="e.g. +91 98765 43210 or name@example.com"
+                    placeholderTextColor={t.textSubtle}
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    keyboardType={
+                      identifierType === 'phone' ? 'phone-pad' : 'email-address'
+                    }
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    onSubmitEditing={sendCode}
+                  />
+                </View>
+
+                <Pressable
+                  style={({pressed}) => [
+                    styles.authPrimaryBtn,
+                    {backgroundColor: t.primary},
+                    (pressed || loading) && {opacity: 0.85},
+                  ]}
+                  onPress={sendCode}
+                  disabled={loading}>
+                  <Text style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
+                    {loading ? 'Sending...' : 'Send Verification Code  →'}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                {/* Where the code was sent */}
+                <View style={styles.sentToRow}>
+                  <Text style={[styles.sentToText, {color: t.text}]}>
+                    {identifier.trim()}
+                  </Text>
+                  <Pressable onPress={editIdentifier}>
+                    <Text style={[styles.linkText, {color: t.primary}]}>
+                      {'  Change'}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* OTP Boxes (backed by a single hidden input) */}
+                <Pressable
+                  style={styles.otpRow}
+                  onPress={() => otpInputRef.current?.focus()}>
+                  {Array.from({length: OTP_LENGTH}).map((_, i) => {
+                    const isActive = i === otp.length;
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.otpBox,
+                          {
+                            backgroundColor: t.inputBg,
+                            borderColor: isActive ? t.primary : t.inputBorder,
+                          },
+                        ]}>
+                        <Text style={[styles.otpDigit, {color: t.text}]}>
+                          {otp[i] ?? ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </Pressable>
+                <TextInput
+                  ref={otpInputRef}
+                  style={styles.hiddenInput}
+                  value={otp}
+                  onChangeText={value =>
+                    setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH))
+                  }
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="sms-otp"
+                  maxLength={OTP_LENGTH}
+                  autoFocus
+                />
+
+                <Pressable
+                  style={({pressed}) => [
+                    styles.authPrimaryBtn,
+                    {backgroundColor: t.primary},
+                    (pressed || loading) && {opacity: 0.85},
+                  ]}
+                  onPress={verifyCode}
+                  disabled={loading}>
+                  <Text style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
+                    {loading
+                      ? 'Verifying...'
+                      : isSignup
+                      ? 'Verify & Create Account  →'
+                      : 'Verify & Sign In  →'}
+                  </Text>
+                </Pressable>
+
+                <View style={styles.resendRow}>
+                  <Text style={[styles.switchText, {color: t.textMuted}]}>
+                    Didn't receive the code?
+                  </Text>
+                  {resendIn > 0 ? (
+                    <Text style={[styles.switchText, {color: t.textSubtle}]}>
+                      {` Resend in ${resendIn}s`}
+                    </Text>
+                  ) : (
+                    <Pressable onPress={sendCode} disabled={loading}>
+                      <Text style={[styles.linkText, {color: t.primary}]}>
+                        {' Resend'}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </>
+            )}
+
+            {/* Switch Login/Signup */}
+            <View style={styles.switchRow}>
+              <Text style={[styles.switchText, {color: t.textMuted}]}>
+                {isSignup ? 'Already have an account?' : "Don't have an account?"}
+              </Text>
+              <Pressable onPress={onSwitchMode}>
+                <Text style={[styles.linkText, {color: t.primary}]}>
+                  {isSignup ? ' Sign In' : ' Sign Up'}
                 </Text>
               </Pressable>
             </View>
           </View>
-
-          {screen === 'login' && (
-            <Pressable
-              style={styles.forgotButton}
-              onPress={() =>
-                Alert.alert('Forgot Password', 'Password reset instructions sent.')
-              }>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
-          )}
-
-          {/* Submit Button */}
-          <Pressable
-            style={({pressed}) => [
-              styles.primaryBtn,
-              pressed && {opacity: 0.88},
-            ]}
-            onPress={
-              screen === 'login'
-                ? handleLogin
-                : () => {
-                    Alert.alert('Account Created', 'Your account is ready!');
-                    setScreen('login');
-                  }
-            }
-            disabled={loading}>
-            <Text style={styles.primaryBtnText}>
-              {loading
-                ? 'Processing...'
-                : screen === 'login'
-                ? 'Sign In'
-                : 'Create Account'}
-            </Text>
-          </Pressable>
-
-          {/* Switch Login/Signup */}
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>
-              {screen === 'login'
-                ? "Don't have an account?"
-                : 'Already have an account?'}
-            </Text>
-            <Pressable
-              onPress={() =>
-                setScreen(screen === 'login' ? 'signup' : 'login')
-              }>
-              <Text style={styles.switchLink}>
-                {screen === 'login' ? ' Sign Up' : ' Sign In'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -252,6 +511,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#060A12',
+  },
+
+  flex: {
+    flex: 1,
   },
 
   welcomeContainer: {
@@ -377,123 +640,226 @@ const styles = StyleSheet.create({
   },
 
   // Auth Screen Styles
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
+  authScroll: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     justifyContent: 'center',
   },
 
   backButton: {
-    marginBottom: 16,
+    marginBottom: 12,
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },
 
   backButtonText: {
-    color: '#A2F067',
     fontSize: 16,
     fontWeight: '700',
   },
 
   authCard: {
-    backgroundColor: '#111827',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     borderWidth: 1.5,
-    borderColor: '#374151',
+    shadowColor: '#0B9467',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: {width: 0, height: 8},
+    elevation: 4,
   },
 
-  logoBadgeSmall: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 2,
-    borderColor: '#A2F067',
-    backgroundColor: '#0F1A2A',
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
     marginBottom: 12,
   },
 
+  logoBadgeSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   logoIconSmall: {
-    fontSize: 22,
+    fontSize: 20,
+  },
+
+  themeToggle: {
+    width: 58,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+
+  themeToggleIcon: {
+    fontSize: 13,
+  },
+
+  themeToggleIconRight: {
+    alignSelf: 'flex-end',
   },
 
   authTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
     textAlign: 'center',
   },
 
   authSubtitle: {
-    fontSize: 14,
-    color: '#CBD5E1',
+    fontSize: 13,
     textAlign: 'center',
     marginTop: 6,
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+
+  googleBtn: {
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  googleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  googleIconText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  googleBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+
+  dividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginHorizontal: 10,
   },
 
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
 
   label: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F3F4F6',
-    marginBottom: 8,
+  },
+
+  detectBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  detectBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 
   input: {
     height: 52,
     borderWidth: 1.5,
-    borderColor: '#374151',
-    backgroundColor: '#1F2937',
     borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-
-  passwordContainer: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#374151',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  passwordInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 15,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-
-  showButton: {
     paddingHorizontal: 14,
+    fontSize: 15,
   },
 
-  showText: {
-    color: '#A2F067',
-    fontWeight: '700',
-    fontSize: 14,
+  authPrimaryBtn: {
+    height: 54,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  forgotButton: {
-    alignSelf: 'flex-end',
+  authPrimaryBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  sentToRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: -12,
     marginBottom: 20,
   },
 
-  forgotText: {
-    color: '#A2F067',
+  sentToText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+
+  otpBox: {
+    width: 44,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  otpDigit: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  hiddenInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+
+  resendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
   },
 
   switchRow: {
@@ -503,12 +869,10 @@ const styles = StyleSheet.create({
   },
 
   switchText: {
-    color: '#CBD5E1',
     fontSize: 14,
   },
 
-  switchLink: {
-    color: '#A2F067',
+  linkText: {
     fontSize: 14,
     fontWeight: '800',
   },
