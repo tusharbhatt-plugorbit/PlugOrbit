@@ -1,0 +1,9 @@
+# Secrets: copy .env.example / serviceAccountKey.json.example and fill in locally
+.env
+serviceAccountKey.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

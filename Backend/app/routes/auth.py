@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from firebase_admin import auth
 
-from ..deps import get_bearer_token, get_current_user
+from ..deps import get_bearer_token, get_current_user, require_firebase
 from ..schemas import (AuthResponse, ForgotPasswordRequest, LoginRequest, MessageResponse,
                        RefreshRequest, SignupRequest, TokenResponse)
 from ..services import firebase_auth as fb
@@ -13,7 +13,8 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_firebase)])
 def signup(body: SignupRequest):
     data = fb.sign_up(body.email, body.password)
     uid = data["localId"]
@@ -23,7 +24,10 @@ def signup(body: SignupRequest):
         users.create_profile(uid, body.email, body.name)
     except Exception:
         log.exception("Profile creation failed, rolling back user %s", uid)
-        auth.delete_user(uid)
+        try:
+            auth.delete_user(uid)
+        except Exception:
+            log.exception("Rollback failed; user %s must be deleted manually", uid)
         raise HTTPException(status_code=500,
                             detail={"code": "SIGNUP_FAILED", "message": "Could not create account."})
 
@@ -40,7 +44,7 @@ def signup(body: SignupRequest):
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse, dependencies=[Depends(require_firebase)])
 def login(body: LoginRequest):
     data = fb.sign_in(body.email, body.password)
     return AuthResponse(

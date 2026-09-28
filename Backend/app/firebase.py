@@ -1,5 +1,5 @@
 import logging
-import os
+
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -11,8 +11,8 @@ log = logging.getLogger(__name__)
 def init_firebase() -> None:
     """Initialise the Firebase Admin SDK once per process if credentials file exists."""
     if not firebase_admin._apps:
-        cred_path = get_settings().firebase_credentials_path
-        if os.path.exists(cred_path):
+        cred_path = get_settings().credentials_file
+        if cred_path.exists():
             try:
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
