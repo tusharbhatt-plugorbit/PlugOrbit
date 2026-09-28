@@ -69,6 +69,61 @@ const darkAuthTheme: typeof lightAuthTheme = {
   buttonText: '#000000',
 };
 
+const LOGO_MARK = require('./assets/brand/logo-mark.png');
+
+type BrandLogoProps = {
+  size?: number;
+  // Soft lime "orbit" halo around the tile, for hero placements on dark screens.
+  glow?: boolean;
+  borderColor?: string;
+};
+
+// PlugOrbit "P" mark on a white rounded tile, matching the launcher icon.
+// The white tile keeps the logo's dark-navy stroke visible on dark backgrounds.
+function BrandLogo({
+  size = 40,
+  glow = false,
+  borderColor = 'rgba(255,255,255,0.9)',
+}: BrandLogoProps): React.JSX.Element {
+  const tile = (
+    <View
+      style={[
+        styles.brandTile,
+        {
+          width: size,
+          height: size,
+          borderRadius: size * 0.28,
+          padding: size * 0.14,
+          borderColor,
+        },
+        glow && styles.brandTileGlow,
+      ]}>
+      <Image
+        source={LOGO_MARK}
+        style={styles.brandMark}
+        resizeMode="contain"
+        accessibilityRole="image"
+        accessibilityLabel="PlugOrbit logo"
+      />
+    </View>
+  );
+
+  if (!glow) {
+    return tile;
+  }
+
+  const haloSize = size * 1.5;
+  return (
+    <View
+      style={[
+        styles.brandHalo,
+        {width: haloSize, height: haloSize, borderRadius: haloSize / 2},
+      ]}>
+      {tile}
+    </View>
+  );
+}
+
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
@@ -104,7 +159,7 @@ function AppContent(): React.JSX.Element {
           {/* Header & Logo Section */}
           <View style={styles.headerSection}>
             <View style={styles.logoBadge}>
-              <Text style={styles.logoIcon}>⚡</Text>
+              <BrandLogo size={64} glow />
             </View>
             <Text style={styles.brandTitle}>PlugOrbit</Text>
             <Text style={styles.mainHeading}>Welcome to PlugOrbit</Text>
@@ -279,12 +334,11 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
             ]}>
             {/* Logo & Theme Toggle */}
             <View style={styles.cardHeaderRow}>
-              <View
-                style={[
-                  styles.logoBadgeSmall,
-                  {backgroundColor: t.primarySoft, borderColor: t.cardBorder},
-                ]}>
-                <Text style={styles.logoIconSmall}>⚡</Text>
+              <View style={styles.cardBrand}>
+                <BrandLogo size={40} borderColor={t.cardBorder} />
+                <Text style={[styles.cardBrandText, {color: t.text}]}>
+                  PlugOrbit
+                </Text>
               </View>
               <Pressable
                 accessibilityRole="switch"
@@ -531,19 +585,42 @@ const styles = StyleSheet.create({
   },
 
   logoBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    borderWidth: 2,
-    borderColor: '#A2F067',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    backgroundColor: '#0F1A2A',
   },
 
-  logoIcon: {
-    fontSize: 26,
+  brandTile: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: {width: 0, height: 3},
+    elevation: 3,
+  },
+
+  brandTileGlow: {
+    shadowColor: '#A2F067',
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    shadowOffset: {width: 0, height: 0},
+    elevation: 10,
+  },
+
+  brandMark: {
+    width: '100%',
+    height: '100%',
+  },
+
+  brandHalo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(162, 240, 103, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(162, 240, 103, 0.28)',
   },
 
   brandTitle: {
@@ -676,17 +753,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  logoBadgeSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
+  cardBrand: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
 
-  logoIconSmall: {
-    fontSize: 20,
+  cardBrandText: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 
   themeToggle: {
