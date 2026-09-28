@@ -5,15 +5,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 
 function App(): React.JSX.Element {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent(): React.JSX.Element {
   // Navigation State: 'welcome' | 'login' | 'signup'
   const [screen, setScreen] = useState<'welcome' | 'login' | 'signup'>('welcome');
 
@@ -57,7 +65,7 @@ function App(): React.JSX.Element {
   if (screen === 'welcome') {
     return (
       <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+        <StatusBar barStyle="light-content" />
 
         <View style={styles.welcomeContainer}>
           {/* Header & Logo Section */}
@@ -118,7 +126,7 @@ function App(): React.JSX.Element {
   // --- LOGIN / SIGNUP SCREEN ---
   return (
     <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+      <StatusBar barStyle="light-content" />
 
       <KeyboardAvoidingView
         style={styles.container}
