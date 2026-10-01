@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Alert,
   Image,
@@ -235,18 +235,29 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
   const [loading, setLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const otpInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  // The in-flight "request", so it can be dropped if the user navigates away.
+  const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const t = darkMode ? darkAuthTheme : lightAuthTheme;
   const isSignup = mode === 'signup';
   const identifierType = detectIdentifierType(identifier);
 
-  // Reset the flow whenever the user switches between Sign In and Sign Up.
+  const cancelPending = useCallback(() => {
+    if (pendingRef.current !== null) {
+      clearTimeout(pendingRef.current);
+      pendingRef.current = null;
+    }
+  }, []);
+
+  // Reset the flow whenever the user switches between Sign In and Sign Up, and
+  // drop any in-flight request when that happens or when this screen goes away.
   useEffect(() => {
     setStep('identify');
     setOtp('');
     setResendIn(0);
     setLoading(false);
-  }, [mode]);
+    return cancelPending;
+  }, [mode, cancelPending]);
 
   // Countdown for the "Resend code" link.
   useEffect(() => {
@@ -268,7 +279,8 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
     }
 
     setLoading(true);
-    setTimeout(() => {
+    pendingRef.current = setTimeout(() => {
+      pendingRef.current = null;
       setLoading(false);
       setOtp('');
       setStep('verify');
@@ -287,7 +299,8 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
     }
 
     setLoading(true);
-    setTimeout(() => {
+    pendingRef.current = setTimeout(() => {
+      pendingRef.current = null;
       setLoading(false);
       Alert.alert(
         isSignup ? 'Account Created' : 'Success',
@@ -299,6 +312,8 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
   };
 
   const editIdentifier = () => {
+    cancelPending();
+    setLoading(false);
     setStep('identify');
     setOtp('');
     setResendIn(0);
@@ -433,9 +448,9 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
                     placeholderTextColor={t.textSubtle}
                     value={identifier}
                     onChangeText={setIdentifier}
-                    keyboardType={
-                      identifierType === 'phone' ? 'phone-pad' : 'email-address'
-                    }
+                    // Kept fixed: a numeric-looking prefix can still become an
+                    // email (e.g. 9876543210@gmail.com), and phone-pad has no "@".
+                    keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"

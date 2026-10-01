@@ -5,7 +5,7 @@ from firebase_admin import auth
 
 from ..deps import get_bearer_token, get_current_user, require_firebase
 from ..schemas import (AuthResponse, ForgotPasswordRequest, LoginRequest, MessageResponse,
-                       RefreshRequest, SignupRequest, TokenResponse)
+                       RefreshRequest, SignupRequest, TokenResponse, UserOut)
 from ..services import firebase_auth as fb
 from ..services import users
 
@@ -36,11 +36,20 @@ def signup(body: SignupRequest):
     except HTTPException:
         log.warning("Could not send verification email to %s", body.email)
 
+    # The account and profile already exist and the tokens are valid, so a failed
+    # read-back must not turn a successful signup into a 500 (a retry would only
+    # hit EMAIL_EXISTS). Answer from what we just created instead.
+    try:
+        user = users.get_profile(uid)
+    except Exception:
+        log.exception("Could not load profile for new user %s; using signup data", uid)
+        user = UserOut(uid=uid, email=body.email, name=body.name, email_verified=False)
+
     return AuthResponse(
         id_token=data["idToken"],
         refresh_token=data["refreshToken"],
         expires_in=int(data["expiresIn"]),
-        user=users.get_profile(uid),
+        user=user,
     )
 
 
@@ -65,7 +74,11 @@ def forgot_password(body: ForgotPasswordRequest):
     try:
         fb.send_password_reset(body.email)
     except HTTPException as exc:
-        if exc.status_code == 429:
+        # Hide only "no such account", so this endpoint can't be used to probe which
+        # emails are registered. Real failures (outage, misconfiguration, rate limit)
+        # must surface instead of claiming a reset link was sent.
+        code = exc.detail.get("code") if isinstance(exc.detail, dict) else None
+        if code != "EMAIL_NOT_FOUND":
             raise
     return MessageResponse(message="If an account exists for this email, a reset link has been sent.")
 

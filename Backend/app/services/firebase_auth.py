@@ -1,10 +1,14 @@
 """
 Wrapper around the Firebase Auth REST API.
 """
+import logging
+
 import httpx
 from fastapi import HTTPException, status
 
 from ..config import get_settings
+
+log = logging.getLogger(__name__)
 
 IDENTITY_URL = "https://identitytoolkit.googleapis.com/v1/accounts"
 TOKEN_URL = "https://securetoken.googleapis.com/v1/token"
@@ -30,13 +34,27 @@ def _raise_firebase_error(resp: httpx.Response) -> None:
         raw = resp.json()["error"]["message"]
     except Exception:
         raw = "UNKNOWN"
+    if raw.startswith("API key not valid"):
+        # Our own FIREBASE_WEB_API_KEY is wrong: a server fault, not the caller's.
+        log.error("Firebase rejected FIREBASE_WEB_API_KEY: %s", raw)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AUTH_MISCONFIGURED", "message": "Auth service is misconfigured. Try again later."},
+        )
     code = raw.split(" ")[0].split(":")[0]
     http_status, message = _ERRORS.get(code, (400, "Authentication failed."))
     raise HTTPException(status_code=http_status, detail={"code": code, "message": message})
 
 
 def _post(url: str, payload: dict, form: bool = False) -> dict:
-    params = {"key": get_settings().firebase_web_api_key}
+    api_key = get_settings().firebase_web_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AUTH_NOT_CONFIGURED",
+                    "message": "Server is not configured. Set FIREBASE_WEB_API_KEY in the Backend .env file."},
+        )
+    params = {"key": api_key}
     try:
         with httpx.Client(timeout=10) as client:
             if form:

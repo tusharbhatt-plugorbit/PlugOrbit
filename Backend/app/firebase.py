@@ -10,6 +10,9 @@ log = logging.getLogger(__name__)
 
 def init_firebase() -> None:
     """Initialise the Firebase Admin SDK once per process if credentials file exists."""
+    if not get_settings().firebase_web_api_key:
+        log.warning("FIREBASE_WEB_API_KEY is not set. Login, signup, token refresh and password reset "
+                    "will fail with 503 until it is added to Backend/.env.")
     if not firebase_admin._apps:
         cred_path = get_settings().credentials_file
         if cred_path.exists():
