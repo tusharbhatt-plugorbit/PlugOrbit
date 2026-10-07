@@ -1,6 +1,10 @@
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import {removeSavedRoute, setActiveRoute, toggleFavouriteStation} from '../../domain/favourites';
+import {
+  removeSavedRoute,
+  setActiveRoute,
+  toggleFavouriteStation,
+} from '../../domain/favourites';
 import type {RouteStrategy, SavedRoute} from '../../domain/types';
 import {loadStationsById} from '../../hooks/useDiscoverStations';
 import {useNavigation} from '../../navigation/NavigationContext';
@@ -138,9 +142,7 @@ function StationsTab() {
                 now={now}
                 favourite
                 testID={`saved-station-${s.id}`}
-                onPress={() =>
-                  nav.navigate('StationDetail', {stationId: s.id})
-                }
+                onPress={() => nav.navigate('StationDetail', {stationId: s.id})}
                 onToggleFavourite={() => unsave(s.id)}
               />
             ))}
