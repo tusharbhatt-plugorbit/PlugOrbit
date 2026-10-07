@@ -13,8 +13,9 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
+import HomeScreen from './src/screens/HomeScreen';
 
-type Screen = 'welcome' | 'login' | 'signup';
+type Screen = 'welcome' | 'login' | 'signup' | 'home';
 type AuthStep = 'identify' | 'verify';
 type IdentifierType = 'email' | 'phone' | null;
 
@@ -211,12 +212,18 @@ function AppContent(): React.JSX.Element {
     );
   }
 
+  // --- HOME: FIND A CHARGER ---
+  if (screen === 'home') {
+    return <HomeScreen onBack={() => setScreen('welcome')} />;
+  }
+
   // --- LOGIN / SIGNUP SCREEN (OTP based) ---
   return (
     <AuthScreen
       mode={screen}
       onSwitchMode={() => setScreen(screen === 'login' ? 'signup' : 'login')}
       onBack={() => setScreen('welcome')}
+      onAuthenticated={() => setScreen('home')}
     />
   );
 }
@@ -225,9 +232,10 @@ type AuthScreenProps = {
   mode: 'login' | 'signup';
   onSwitchMode: () => void;
   onBack: () => void;
+  onAuthenticated: () => void;
 };
 
-function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.Element {
+function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenProps): React.JSX.Element {
   const [darkMode, setDarkMode] = useState(false);
   const [step, setStep] = useState<AuthStep>('identify');
   const [identifier, setIdentifier] = useState('');
@@ -302,12 +310,7 @@ function AuthScreen({mode, onSwitchMode, onBack}: AuthScreenProps): React.JSX.El
     pendingRef.current = setTimeout(() => {
       pendingRef.current = null;
       setLoading(false);
-      Alert.alert(
-        isSignup ? 'Account Created' : 'Success',
-        isSignup
-          ? 'Your PlugOrbit account is ready!'
-          : `Welcome back, ${identifier.trim()}!`,
-      );
+      onAuthenticated();
     }, 1000);
   };
 
