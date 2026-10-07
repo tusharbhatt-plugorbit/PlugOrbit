@@ -9,9 +9,11 @@ import {useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {timeAgo} from '../../domain/trust';
 import {
+  Card,
   EmptyState,
   Icon,
-  PermissionPrompt,
+  IconButton,
+  PrimaryButton,
   Screen,
   SectionTitle,
   TextButton,
@@ -85,20 +87,40 @@ export default function NotificationsScreen(): React.JSX.Element {
       title="Notifications"
       right={
         unread > 0 ? (
-          <TextButton
-            label="Read all"
-            tone="onDark"
+          <IconButton
+            icon="check"
+            label="Mark all as read"
+            tone="dark"
             onPress={() => service.markAllRead()}
           />
         ) : null
       }>
       {!askedPermission && (
         <View style={styles.perm}>
-          <PermissionPrompt
-            kind="notifications"
-            onAllow={() => setAskedPermission(true)}
-            onSkip={() => setAskedPermission(true)}
-          />
+          <Card tone="lime">
+            <View style={styles.permRow}>
+              <Icon name="bell" size={22} color={colors.limeDark} />
+              <View style={styles.flex}>
+                <Text style={styles.permTitle}>Get charger-ready alerts</Text>
+                <Text style={styles.permBody}>
+                  We’ll tell you when a charger is ready, at 80%, and if a
+                  payment needs attention.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.permActions}>
+              <TextButton
+                label="Not now"
+                tone="muted"
+                onPress={() => setAskedPermission(true)}
+              />
+              <PrimaryButton
+                label="Allow"
+                compact
+                onPress={() => setAskedPermission(true)}
+              />
+            </View>
+          </Card>
         </View>
       )}
       {items.length === 0 ? (
