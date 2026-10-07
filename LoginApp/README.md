@@ -1,3 +1,14 @@
+# PlugOrbit mobile (showcase prototype)
+
+React Native + TypeScript app: find a compatible EV charger, plan a route with a
+backup stop, start and pay for a charge, and recover cleanly if the app is
+interrupted. 49 screens, all navigable, on a typed mock service layer.
+
+- Demo script: [`docs/DEMO_WALKTHROUGH.md`](docs/DEMO_WALKTHROUGH.md)
+- What is real vs mocked, and open decisions: [`docs/HANDOFF.md`](docs/HANDOFF.md)
+- How the code is organised: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Product spec: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
+
 # Google Maps, location & nearby chargers
 
 The **Find a Charger** screen uses:
