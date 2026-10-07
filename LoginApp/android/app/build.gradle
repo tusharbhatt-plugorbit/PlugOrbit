@@ -90,9 +90,9 @@ def readEnv(String name) {
     return value
 }
 
-def googleMapsApiKey = readEnv('GOOGLE_MAPS_API_KEY')
+def googleMapsApiKey = readEnv('GOOGLE_MAPS_ANDROID_KEY') ?: readEnv('GOOGLE_MAPS_API_KEY')
 if (!googleMapsApiKey) {
-    logger.warn('GOOGLE_MAPS_API_KEY is not set in LoginApp/.env: the map will be blank and nearby search will use demo chargers.')
+    logger.warn('Neither GOOGLE_MAPS_ANDROID_KEY nor GOOGLE_MAPS_API_KEY is set in LoginApp/.env: the map will be blank.')
 }
 
 android {

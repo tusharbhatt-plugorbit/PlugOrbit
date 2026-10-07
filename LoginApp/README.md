@@ -9,28 +9,33 @@ The **Find a Charger** screen uses:
 | Nearby charging stations | [Places API (New) – Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), type `electric_vehicle_charging_station`, with live connector counts from `evChargeOptions` |
 | Directions | Opens the Google Maps app/site via the [Maps URLs API](https://developers.google.com/maps/documentation/urls/get-started#directions-action) (no key needed) |
 
-## 1. Create an API key
+## 1. Create the API keys
 
-In [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) (billing must be enabled):
+In [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) (billing must be enabled), enable **Maps SDK for Android**, **Maps SDK for iOS** and **Places API (New)**, then create **separate keys**. A Google API key can carry only one kind of application restriction, and REST calls (Places) cannot carry an app identity, so one key cannot be locked down for all three uses:
 
-1. Enable **Maps SDK for Android**, **Maps SDK for iOS** and **Places API (New)**.
-2. Create an API key and **restrict it** (Android package `com.loginapp` + SHA-1, iOS bundle ID, and only the three APIs above). The key ships inside the app, so restriction is what protects it.
+| Key | Used by | Restrict to |
+|---|---|---|
+| `GOOGLE_MAPS_ANDROID_KEY` | Maps SDK on Android | Android app (`com.loginapp` + SHA-1) and the *Maps SDK for Android* API |
+| `GOOGLE_MAPS_IOS_KEY` | Maps SDK on iOS | iOS bundle ID and the *Maps SDK for iOS* API |
+| `GOOGLE_PLACES_API_KEY` | Nearby Search from JS | the *Places API (New)* API only, plus a low daily quota |
+
+The Places key ships inside the app bundle, so anyone can extract it. For production, call Places from the `Backend` service and keep that key server-side.
 
 ## 2. Configure the app
 
 ```sh
-cp .env.example .env     # then set GOOGLE_MAPS_API_KEY=...
+cp .env.example .env     # then fill in the keys above
 ```
 
-`.env` is git-ignored. One key feeds all three places:
+`.env` is git-ignored. For quick local work you may set only `GOOGLE_MAPS_API_KEY` (an unrestricted dev key); it is used for any key left empty.
 
 - **JS** (Places requests): inlined at bundle time by `react-native-dotenv`. Restart Metro with `npm start -- --reset-cache` after changing it.
 - **Android**: `android/app/build.gradle` reads `.env` into the `com.google.android.geo.API_KEY` manifest entry. Rebuild the app.
-- **iOS**: `ios/Podfile` copies it into the generated `Pods/.../*.xcconfig` as `GOOGLE_MAPS_API_KEY`; `Info.plist` (`GMSApiKey`) and `AppDelegate.swift` pick it up. Run `cd ios && bundle exec pod install` after changing it, then rebuild.
+- **iOS**: `ios/Podfile` copies the iOS key into the generated `Pods/.../*.xcconfig` as `GOOGLE_MAPS_API_KEY`; `Info.plist` (`GMSApiKey`) and `AppDelegate.swift` pick it up. Run `cd ios && bundle exec pod install` after changing it, then rebuild.
 
 ## Behaviour without a key / location
 
-- **No key**: the app still runs. It shows 5 demo chargers around New Delhi, an in-app notice says so, and iOS uses Apple Maps instead of Google.
+- **No keys**: the app still runs on its built-in demo chargers around New Delhi and iOS uses Apple Maps instead of Google; Places results only appear when a Places key is set.
 - **Location denied or unavailable**: the app explains why, searches around New Delhi instead, and the notice has a **Retry** button (the locate button also retries).
 - **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
 
@@ -38,7 +43,7 @@ cp .env.example .env     # then set GOOGLE_MAPS_API_KEY=...
 
 - Places returns up to 20 stations within 10 km, nearest first. Panning more than 2 km away offers **Search this area**. Tune `SEARCH_RADIUS_M` / `MAX_RESULTS` in `src/config/google.ts`.
 - Google doesn't publish tariffs, so price per kWh is only shown for demo data. Availability shows "Status unknown" when Google doesn't report it.
-- Requesting `evChargeOptions` bills at the Places *Enterprise* SKU. To avoid shipping a key in the app (and cap spend), call Places from the `Backend` service instead and keep the key server-side.
+- Requesting `places.evChargeOptions` makes each Nearby Search bill at the Places *Enterprise + Atmosphere* SKU (the opening-hours fields alone would be Enterprise); see the [data-fields page](https://developers.google.com/maps/documentation/places/web-service/data-fields) and current pricing before enabling it for many users.
 - Native changes (Podfile, manifest, Gradle, AppDelegate) were written without access to Xcode/Android SDK. Please build both platforms once and report anything that doesn't compile.
 
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).

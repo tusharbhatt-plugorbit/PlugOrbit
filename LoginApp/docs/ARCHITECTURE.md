@@ -89,16 +89,20 @@ Add a focused test next to the crawl for any non-trivial logic (`__tests__/<scre
 
 ### Visual check (browser preview)
 
-A react-native-web harness renders any screen in headless Chromium at 390x844:
+A react-native-web harness renders any screen in headless Chromium at 390x844 (iPhone-like safe areas).
+Use YOUR OWN agent name so concurrent builds don't collide:
 
 ```sh
 WEB=/tmp/claude-0/-home-user-PlugOrbit/0f7584b7-4273-5ae7-83d2-96022426ee59/scratchpad/web
-cd $WEB && node build.js && node shoot.js <out.png> "route=StationDetail&params=%7B%22stationId%22%3A%22st-chargezone-neemrana%22%7D" 1800
+$WEB/preview.sh <your-name> <out.png> "route=StationDetail&params=%7B%22stationId%22%3A%22st-chargezone-neemrana%22%7D" 1800
 ```
 
-Query options: `route`, `params` (JSON), `session=active|payment_due|payment_failed`, `soc=NN`, `novehicle=1`,
-`demo=offline,apiError,paymentFail,stationOccupied,integrationDown,locationDenied,cameraDenied,noCompatible`,
-`click=Label1|Label2` (clicks by accessible name before the screenshot). Open the PNG and look at it.
+Then Read the PNG and look at it critically (spacing, hierarchy, truncation, contrast, alignment, empty space). Iterate until it looks polished.
+
+Query options: `route`, `params` (URL-encoded JSON), `session=active|payment_due|payment_failed` (+ `elapsed=<seconds>`), `soc=NN`, `novehicle=1`, `fresh=1`,
+`demo=offline,apiError,paymentFail,stationOccupied,integrationDown,locationDenied,cameraDenied,noCompatible` (comma list),
+`click=Label1|Label2` (clicks by accessible name / text, in order, before the screenshot). The web preview uses a fake map and the same mock services as the app.
+Reference layouts (information hierarchy only): `/tmp/claude-0/-home-user-PlugOrbit/0f7584b7-4273-5ae7-83d2-96022426ee59/scratchpad/refpack/mobile/NN_*.png`.
 
 ## 9. Conventions
 

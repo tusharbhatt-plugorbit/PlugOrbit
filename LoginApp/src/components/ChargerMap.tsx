@@ -6,7 +6,7 @@ import React, {
 } from 'react';
 import {Platform, StyleSheet} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Region} from 'react-native-maps';
-import {hasGoogleApiKey} from '../config/google';
+import {hasIosMapsKey} from '../config/google';
 import type {StationWithDistance, Vehicle} from '../domain/types';
 import type {Coords} from '../utils/geo';
 import ChargerMarker from './ChargerMarker';
@@ -30,7 +30,7 @@ type Props = {
 // at map creation if it was never given a key, so only opt in when one exists;
 // without a key iOS falls back to Apple Maps.
 const MAP_PROVIDER =
-  Platform.OS === 'ios' && !hasGoogleApiKey ? undefined : PROVIDER_GOOGLE;
+  Platform.OS === 'ios' && !hasIosMapsKey ? undefined : PROVIDER_GOOGLE;
 
 const WIDE_DELTA = 0.08; // ~9 km across
 const CLOSE_DELTA = 0.02;

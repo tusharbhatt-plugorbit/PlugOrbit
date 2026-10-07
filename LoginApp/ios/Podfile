@@ -53,9 +53,10 @@ target 'LoginApp' do
     # reference $(GOOGLE_MAPS_API_KEY). It lands only in the generated, git-ignored
     # Pods/Target Support Files/*.xcconfig, never in a tracked file.
     begin
-      maps_key = read_env_value('GOOGLE_MAPS_API_KEY')
+      maps_key = read_env_value('GOOGLE_MAPS_IOS_KEY')
+      maps_key = read_env_value('GOOGLE_MAPS_API_KEY') if maps_key.empty?
       if maps_key.empty?
-        Pod::UI.warn 'GOOGLE_MAPS_API_KEY is not set in LoginApp/.env: iOS will use Apple Maps and demo chargers.'
+        Pod::UI.warn 'Neither GOOGLE_MAPS_IOS_KEY nor GOOGLE_MAPS_API_KEY is set in LoginApp/.env: iOS will use Apple Maps.'
       end
       installer.aggregate_targets.each do |aggregate_target|
         aggregate_target.xcconfigs.each do |config_name, config_file|

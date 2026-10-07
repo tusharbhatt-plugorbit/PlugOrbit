@@ -1,14 +1,14 @@
 import React, {useEffect, useRef} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
-import {hasGoogleApiKey} from '../config/google';
+import {hasIosMapsKey} from '../config/google';
 import type {Route} from '../domain/types';
 import {colors, radii} from '../theme';
 import type {Coords} from '../utils/geo';
 import {Icon} from './Icon';
 
 const PROVIDER =
-  Platform.OS === 'ios' && !hasGoogleApiKey ? undefined : PROVIDER_GOOGLE;
+  Platform.OS === 'ios' && !hasIosMapsKey ? undefined : PROVIDER_GOOGLE;
 
 function bounds(points: readonly Coords[]) {
   const lats = points.map(p => p.latitude);
