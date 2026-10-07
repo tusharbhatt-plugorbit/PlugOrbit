@@ -45,6 +45,13 @@ export default function QueueScreen(): React.JSX.Element {
     {enabled: !mine},
   );
 
+  // "A bay is free" is only ever claimed from a live operator feed.
+  const bayFree =
+    !mine &&
+    waitRes.data !== null &&
+    waitRes.data.maxMinutes === 0 &&
+    waitRes.data.basis === 'live_queue';
+
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +118,22 @@ export default function QueueScreen(): React.JSX.Element {
             icon="log-out"
             onPress={() => setLeaving(true)}
           />
+        ) : bayFree ? (
+          <>
+            <PrimaryButton
+              label="Go to this charger"
+              icon="send"
+              onPress={() =>
+                nav.replace('Navigation', {stationId: params.stationId})
+              }
+            />
+            <SecondaryButton
+              label="Join queue anyway"
+              icon="users"
+              loading={busy}
+              onPress={join}
+            />
+          </>
         ) : (
           <PrimaryButton
             label="Join queue"
@@ -189,11 +212,19 @@ export default function QueueScreen(): React.JSX.Element {
                   )}
                 />
               </Card>
-              <Notice
-                tone="info"
-                title="You’ll keep your place"
-                body="We’ll alert you when a bay frees up. Leave any time; there’s no charge for queuing."
-              />
+              {bayFree ? (
+                <Notice
+                  tone="lime"
+                  title="A bay is free right now"
+                  body="No need to queue. Head there and start charging, or join anyway to hold your place if it fills up."
+                />
+              ) : (
+                <Notice
+                  tone="info"
+                  title="You’ll keep your place"
+                  body="We’ll alert you when a bay frees up. Leave any time; there’s no charge for queuing."
+                />
+              )}
               {error && (
                 <Notice tone="danger" title="Couldn’t join" body={error} />
               )}

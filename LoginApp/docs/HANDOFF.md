@@ -29,7 +29,7 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 ## Verification
 
 - `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
-  (186 tests).
+  (295 tests).
 - `__tests__/crawl.test.tsx` mounts every route, presses every button, requires
   an accessible label on each, checks each press navigates somewhere valid, and
   checks every route is reachable from Home. Payment and PaymentFailure need a
@@ -39,6 +39,41 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - Visual QA was done by rendering the real screens with react-native-web in
   headless Chromium (see ARCHITECTURE.md §8). It is a layout check, not a
   substitute for a device pass.
+
+## Independent review
+
+Before handoff the app went through a read-only adversarial review (six
+lenses: native setup, security/keys, races and restart recovery, product-truth
+rules, dead ends and states, domain correctness; two skeptical verifiers per
+finding). 33 findings survived verification and are fixed, each with a
+regression test. The ones that mattered most:
+
+- Reset demo data stopped persistence for the rest of the run; resuming an
+  unpaid or failed session from the banner/tabs crashed; a second start could
+  overwrite an open session; a failed pre-authorisation could leave a phantom
+  session.
+- "No wait expected" was claimed for estimated feeds; Forecast said "Live now"
+  for any station; backups could be 100+ km away; "Switch to backup" went to a
+  different station than the one shown; route stops invented a price.
+- Google Places chargers appeared on Home but could not be opened, and carried
+  invented connector/rating data.
+- On Android the Play Services location request could hang or collide.
+- With the phone far from the demo data (Delhi/NCR) there were no chargers at
+  all. It now falls back to demo chargers around New Delhi and says so.
+- WCAG AA text contrast and 44 px touch targets across all 49 screens.
+
+Known limits left on purpose:
+
+- Some routes legitimately have a stop with **no backup** (for example Jaipur to
+  Delhi starting at Shahpura, and the Nissan Leaf): the screen shows a warning
+  rather than recommending a far-away or unreachable backup.
+- Google Places chargers are cached in memory only. A *saved* Google charger
+  shows "not available right now" after a restart until it is found again
+  nearby. Fetching a single place by id would fix it.
+- JS and native decide "iOS has a Maps key" from the same `.env` at different
+  times: re-run `pod install` and rebuild after changing keys.
+- Privacy switches other than "Vehicle battery data" are saved but not
+  enforced until there is a backend; the screen says so.
 
 ## Integrations still mocked (every one is marked `TODO(integration)`)
 

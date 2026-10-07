@@ -256,16 +256,15 @@ const communityLog = new Map<string, CommunityUpdate[]>();
 // Beyond this a "backup" for a queue isn't a backup, it's another trip.
 const QUEUE_BACKUP_MAX_KM = 60;
 
-/** Mock plus Google stations within reach of `query.origin`, nearest first. */
-async function around(query: StationQuery): Promise<StationWithDistance[]> {
+/** Mock plus Google stations within reach of `origin`, nearest first. */
+async function inReach(origin: Coords): Promise<StationWithDistance[]> {
   const [mock, google] = await Promise.all([
     Promise.resolve(loadStations()),
-    googleStations(query.origin),
+    googleStations(origin),
   ]);
   return [...mock, ...google]
-    .map(s => withDistanceTo(s, query.origin))
+    .map(s => withDistanceTo(s, origin))
     .filter(s => s.distanceKm <= NEARBY_RADIUS_KM)
-    .filter(s => query.includeIncompatible || isCompatible(s, query.vehicle))
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
@@ -276,17 +275,21 @@ export function createStationService(): StationService {
       if (demoStore.get().noCompatible) {
         return [];
       }
-      const found = await around(query);
+      let reachable = await inReach(query.origin);
       // The built-in chargers are all around New Delhi. A phone far from there
       // that Google found nothing for would otherwise see an empty app, so look
       // around the demo centre instead; callers tell the driver (isDemoFallback).
+      // Only when nothing at all is in reach: chargers that merely don't fit
+      // the car are a real answer ("none compatible"), not a reason to move.
       if (
-        found.length === 0 &&
+        reachable.length === 0 &&
         isOutsideDemoArea(query.origin, DEFAULT_CENTER)
       ) {
-        return around({...query, origin: DEFAULT_CENTER});
+        reachable = await inReach(DEFAULT_CENTER);
       }
-      return found;
+      return reachable.filter(
+        s => query.includeIncompatible || isCompatible(s, query.vehicle),
+      );
     },
 
     async get(stationId, origin) {

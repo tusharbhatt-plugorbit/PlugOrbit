@@ -48,7 +48,7 @@ export default function NavigationScreen(): React.JSX.Element {
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const route = useApp(s => s.activeRoute);
-  const {origin, known, ready} = useUserOrigin();
+  const {origin, known, ready, demoArea} = useUserOrigin();
   const now = useNow(15_000);
   const handled = useRef(false);
 
@@ -122,6 +122,7 @@ export default function NavigationScreen(): React.JSX.Element {
             station={station}
             origin={origin}
             known={known}
+            demoArea={demoArea}
             now={now}
             stop={stop}
           />
@@ -135,12 +136,14 @@ function Body({
   station,
   origin,
   known,
+  demoArea,
   now,
   stop,
 }: {
   station: StationWithDistance;
   origin: {latitude: number; longitude: number};
   known: boolean;
+  demoArea: boolean;
   now: number;
   /** The plan's stop for this charger, when it is one. */
   stop?: RouteStop;
@@ -189,9 +192,11 @@ function Body({
           {formatDistance(station.distanceKm)} • about {driveMin} min • arrive{' '}
           {formatClock(arrive)}
         </Text>
-        {!known && (
+        {(!known || demoArea) && (
           <Text style={styles.warn}>
-            Location is off, so distance is measured from New Delhi.
+            {demoArea
+              ? 'You’re far from the demo chargers, so distance is measured from New Delhi.'
+              : 'Location is off, so distance is measured from New Delhi.'}
           </Text>
         )}
       </Card>

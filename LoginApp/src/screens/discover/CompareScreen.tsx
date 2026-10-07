@@ -159,7 +159,7 @@ function PickCard({
   const title = !winner
     ? 'Not enough data'
     : result.allTied
-    ? 'No difference between these chargers'
+    ? 'All equal on this'
     : names;
   const body = !winner
     ? 'None of these chargers publish this yet.'

@@ -15,6 +15,8 @@ import {resetDemo, demoStore} from '../src/store/demoStore';
 import {seedState} from '../src/store/seed';
 import type {Vehicle} from '../src/domain/types';
 import {computeSessionMetrics} from '../src/domain/charging';
+import {waitLabel} from '../src/domain/rules';
+import {loadStations, waitFor} from '../src/services/mock/stationService';
 
 const services = createMockServices();
 
@@ -81,6 +83,80 @@ describe('stationService', () => {
     const busy = await services.station.waitEstimate('st-tata-citymall');
     expect(busy.maxMinutes).toBeGreaterThan(busy.minMinutes);
     expect(['low', 'medium', 'high']).toContain(busy.confidence);
+  });
+});
+
+describe('wait estimates only claim "no wait" from a live feed', () => {
+  const FREE_NOT_LIVE = [
+    'st-jiobp-lodhi', // google_places: estimated
+    'st-eesl-greenpark', // user report
+    'st-tata-behror', // operator feed gone quiet (26 min)
+  ];
+
+  test('a free bay from an estimate, a driver or a stale feed is a low range', async () => {
+    for (const id of FREE_NOT_LIVE) {
+      const w = await services.station.waitEstimate(id, nexon);
+      expect(w.maxMinutes).toBeGreaterThan(0);
+      expect(w.confidence).toBe('low');
+      expect(w.basis).toBe('reported');
+      expect(waitLabel(w)).not.toBe('No wait expected');
+    }
+  });
+
+  test('a free bay on a live operator feed is still "no wait", high confidence', async () => {
+    const w = await services.station.waitEstimate(
+      'st-chargezone-manesar',
+      nexon,
+    );
+    expect(w).toMatchObject({
+      minMinutes: 0,
+      maxMinutes: 0,
+      confidence: 'high',
+      basis: 'live_queue',
+    });
+    expect(waitLabel(w)).toBe('No wait expected');
+  });
+
+  test('a busy charger on a quiet feed gets a wider, lower range than a live one', async () => {
+    const quiet = await services.station.waitEstimate(
+      'st-tata-citymall',
+      nexon,
+    );
+    expect(quiet.confidence).toBe('low');
+    expect(quiet.maxMinutes).toBeGreaterThan(quiet.minMinutes);
+    const bays = loadStations().find(s => s.id === 'st-chargezone-sec16')!;
+    const liveBusy = waitFor(
+      {
+        ...bays,
+        connectors: bays.connectors.map(c => ({...c, status: 'occupied'})),
+      },
+      nexon,
+    );
+    expect(liveBusy.confidence).toBe('medium');
+    expect(quiet.maxMinutes - quiet.minMinutes).toBeGreaterThan(
+      liveBusy.maxMinutes - liveBusy.minMinutes,
+    );
+  });
+
+  test('unknown occupancy is "wait unknown", never a number', async () => {
+    const zeon = await services.station.waitEstimate(
+      'st-zeon-karolbagh',
+      nexon,
+    );
+    expect(zeon.basis).toBe('none');
+    expect(waitLabel(zeon)).toBe('Wait unknown');
+  });
+
+  test('the answer depends on the car: a free CHAdeMO bay does not help a Nexon', async () => {
+    const forNexon = await services.station.waitEstimate(
+      'st-statiq-rajiv',
+      nexon,
+    );
+    const forAnyone = await services.station.waitEstimate('st-statiq-rajiv');
+    expect(forNexon.basis).not.toBe('reported');
+    expect(forAnyone.basis).toBe('reported');
+    // And neither is a high-confidence "no wait" on a feed 20 minutes old.
+    expect(forAnyone.confidence).toBe('low');
   });
 });
 

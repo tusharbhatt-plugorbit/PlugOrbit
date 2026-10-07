@@ -17,7 +17,7 @@ The **Find a Charger** screen uses:
 |---|---|
 | Current location | `@react-native-community/geolocation` (Android: Google's Fused Location Provider via Play Services; iOS: Core Location) |
 | Map | `react-native-maps` with the Google Maps SDK (Android + iOS) |
-| Nearby charging stations | [Places API (New) – Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), type `electric_vehicle_charging_station`, with live connector counts from `evChargeOptions` |
+| Nearby charging stations | [Places API (New) – Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), type `electric_vehicle_charging_station`, with connector types, power and availability counts from `evChargeOptions` (labelled Estimated, never LIVE, and with Google's own update time when it provides one) |
 | Directions | Opens the Google Maps app/site via the [Maps URLs API](https://developers.google.com/maps/documentation/urls/get-started#directions-action) (no key needed) |
 
 ## 1. Create the API keys

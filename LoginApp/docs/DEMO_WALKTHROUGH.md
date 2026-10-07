@@ -12,6 +12,9 @@ layer, so it behaves the same on every device and with no network.
      an empty grey map. A grey map with a key set almost always means the key's
      package name / SHA-1 restriction doesn't match the build you installed.
 2. Sign in: any mobile number or email, then any 6-digit code.
+   If the phone is far from Delhi/NCR the app shows demo chargers around New
+   Delhi and says so ("No chargers near you. Showing demo chargers around New
+   Delhi."), so the demo works from any city.
 3. First run only: add the car (Vehicle setup → pick Tata Nexon EV) and set the
    battery to about 60% (Current battery).
 4. Reset between rehearsals: **Profile → Presenter tools → Reset demo data**.
