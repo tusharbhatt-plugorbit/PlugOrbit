@@ -312,7 +312,7 @@ describe('waits never claim more than their source can back', () => {
     expect(REPORTED_FREE_WAIT.confidence).toBe('low');
     expect(REPORTED_FREE_WAIT.maxMinutes).toBeGreaterThan(0);
     expect(waitLabel(REPORTED_FREE_WAIT)).toBe('Up to ~10 min');
-    expect(waitBasisLabel(REPORTED_FREE_WAIT)).toMatch(/not a live feed/);
+    expect(waitBasisLabel(REPORTED_FREE_WAIT)).toMatch(/isn’t a live feed/);
   });
 
   test('a live wait is re-stated once its feed stops being live', () => {
@@ -368,14 +368,20 @@ describe('availability headline says LIVE only for a live feed', () => {
   test('estimated, user and stale feeds say when they were last reported', () => {
     expect(
       availabilityHeadline(
-        {...two, statusFeed: {source: 'google_places', updatedAt: NOW - 240_000}},
+        {
+          ...two,
+          statusFeed: {source: 'google_places', updatedAt: NOW - 240_000},
+        },
         NEXON,
         NOW,
       ),
     ).toBe('Last reported 4 min ago: 1 of 2 free');
     expect(
       availabilityHeadline(
-        {...two, statusFeed: {source: 'user_report', updatedAt: NOW - 18 * 60_000}},
+        {
+          ...two,
+          statusFeed: {source: 'user_report', updatedAt: NOW - 18 * 60_000},
+        },
         NEXON,
         NOW,
       ),
@@ -399,14 +405,16 @@ describe('availability headline says LIVE only for a live feed', () => {
       statusFeed: {source: 'none' as const, updatedAt: null},
     };
     expect(availabilityHeadline(unknown, NEXON, NOW)).toBe('Status unknown');
-    expect(
-      availabilityHeadline({...unknown, connectors: []}, NEXON, NOW),
-    ).toBe('Status unknown');
+    expect(availabilityHeadline({...unknown, connectors: []}, NEXON, NOW)).toBe(
+      'Status unknown',
+    );
   });
 
   test('counts only the bays this car can use', () => {
     const mixed = station(); // C1 CCS2 + C2 CHAdeMO, both free
-    expect(availabilityHeadline(mixed, NEXON, NOW)).toBe('Live now: 1 of 1 free');
+    expect(availabilityHeadline(mixed, NEXON, NOW)).toBe(
+      'Live now: 1 of 1 free',
+    );
   });
 });
 
@@ -454,9 +462,9 @@ describe('a charger whose connectors are unknown is never "compatible"', () => {
       {minPowerKw: 50},
       {availableOnly: true},
     ]) {
-      expect(applyFilters([unconfirmed], {...reveal, ...narrower}, NEXON)).toEqual(
-        [],
-      );
+      expect(
+        applyFilters([unconfirmed], {...reveal, ...narrower}, NEXON),
+      ).toEqual([]);
     }
     // With no car set nothing can be ruled out, so nothing is hidden.
     expect(applyFilters([unconfirmed], DEFAULT_FILTERS, null)).toEqual([
@@ -489,9 +497,9 @@ describe('the demo chargers are around New Delhi', () => {
   test('far-away phones are outside the demo area, nearby ones are not', () => {
     expect(isOutsideDemoArea(CALIFORNIA, DELHI)).toBe(true);
     expect(isOutsideDemoArea(MUMBAI, DELHI)).toBe(true);
-    expect(isOutsideDemoArea({latitude: 26.9124, longitude: 75.7873}, DELHI)).toBe(
-      false,
-    );
+    expect(
+      isOutsideDemoArea({latitude: 26.9124, longitude: 75.7873}, DELHI),
+    ).toBe(false);
   });
 
   test('results from around Delhi are recognised as a fallback', () => {
