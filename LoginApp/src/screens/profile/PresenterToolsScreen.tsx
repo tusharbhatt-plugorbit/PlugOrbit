@@ -169,6 +169,9 @@ export default function PresenterToolsScreen(): React.JSX.Element {
           title="Make my chosen charger occupied"
           subtitle="Triggers the backup-charger alert"
           onPress={() => {
+            // Off then on, so the override re-targets the CURRENT chosen charger
+            // even if the switch was already on from an earlier run.
+            demoStore.set({stationOccupied: false});
             demoStore.set({stationOccupied: true});
             nav.navigate('BackupAlert');
           }}

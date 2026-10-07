@@ -11,16 +11,30 @@ import {
 } from '../src/domain/charging';
 import {
   DEFAULT_FILTERS,
+  REPORTED_FREE_WAIT,
   applyFilters,
+  availabilityHeadline,
+  availableCount,
+  compatibleConnectors,
+  hasRating,
+  hasUnconfirmedConnectors,
+  isCompatible,
+  isDemoFallback,
+  isOutsideDemoArea,
+  lowestPrice,
+  maxPowerKw,
   organicScore,
   rankOrganic,
   stationHealth,
+  waitAtTime,
+  waitBasisLabel,
   waitLabel,
 } from '../src/domain/rules';
 import {
   LIVE_MAX_AGE_MS,
   dataTrust,
   isStale,
+  priceAgeLabel,
   timeAgo,
 } from '../src/domain/trust';
 import type {
@@ -267,6 +281,225 @@ describe('wait estimates are ranges with a confidence label', () => {
         basis: 'none',
       }),
     ).toBe('Wait unknown');
+  });
+});
+
+describe('waits never claim more than their source can back', () => {
+  const live = {source: 'operator_feed' as const, updatedAt: NOW - 20_000};
+  const estimated = {source: 'google_places' as const, updatedAt: NOW - 60_000};
+
+  test('"No wait expected" belongs to a live queue only', () => {
+    expect(
+      waitLabel({
+        minMinutes: 0,
+        maxMinutes: 0,
+        confidence: 'high',
+        basis: 'live_queue',
+      }),
+    ).toBe('No wait expected');
+    // A zero range from any other basis is not a promise of no wait.
+    expect(
+      waitLabel({
+        minMinutes: 0,
+        maxMinutes: 0,
+        confidence: 'low',
+        basis: 'reported',
+      }),
+    ).toBe('Wait unknown');
+  });
+
+  test('a bay reported free by a non-live source is a wide, low range', () => {
+    expect(REPORTED_FREE_WAIT.confidence).toBe('low');
+    expect(REPORTED_FREE_WAIT.maxMinutes).toBeGreaterThan(0);
+    expect(waitLabel(REPORTED_FREE_WAIT)).toBe('Up to ~10 min');
+    expect(waitBasisLabel(REPORTED_FREE_WAIT)).toMatch(/not a live feed/);
+  });
+
+  test('a live wait is re-stated once its feed stops being live', () => {
+    const noWait = {
+      minMinutes: 0,
+      maxMinutes: 0,
+      confidence: 'high' as const,
+      basis: 'live_queue' as const,
+    };
+    expect(waitAtTime(noWait, live, NOW)).toBe(noWait);
+    expect(waitAtTime(noWait, live, NOW + LIVE_MAX_AGE_MS + 60_000)).toBe(
+      REPORTED_FREE_WAIT,
+    );
+    expect(waitAtTime(noWait, estimated, NOW)).toBe(REPORTED_FREE_WAIT);
+    const history = {
+      minMinutes: 10,
+      maxMinutes: 18,
+      confidence: 'medium' as const,
+      basis: 'history' as const,
+    };
+    expect(waitAtTime(history, estimated, NOW)).toBe(history);
+  });
+});
+
+describe('availability headline says LIVE only for a live feed', () => {
+  const two = station({
+    connectors: [
+      {
+        id: 'c1',
+        label: 'C1',
+        type: 'CCS2',
+        powerKw: 60,
+        status: 'available',
+        pricePerKwh: 18,
+        idleFeePerMin: null,
+      },
+      {
+        id: 'c2',
+        label: 'C2',
+        type: 'CCS2',
+        powerKw: 60,
+        status: 'occupied',
+        pricePerKwh: 18,
+        idleFeePerMin: null,
+      },
+    ],
+  });
+
+  test('live operator feed', () => {
+    expect(availabilityHeadline(two, NEXON, NOW)).toBe('Live now: 1 of 2 free');
+  });
+
+  test('estimated, user and stale feeds say when they were last reported', () => {
+    expect(
+      availabilityHeadline(
+        {...two, statusFeed: {source: 'google_places', updatedAt: NOW - 240_000}},
+        NEXON,
+        NOW,
+      ),
+    ).toBe('Last reported 4 min ago: 1 of 2 free');
+    expect(
+      availabilityHeadline(
+        {...two, statusFeed: {source: 'user_report', updatedAt: NOW - 18 * 60_000}},
+        NEXON,
+        NOW,
+      ),
+    ).toBe('Last reported 18 min ago: 1 of 2 free');
+    expect(
+      availabilityHeadline(
+        {
+          ...two,
+          statusFeed: {source: 'operator_feed', updatedAt: NOW - 20 * 60_000},
+        },
+        NEXON,
+        NOW,
+      ),
+    ).toBe('Last reported 20 min ago: 1 of 2 free');
+  });
+
+  test('no status never turns into "0 free"', () => {
+    const unknown = {
+      ...two,
+      connectors: two.connectors.map(c => ({...c, status: 'unknown' as const})),
+      statusFeed: {source: 'none' as const, updatedAt: null},
+    };
+    expect(availabilityHeadline(unknown, NEXON, NOW)).toBe('Status unknown');
+    expect(
+      availabilityHeadline({...unknown, connectors: []}, NEXON, NOW),
+    ).toBe('Status unknown');
+  });
+
+  test('counts only the bays this car can use', () => {
+    const mixed = station(); // C1 CCS2 + C2 CHAdeMO, both free
+    expect(availabilityHeadline(mixed, NEXON, NOW)).toBe('Live now: 1 of 1 free');
+  });
+});
+
+describe('prices always say how old they are', () => {
+  test('only a fresh operator feed is stated plainly', () => {
+    expect(
+      priceAgeLabel({source: 'operator_feed', updatedAt: NOW - 120_000}, NOW),
+    ).toBe('Price updated 2 min ago');
+    expect(
+      priceAgeLabel({source: 'operator_feed', updatedAt: NOW - 3600_000}, NOW),
+    ).toBe('Price (estimated), updated 1 h ago');
+    expect(
+      priceAgeLabel({source: 'user_report', updatedAt: NOW - 46 * 60_000}, NOW),
+    ).toBe('Price (user-confirmed), updated 46 min ago');
+    expect(priceAgeLabel({source: 'none', updatedAt: null}, NOW)).toBe(
+      'Price never updated',
+    );
+  });
+});
+
+describe('a charger whose connectors are unknown is never "compatible"', () => {
+  const unconfirmed = station({
+    id: 'g-x',
+    connectors: [],
+    rating: 0,
+    reliabilityPct: 0,
+    successfulSessionsPct: 0,
+    integration: 'external',
+    statusFeed: {source: 'none', updatedAt: null},
+    priceFeed: {source: 'none', updatedAt: null},
+  });
+
+  test('it is flagged, and hidden by default when a car is set', () => {
+    expect(hasUnconfirmedConnectors(unconfirmed)).toBe(true);
+    expect(hasUnconfirmedConnectors(station())).toBe(false);
+    expect(isCompatible(unconfirmed, NEXON)).toBe(false);
+    expect(applyFilters([unconfirmed], DEFAULT_FILTERS, NEXON)).toEqual([]);
+  });
+
+  test('it can be revealed, but connector filters can never match it', () => {
+    const reveal = {...DEFAULT_FILTERS, includeIncompatible: true};
+    expect(applyFilters([unconfirmed], reveal, NEXON)).toEqual([unconfirmed]);
+    for (const narrower of [
+      {connector: 'CCS2' as const},
+      {minPowerKw: 50},
+      {availableOnly: true},
+    ]) {
+      expect(applyFilters([unconfirmed], {...reveal, ...narrower}, NEXON)).toEqual(
+        [],
+      );
+    }
+    // With no car set nothing can be ruled out, so nothing is hidden.
+    expect(applyFilters([unconfirmed], DEFAULT_FILTERS, null)).toEqual([
+      unconfirmed,
+    ]);
+  });
+
+  test('every derived number stays a real number', () => {
+    expect(compatibleConnectors(unconfirmed, NEXON)).toEqual([]);
+    expect(availableCount(unconfirmed, NEXON)).toBe(0);
+    expect(lowestPrice(unconfirmed, NEXON)).toBeNull();
+    expect(maxPowerKw(unconfirmed, NEXON)).toBe(0);
+    expect(stationHealth(unconfirmed, NEXON)).toBe('unknown');
+    const score = organicScore(unconfirmed, NEXON);
+    expect(Number.isFinite(score)).toBe(true);
+    expect(rankOrganic([unconfirmed, station()], NEXON)[0].id).toBe('s1');
+  });
+
+  test('an unrated charger has no rating to show', () => {
+    expect(hasRating(unconfirmed)).toBe(false);
+    expect(hasRating(station())).toBe(true);
+  });
+});
+
+describe('the demo chargers are around New Delhi', () => {
+  const DELHI = {latitude: 28.6139, longitude: 77.209};
+  const CALIFORNIA = {latitude: 37.42, longitude: -122.08};
+  const MUMBAI = {latitude: 19.076, longitude: 72.8777};
+
+  test('far-away phones are outside the demo area, nearby ones are not', () => {
+    expect(isOutsideDemoArea(CALIFORNIA, DELHI)).toBe(true);
+    expect(isOutsideDemoArea(MUMBAI, DELHI)).toBe(true);
+    expect(isOutsideDemoArea({latitude: 26.9124, longitude: 75.7873}, DELHI)).toBe(
+      false,
+    );
+  });
+
+  test('results from around Delhi are recognised as a fallback', () => {
+    expect(isDemoFallback(CALIFORNIA, [DELHI])).toBe(true);
+    expect(isDemoFallback(DELHI, [DELHI])).toBe(false);
+    expect(isDemoFallback(CALIFORNIA, [])).toBe(false);
+    // One charger actually near the phone means it was a normal search.
+    expect(isDemoFallback(CALIFORNIA, [DELHI, CALIFORNIA])).toBe(false);
   });
 });
 
