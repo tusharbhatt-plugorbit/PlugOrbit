@@ -1,6 +1,6 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {colors, radii, sizes, spacing, type} from '../theme';
+import {colors, radii, sizes, slopFor, spacing, type} from '../theme';
 
 /**
  * A single row of equal-width preset values ("20% 40% 60% 80% 100%") that never
@@ -31,6 +31,7 @@ export function QuickValueChips({
             accessibilityRole="button"
             accessibilityLabel={`Set ${format(v)}`}
             accessibilityState={{selected}}
+            hitSlop={slopFor(36)}
             style={({pressed}) => [
               styles.chip,
               selected && styles.selected,

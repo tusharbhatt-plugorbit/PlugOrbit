@@ -55,6 +55,15 @@ export const sizes = {
   maxContent: 560,
 } as const;
 
+/**
+ * Invisible touch-area extension so compact controls (36-40px chips, tabs)
+ * still give a 44px target without changing how they look.
+ */
+export function slopFor(height: number): {top: number; bottom: number} {
+  const v = Math.max(0, Math.ceil((sizes.tap - height) / 2));
+  return {top: v, bottom: v};
+}
+
 // Type scale lifted from Welcome/Login/Home (weights 500-800, no custom font).
 export const type = {
   brand: {fontSize: 24, fontWeight: '800', letterSpacing: 0.5},

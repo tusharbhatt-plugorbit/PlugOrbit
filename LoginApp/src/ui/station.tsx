@@ -146,7 +146,7 @@ export const ChargerCard = React.memo(function ChargerCardInner({
         {onToggleFavourite && (
           <Pressable
             onPress={onToggleFavourite}
-            hitSlop={10}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={
               favourite ? 'Remove from saved' : 'Save station'

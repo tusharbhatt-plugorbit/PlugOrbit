@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '../navigation/NavigationContext';
 import {selectActiveVehicle, useApp} from '../store/appStore';
-import {colors, radii, spacing, type} from '../theme';
+import {colors, radii, slopFor, spacing, type} from '../theme';
 import {useServices} from '../services';
 import {BottomSheet} from './BottomSheet';
 import {PrimaryButton, SecondaryButton} from './Buttons';
@@ -26,6 +26,7 @@ export function VehicleSelector({tone = 'dark'}: {tone?: 'dark' | 'light'}) {
     <>
       <Pressable
         onPress={() => (vehicle ? setOpen(true) : nav.navigate('VehicleSetup'))}
+        hitSlop={slopFor(40)}
         accessibilityRole="button"
         accessibilityLabel={
           vehicle

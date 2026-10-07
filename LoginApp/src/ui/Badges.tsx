@@ -10,7 +10,7 @@ import type {
   TrustLevel,
 } from '../domain/types';
 import {CONFIDENCE_LABEL, connectorStatusLabel} from '../domain/rules';
-import {colors, radii, spacing, type} from '../theme';
+import {colors, radii, slopFor, spacing, type} from '../theme';
 import {Icon, IconName} from './Icon';
 
 type Tone = 'lime' | 'amber' | 'info' | 'slate' | 'danger' | 'dark';
@@ -161,6 +161,7 @@ export function ConnectorChip({
   return (
     <Pressable
       onPress={onPress}
+      hitSlop={slopFor(40)}
       accessibilityRole="button"
       accessibilityState={{selected: !!selected}}
       accessibilityLabel={`${connector.label}, ${connector.type}, ${

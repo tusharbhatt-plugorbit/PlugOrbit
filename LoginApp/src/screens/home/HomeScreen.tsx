@@ -21,7 +21,7 @@ import type {StationWithDistance} from '../../domain/types';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
-import {colors, elevation, radii, spacing, type} from '../../theme';
+import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
 import {
   Icon,
   LogoTile,
@@ -203,6 +203,7 @@ function HomeScreen(): React.JSX.Element {
             <Pressable
               key={f}
               onPress={() => setQuick(f)}
+              hitSlop={slopFor(36)}
               accessibilityRole="button"
               accessibilityState={{selected: active}}
               style={({pressed}) => [

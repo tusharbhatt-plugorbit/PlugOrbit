@@ -11,7 +11,7 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
-import {colors, elevation, radii, sizes, spacing, type} from '../theme';
+import {colors, elevation, radii, sizes, slopFor, spacing, type} from '../theme';
 import {Icon, IconName} from './Icon';
 
 /** Light-surface text input in the Login field style (52px, 12px radius, 1.5px border). */
@@ -154,6 +154,7 @@ export function SegmentedControl<T extends string>({
             onPress={() => onChange(o.value)}
             accessibilityRole="tab"
             accessibilityState={{selected: active}}
+            hitSlop={slopFor(38)}
             style={[styles.segmentItem, active && styles.segmentActive]}>
             <Text
               style={[styles.segmentText, active && styles.segmentTextActive]}>
@@ -183,6 +184,7 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{selected: !!selected}}
+      hitSlop={slopFor(sizes.chip)}
       style={({pressed}) => [
         styles.chip,
         selected && styles.chipSelected,

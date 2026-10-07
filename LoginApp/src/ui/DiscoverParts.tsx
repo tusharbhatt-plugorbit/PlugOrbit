@@ -2,7 +2,15 @@ import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {AMENITY_LABEL} from '../domain/discover';
 import type {Amenity} from '../domain/types';
-import {colors, elevation, radii, sizes, spacing, type} from '../theme';
+import {
+  colors,
+  elevation,
+  radii,
+  sizes,
+  slopFor,
+  spacing,
+  type,
+} from '../theme';
 import {Pill} from './Badges';
 import {Icon, IconName} from './Icon';
 
@@ -62,6 +70,7 @@ export function HeaderChipRow<T extends string>({
             accessibilityRole="button"
             accessibilityLabel={o.label}
             accessibilityState={{selected: active}}
+            hitSlop={slopFor(sizes.chip)}
             style={({pressed}) => [
               styles.chip,
               active && styles.chipActive,
