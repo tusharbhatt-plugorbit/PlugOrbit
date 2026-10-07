@@ -9,7 +9,6 @@ import {
   AsyncView,
   Card,
   ConfidenceBadge,
-  ConfidencePill,
   EmptyState,
   Notice,
   PrimaryButton,
@@ -91,11 +90,6 @@ export default function ForecastScreen(): React.JSX.Element {
                 f.basis === 'history'
                   ? 'Based on how busy this charger usually is at this time. A forecast is a guide, not a promise.'
                   : 'There isn’t enough data to forecast. Treat the live status as the source of truth.'
-              }
-              action={
-                <View style={styles.pill}>
-                  <ConfidencePill confidence={f.confidence} />
-                </View>
               }
             />
           </>
@@ -179,5 +173,4 @@ const styles = StyleSheet.create({
   legend: {flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md},
   legendItem: {flexDirection: 'row', alignItems: 'center', gap: 6},
   legendDot: {width: 10, height: 10, borderRadius: 5},
-  pill: {flexDirection: 'row', marginTop: 6},
 });

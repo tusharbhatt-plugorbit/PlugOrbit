@@ -152,5 +152,19 @@ const styles = StyleSheet.create({
   body: {...type.caption, color: colors.inkSoft, marginTop: 2, lineHeight: 18},
   time: {...type.caption, color: colors.muted, marginTop: 4, fontSize: 11.5},
   perm: {marginBottom: spacing.md},
+  permRow: {flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start'},
+  permTitle: {...type.heading, color: colors.ink},
+  permBody: {
+    ...type.caption,
+    color: colors.inkSoft,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  permActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
   center: {alignItems: 'center', marginTop: spacing.lg},
 });

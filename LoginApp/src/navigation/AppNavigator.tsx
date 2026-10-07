@@ -27,6 +27,8 @@ export type RouteConfig = {
   component: ComponentType;
   /** Show the bottom tab bar on this screen (tab roots always do). */
   tabBar?: boolean;
+  /** Which tab to highlight while this screen is on top (default: the current tab). */
+  tab?: TabName;
 };
 
 export type Registry = Record<RouteName, RouteConfig>;
@@ -383,7 +385,7 @@ export function AppNavigator({
           </View>
           {showTabBar &&
             renderTabBar({
-              tab: state.tab,
+              tab: (top && registry[top.name]?.tab) || state.tab,
               onSelect: tab => dispatch({type: 'tab', tab}),
             })}
           {overlay}

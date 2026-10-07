@@ -67,11 +67,11 @@ export const REGISTRY: Registry = {
   AutoSoc: {component: AutoSocScreen},
 
   // Discover
-  StationList: {component: StationListScreen, tabBar: true},
+  StationList: {component: StationListScreen, tabBar: true, tab: 'Home'},
   Filters: {component: FiltersScreen},
   StationDetail: {component: StationDetailScreen},
   Compare: {component: CompareScreen},
-  Saved: {component: SavedScreen, tabBar: true},
+  Saved: {component: SavedScreen, tabBar: true, tab: 'Trips'},
   Forecast: {component: ForecastScreen},
   Community: {component: CommunityScreen},
   CostCalculator: {component: CostCalculatorScreen},
@@ -89,7 +89,7 @@ export const REGISTRY: Registry = {
   // Charging
   ScanQr: {component: ScanQrScreen},
   StartCharging: {component: StartChargingScreen},
-  ActiveSession: {component: ActiveSessionScreen, tabBar: true},
+  ActiveSession: {component: ActiveSessionScreen, tabBar: true, tab: 'Charge'},
   Payment: {component: PaymentScreen},
   PaymentFailure: {component: PaymentFailureScreen},
   Receipt: {component: ReceiptScreen},
@@ -100,11 +100,11 @@ export const REGISTRY: Registry = {
   SessionDetail: {component: SessionDetailScreen},
   Feedback: {component: FeedbackScreen},
   ReportProblem: {component: ReportProblemScreen},
-  Support: {component: SupportScreen, tabBar: true},
+  Support: {component: SupportScreen, tabBar: true, tab: 'Profile'},
   TicketDetail: {component: TicketDetailScreen},
-  Notifications: {component: NotificationsScreen, tabBar: true},
+  Notifications: {component: NotificationsScreen, tabBar: true, tab: 'Home'},
   Alerts: {component: AlertsScreen},
-  Roadside: {component: RoadsideScreen, tabBar: true},
+  Roadside: {component: RoadsideScreen, tabBar: true, tab: 'Profile'},
 
   // Profile
   PaymentMethods: {component: PaymentMethodsScreen},
