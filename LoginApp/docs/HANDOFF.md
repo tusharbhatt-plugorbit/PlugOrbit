@@ -69,7 +69,7 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 
 ## Decisions needed
 
-1. **Brand identity for badges:** Estimated / User-confirmed / Unknown wording is
+1. **Trust badge wording:** Estimated / User-confirmed / Unknown wording is
    mine; confirm with product and legal.
 2. **Data freshness:** LIVE threshold is 5 minutes and "stale" is
    `STALE_AFTER_MS` in `domain/trust.ts`. Confirm both.

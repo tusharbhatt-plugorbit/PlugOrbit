@@ -47,6 +47,7 @@ cp .env.example .env     # then fill in the keys above
 ## Behaviour without a key / location
 
 - **No keys**: the app still runs on its built-in demo chargers around New Delhi and iOS uses Apple Maps instead of Google; Places results only appear when a Places key is set.
+- **Grey/blank map on Android** (key set): the key's application restriction (package name + SHA-1 of the keystore that signed the installed build) doesn't match, or "Maps SDK for Android" isn't enabled for the key. Check `adb logcat | grep -i "Google Maps"` for the authorisation message. There is no JS-side fallback for this.
 - **Location denied or unavailable**: the app explains why, searches around New Delhi instead, and the notice has a **Retry** button (the locate button also retries).
 - **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
 

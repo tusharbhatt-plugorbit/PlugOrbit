@@ -6,9 +6,11 @@ layer, so it behaves the same on every device and with no network.
 ## Before you start
 
 1. `cd LoginApp && npm install`, then `npm run android` or `npm run ios`.
-   - For live Google Maps tiles and nearby-charger search, add the keys from
-     `.env.example` (see the README). Without them the app falls back to the
-     built-in charger data and a drawn map, and says so.
+   - **Add the Google keys from `.env.example` (see the README) and check on the
+     actual demo device that the map tiles render.** Without keys the chargers
+     still list from built-in demo data, iOS shows Apple Maps, but Android shows
+     an empty grey map. A grey map with a key set almost always means the key's
+     package name / SHA-1 restriction doesn't match the build you installed.
 2. Sign in: any mobile number or email, then any 6-digit code.
 3. First run only: add the car (Vehicle setup → pick Tata Nexon EV) and set the
    battery to about 60% (Current battery).
@@ -64,5 +66,7 @@ payment. This is the "interrupted flow recovers after restart" rule.
 ## If something goes wrong on stage
 
 - A switch is left on: Presenter tools → Reset demo switches.
-- Maps blank: you have no Google key or no network. Chargers still list; say so.
+- Map is grey/blank: no Google key, a key restricted to a different package or
+  SHA-1, or no network. Chargers still list in Nearby chargers and on the cards;
+  carry on from the list.
 - Anything odd with saved state: Presenter tools → Reset demo data.
