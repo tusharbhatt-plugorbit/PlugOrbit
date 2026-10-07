@@ -13,7 +13,9 @@ CircleParking TrendingUp Sun Moon LogOut CircleQuestionMark Mail Bluetooth Link 
 Flame Globe Bolt Map Layers CircleDot Wind ThumbsUp ThumbsDown Send Paperclip Copy Pencil Ticket Gift BadgeCheck CircleAlert
 CircleX Siren Truck Compass Milestone Repeat Shuffle Scale Tag Banknote Coins Building2 Store Locate Fuel Bed CalendarClock
 MapPinned Mountain Hash Cloud Satellite Cable MessageSquareText Headset Shield FileCheck Fingerprint Smile Meh Frown
-Toilet CupSoda`.split(/\s+/).filter(Boolean);
+Toilet CupSoda Power CircleStop FileDown ArrowUp ArrowDown List ListOrdered GripVertical BellRing BellOff
+CalendarCheck Target BatteryLow BatteryFull BatteryWarning MapPinOff Pin ReceiptText BadgeIndianRupee UserRound
+CircleCheckBig Pause Play Navigation2Off Undo2 Save CirclePlus CircleMinus Clock3 Timer TimerReset`.split(/\s+/).filter(Boolean);
 
 const kebab = s => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Za-z])([0-9])/g, '$1$2').toLowerCase();
 const out = {};

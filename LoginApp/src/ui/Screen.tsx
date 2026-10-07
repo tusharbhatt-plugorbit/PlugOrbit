@@ -54,6 +54,8 @@ type Props = {
   contentStyle?: StyleProp<ViewStyle>;
   /** Replace the light body colour (e.g. the dark scanner screen). */
   dark?: boolean;
+  /** Space direct children evenly (12px). Saves wrapper views on simple screens. */
+  stack?: boolean;
   testID?: string;
 };
 
@@ -74,6 +76,7 @@ export function Screen({
   onRefresh,
   contentStyle,
   dark = false,
+  stack = false,
   testID,
 }: Props) {
   const nav = useNavigation();
@@ -101,11 +104,13 @@ export function Screen({
           />
         ) : undefined
       }>
-      <View style={styles.column}>{children}</View>
+      <View style={[styles.column, stack && styles.stack]}>{children}</View>
     </ScrollView>
   ) : (
     <View style={[styles.flex, styles.content, contentStyle]}>
-      <View style={[styles.column, styles.flex]}>{children}</View>
+      <View style={[styles.column, styles.flex, stack && styles.stack]}>
+        {children}
+      </View>
     </View>
   );
 
@@ -149,7 +154,7 @@ export function Screen({
                   : Math.max(insets.bottom, spacing.md),
               },
             ]}>
-            <View style={styles.column}>{footer}</View>
+            <View style={[styles.column, styles.footerColumn]}>{footer}</View>
           </View>
         )}
       </View>
@@ -195,6 +200,8 @@ const styles = StyleSheet.create({
   },
   contentWithFooter: {paddingBottom: spacing.lg},
   column: {width: '100%', maxWidth: sizes.maxContent, alignSelf: 'center'},
+  footerColumn: {gap: spacing.sm},
+  stack: {gap: spacing.md},
   footer: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
