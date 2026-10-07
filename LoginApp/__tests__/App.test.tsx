@@ -163,3 +163,23 @@ test('a plain mobile number is still detected as a mobile number', async () => {
   await typeIdentifier(renderer, '+91 98765 43210');
   expect(textsOf(renderer)).toContain('📱 Mobile');
 });
+
+test('a verified code lands on the Find a Charger home screen', async () => {
+  const renderer = await renderApp();
+
+  await pressByText(renderer, 'Get Started');
+  await typeIdentifier(renderer, 'name@example.com');
+  await pressByText(renderer, 'Send Verification Code  →');
+  await ReactTestRenderer.act(() => {
+    jest.advanceTimersByTime(1000);
+  });
+
+  const otpInput = renderer.root.findByType(TextInput);
+  await ReactTestRenderer.act(() => otpInput.props.onChangeText('123456'));
+  await pressByText(renderer, 'Verify & Create Account  →');
+  await ReactTestRenderer.act(() => {
+    jest.advanceTimersByTime(1000);
+  });
+
+  expect(textsOf(renderer)).toContain('Find a Charger');
+});
