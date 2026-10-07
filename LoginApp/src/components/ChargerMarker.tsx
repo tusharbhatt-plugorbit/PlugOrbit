@@ -1,23 +1,25 @@
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {Marker} from 'react-native-maps';
-import type {ChargerWithDistance} from '../data/chargers';
+import {availableCount, compatibleConnectors} from '../domain/rules';
+import type {StationWithDistance, Vehicle} from '../domain/types';
 import {colors} from '../theme';
-import {BoltGlyph} from './Icons';
+import {Icon} from '../ui/Icon';
 
 type Props = {
-  charger: ChargerWithDistance;
+  station: StationWithDistance;
+  vehicle: Vehicle | null;
   selected: boolean;
   onSelect: (id: string) => void;
 };
 
 const HEAD = 32;
 const HEAD_SELECTED = 40;
-// Android/iOS snapshot a marker's child view; keep tracking only long enough
-// to capture a state change, then stop (continuous tracking drains the GPU).
+// The map snapshots a marker's child view; track only long enough to capture a
+// state change, then stop (continuous tracking drains the GPU).
 const SETTLE_MS = 400;
 
-function ChargerMarkerBase({charger, selected, onSelect}: Props) {
+function ChargerMarkerBase({station, vehicle, selected, onSelect}: Props) {
   const [tracking, setTracking] = useState(true);
 
   useEffect(() => {
@@ -29,19 +31,17 @@ function ChargerMarkerBase({charger, selected, onSelect}: Props) {
   const size = selected ? HEAD_SELECTED : HEAD;
   const tone = selected ? colors.lime : colors.bg;
   const edge = selected ? colors.limeDark : colors.bg;
-  const label =
-    charger.available !== null && charger.total !== null
-      ? `${charger.name}, ${charger.available} of ${charger.total} chargers available`
-      : charger.name;
+  const free = availableCount(station, vehicle);
+  const total = compatibleConnectors(station, vehicle).length;
 
   return (
     <Marker
-      coordinate={{latitude: charger.latitude, longitude: charger.longitude}}
-      onPress={() => onSelect(charger.id)}
+      coordinate={{latitude: station.latitude, longitude: station.longitude}}
+      onPress={() => onSelect(station.id)}
       anchor={{x: 0.5, y: 1}}
       tracksViewChanges={tracking}
       zIndex={selected ? 2 : 1}
-      accessibilityLabel={label}>
+      accessibilityLabel={`${station.name}, ${free} of ${total} chargers available`}>
       <View style={styles.box}>
         <View
           style={[
@@ -54,9 +54,11 @@ function ChargerMarkerBase({charger, selected, onSelect}: Props) {
               borderColor: edge,
             },
           ]}>
-          <BoltGlyph
+          <Icon
+            name="zap"
             size={selected ? 18 : 15}
             color={selected ? colors.ink : colors.lime}
+            filled
           />
         </View>
         <View style={[styles.tip, {borderTopColor: tone}]} />
@@ -73,11 +75,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
-  head: {
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  head: {borderWidth: 2, alignItems: 'center', justifyContent: 'center'},
   tip: {
     width: 0,
     height: 0,

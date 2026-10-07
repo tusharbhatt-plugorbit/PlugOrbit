@@ -33,3 +33,8 @@ jest.mock('@react-native-community/geolocation', () => ({
     ),
   },
 }));
+
+// App code: no artificial latency, in-memory storage.
+require('./src/services/mock/runtime').setFastMocks(true);
+const storageModule = require('./src/store/storage');
+storageModule.setStorage(storageModule.createMemoryStorage());

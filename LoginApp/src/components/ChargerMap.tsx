@@ -7,7 +7,7 @@ import React, {
 import {Platform, StyleSheet} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Region} from 'react-native-maps';
 import {hasGoogleApiKey} from '../config/google';
-import type {ChargerWithDistance} from '../data/chargers';
+import type {StationWithDistance, Vehicle} from '../domain/types';
 import type {Coords} from '../utils/geo';
 import ChargerMarker from './ChargerMarker';
 
@@ -17,7 +17,8 @@ export type ChargerMapHandle = {
 
 type Props = {
   initialCenter: Coords;
-  chargers: readonly ChargerWithDistance[];
+  chargers: readonly StationWithDistance[];
+  vehicle: Vehicle | null;
   selectedId: string | null;
   showUserLocation: boolean;
   onSelect: (id: string) => void;
@@ -38,6 +39,7 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
   {
     initialCenter,
     chargers,
+    vehicle,
     selectedId,
     showUserLocation,
     onSelect,
@@ -96,7 +98,8 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
       {chargers.map(ch => (
         <ChargerMarker
           key={ch.id}
-          charger={ch}
+          station={ch}
+          vehicle={vehicle}
           selected={ch.id === selectedId}
           onSelect={onSelect}
         />

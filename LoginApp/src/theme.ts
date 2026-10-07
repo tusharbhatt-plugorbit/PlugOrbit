@@ -16,6 +16,23 @@ export const colors = {
   chipBorder: '#334155',
   chipText: '#E2E8F0',
   mapBg: '#EEF1F4',
+  // Body of every content screen: the light, rounded-top sheet under the dark
+  // header (same surface the Home map sits on).
+  body: '#EEF1F4',
+  divider: '#E2E8F0',
+  inputBg: '#EEF2F7',
+  inputBorder: '#D5DDE8',
+  // Data-trust semantics. Lime = verified live; amber = estimated; blue = a
+  // person confirmed it; slate = unknown. Tailwind amber/blue 700/100, the same
+  // slate family the rest of the palette comes from.
+  amber: '#B45309',
+  amberSoft: '#FEF3C7',
+  info: '#1D4ED8',
+  infoSoft: '#DBEAFE',
+  slateSoft: '#E2E8F0',
+  limeHalo: 'rgba(162, 240, 103, 0.08)',
+  limeHaloBorder: 'rgba(162, 240, 103, 0.28)',
+  scrim: 'rgba(2, 6, 23, 0.55)',
   road: '#FFFFFF',
   roadMinor: '#E1E5EA',
   park: '#D9EBD2',
@@ -24,7 +41,34 @@ export const colors = {
 
 export const radii = {sm: 8, md: 14, lg: 20, xl: 24, pill: 999} as const;
 
-export const spacing = {xs: 4, sm: 8, md: 12, lg: 16, xl: 20} as const;
+export const spacing = {xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28} as const;
+
+// Control sizes seen on the approved screens: search 52, chips 36, CTA 50-54.
+export const sizes = {
+  tap: 44,
+  chip: 36,
+  field: 52,
+  button: 54,
+  buttonCompact: 44,
+  header: 44,
+  tabBar: 64,
+  maxContent: 560,
+} as const;
+
+// Type scale lifted from Welcome/Login/Home (weights 500-800, no custom font).
+export const type = {
+  brand: {fontSize: 24, fontWeight: '800', letterSpacing: 0.5},
+  display: {fontSize: 26, fontWeight: '700'},
+  h1: {fontSize: 22, fontWeight: '800'},
+  title: {fontSize: 18, fontWeight: '700', letterSpacing: 0.2},
+  heading: {fontSize: 16, fontWeight: '800'},
+  button: {fontSize: 16, fontWeight: '800'},
+  bodyStrong: {fontSize: 14, fontWeight: '700'},
+  body: {fontSize: 14, fontWeight: '500'},
+  label: {fontSize: 13, fontWeight: '700'},
+  caption: {fontSize: 12.5, fontWeight: '500'},
+  micro: {fontSize: 11, fontWeight: '800', letterSpacing: 0.6},
+} as const;
 
 // One elevation recipe for iOS (shadow*) and Android (elevation).
 export function elevation(level: 1 | 2 | 3): ViewStyle {

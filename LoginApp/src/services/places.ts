@@ -1,5 +1,4 @@
 import {MAX_RESULTS, SEARCH_RADIUS_M, googleApiKey} from '../config/google';
-import type {Charger} from '../data/chargers';
 import type {Coords} from '../utils/geo';
 
 // Places API (New) – Nearby Search.
@@ -41,6 +40,20 @@ type PlaceResult = {
     periods?: {open?: unknown; close?: unknown}[];
   };
   currentOpeningHours?: {openNow?: boolean};
+};
+
+/** A charger as Google Places describes it (no live operator data). */
+export type Charger = {
+  id: string;
+  name: string;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  powerKw: number | null;
+  available: number | null;
+  total: number | null;
+  hours: string | null;
+  pricePerKwh: number | null;
 };
 
 export class PlacesError extends Error {

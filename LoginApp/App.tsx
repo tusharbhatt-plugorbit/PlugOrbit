@@ -13,9 +13,12 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
-import HomeScreen from './src/screens/HomeScreen';
+import MainApp from './src/app/MainApp';
+import {ServicesProvider} from './src/services';
+import {appStore, hydrateAppStore, useApp} from './src/store/appStore';
+import {startDemoPersistence} from './src/store/demoStore';
 
-type Screen = 'welcome' | 'login' | 'signup' | 'home';
+type Screen = 'welcome' | 'login' | 'signup' | 'app';
 type AuthStep = 'identify' | 'verify';
 type IdentifierType = 'email' | 'phone' | null;
 
@@ -128,13 +131,31 @@ function BrandLogo({
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <ServicesProvider>
+        <AppContent />
+      </ServicesProvider>
     </SafeAreaProvider>
   );
 }
 
 function AppContent(): React.JSX.Element {
-  const [screen, setScreen] = useState<Screen>('welcome');
+  // null while saved state loads, so a signed-in user never flashes the Welcome screen.
+  const [screen, setScreen] = useState<Screen | null>(null);
+  const hydrated = useApp(st => st.hydrated);
+  const signedIn = useApp(st => st.signedIn);
+
+  useEffect(() => {
+    startDemoPersistence();
+    hydrateAppStore();
+  }, []);
+
+  // Saved sign-in goes straight to the app; signing out returns to Welcome.
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+    setScreen(prev => (signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev));
+  }, [hydrated, signedIn]);
 
   // High-Contrast Theme Palette (WCAG AAA Compliant)
   const theme = {
@@ -149,6 +170,22 @@ function AppContent(): React.JSX.Element {
     secondaryBtnBg: '#111827',
     secondaryBtnBorder: '#374151',
   };
+
+  if (screen === null) {
+    return (
+      <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.splash}>
+          <BrandLogo size={64} glow />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // --- SIGNED-IN APP (tabs, stack, onboarding, session recovery) ---
+  if (screen === 'app') {
+    return <MainApp />;
+  }
 
   // --- WELCOME / LANDING SCREEN ---
   if (screen === 'welcome') {
@@ -212,18 +249,13 @@ function AppContent(): React.JSX.Element {
     );
   }
 
-  // --- HOME: FIND A CHARGER ---
-  if (screen === 'home') {
-    return <HomeScreen onBack={() => setScreen('welcome')} />;
-  }
-
   // --- LOGIN / SIGNUP SCREEN (OTP based) ---
   return (
     <AuthScreen
       mode={screen}
       onSwitchMode={() => setScreen(screen === 'login' ? 'signup' : 'login')}
       onBack={() => setScreen('welcome')}
-      onAuthenticated={() => setScreen('home')}
+      onAuthenticated={() => appStore.set({signedIn: true})}
     />
   );
 }
@@ -583,6 +615,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#060A12',
+  },
+
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   flex: {
