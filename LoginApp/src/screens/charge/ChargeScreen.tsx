@@ -103,6 +103,7 @@ export default function ChargeScreen(): React.JSX.Element {
           <View style={styles.center}>
             <TextButton
               label="Enter charger ID instead"
+              tone="onDark"
               onPress={() => nav.navigate('ScanQr')}
             />
           </View>

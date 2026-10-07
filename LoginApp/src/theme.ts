@@ -5,13 +5,13 @@ export const colors = {
   bgRaised: '#131C2E',
   surface: '#FFFFFF',
   lime: '#A2F067',
-  limeDark: '#3F8F12',
+  limeDark: '#33790E',
   limeSoft: '#E3F6D5',
   danger: '#B42318',
   dangerSoft: '#FDE4E4',
   ink: '#0F172A',
   inkSoft: '#334155',
-  muted: '#64748B',
+  muted: '#58687E',
   placeholder: '#94A3B8',
   chipBorder: '#334155',
   chipText: '#E2E8F0',
@@ -25,7 +25,7 @@ export const colors = {
   // Data-trust semantics. Lime = verified live; amber = estimated; blue = a
   // person confirmed it; slate = unknown. Tailwind amber/blue 700/100, the same
   // slate family the rest of the palette comes from.
-  amber: '#B45309',
+  amber: '#A94C08',
   amberSoft: '#FEF3C7',
   info: '#1D4ED8',
   infoSoft: '#DBEAFE',

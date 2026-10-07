@@ -85,7 +85,11 @@ export default function NotificationsScreen(): React.JSX.Element {
       title="Notifications"
       right={
         unread > 0 ? (
-          <TextButton label="Read all" onPress={() => service.markAllRead()} />
+          <TextButton
+            label="Read all"
+            tone="onDark"
+            onPress={() => service.markAllRead()}
+          />
         ) : null
       }>
       {!askedPermission && (

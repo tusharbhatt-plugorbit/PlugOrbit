@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   stat: {flex: 1},
   statValue: {...type.heading, color: colors.ink},
   statUnit: {...type.caption, color: colors.muted},
-  statMuted: {color: colors.placeholder},
+  statMuted: {color: colors.muted},
   statLabel: {
     ...type.caption,
     color: colors.muted,

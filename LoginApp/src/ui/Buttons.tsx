@@ -141,7 +141,8 @@ export function TextButton({
   label: string;
   onPress?: () => void;
   icon?: IconName;
-  tone?: 'default' | 'danger' | 'muted';
+  /** `onDark` is for dark surfaces (header, dark cards): the lime accent. */
+  tone?: 'default' | 'danger' | 'muted' | 'onDark';
   testID?: string;
 }) {
   const fg =
@@ -149,6 +150,8 @@ export function TextButton({
       ? colors.danger
       : tone === 'muted'
       ? colors.muted
+      : tone === 'onDark'
+      ? colors.lime
       : colors.limeDark;
   return (
     <Pressable

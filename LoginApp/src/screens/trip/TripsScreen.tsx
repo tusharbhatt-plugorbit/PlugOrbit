@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginTop: spacing.lg,
   },
-  searchText: {...type.body, color: colors.placeholder},
+  searchText: {...type.body, color: colors.muted},
   empty: {...type.body, color: colors.muted},
   center: {alignItems: 'center'},
 });

@@ -119,7 +119,7 @@ export default function MultiStopScreen(): React.JSX.Element {
                 i === 0 && styles.dotStart,
                 i === stops.length - 1 && styles.dotEnd,
               ]}>
-              <Text style={styles.dotText}>
+              <Text style={[styles.dotText, i === 0 && styles.dotTextOnDark]}>
                 {i === 0 ? 'A' : i === stops.length - 1 ? 'B' : i}
               </Text>
             </View>
@@ -228,6 +228,7 @@ const styles = StyleSheet.create({
   dotStart: {backgroundColor: colors.bg},
   dotEnd: {backgroundColor: colors.lime},
   dotText: {...type.micro, color: colors.ink},
+  dotTextOnDark: {color: '#FFFFFF'},
   stop: {...type.bodyStrong, color: colors.ink, flex: 1},
   empty: {
     flexDirection: 'row',
