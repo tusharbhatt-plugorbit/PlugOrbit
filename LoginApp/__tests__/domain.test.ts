@@ -327,6 +327,15 @@ describe('charging maths', () => {
     expect(inv.totalInr).toBe(556.49);
   });
 
+  test('an invoice rebuilt from its own stored energy is identical (payment == receipt)', () => {
+    const charged = invoiceFor(1.375, 16);
+    const rebuilt = invoiceFor(charged.energyKwh, 16);
+    expect(rebuilt).toEqual(charged);
+    expect(charged.baseInr).toBe(
+      Math.round(charged.energyKwh * 16 * 100) / 100,
+    );
+  });
+
   test('pre-authorisation covers the planned energy plus GST', () => {
     const amount = estimatePreauthInr(42, 80, 40.5, 18);
     const worst = ((80 - 42) / 100) * 40.5 * 18 * 1.18;

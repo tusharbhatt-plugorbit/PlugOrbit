@@ -81,6 +81,17 @@ export function lowestPrice(
   return prices.length > 0 ? Math.min(...prices) : null;
 }
 
+/** True when this car's compatible connectors are priced differently. */
+export function hasPriceRange(
+  station: Station,
+  vehicle: Vehicle | null,
+): boolean {
+  const prices = compatibleConnectors(station, vehicle)
+    .map(c => c.pricePerKwh)
+    .filter((p): p is number => p !== null);
+  return new Set(prices).size > 1;
+}
+
 export type StationHealth = 'available' | 'busy' | 'offline' | 'unknown';
 
 export function stationHealth(

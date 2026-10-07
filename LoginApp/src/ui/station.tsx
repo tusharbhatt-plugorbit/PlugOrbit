@@ -4,6 +4,7 @@ import {
   availableCount,
   compatibleConnectors,
   isCompatible,
+  hasPriceRange,
   lowestPrice,
   maxPowerKw,
   stationHealth,
@@ -41,7 +42,12 @@ export function connectorSummary(
   const kw = maxPowerKw(s, vehicle);
   const price = lowestPrice(s, vehicle);
   return `${types} • ${kw} kW • ${
-    price === null ? 'Price n/a' : `${formatInr(price, price % 1 !== 0)}/kWh`
+    price === null
+      ? 'Price n/a'
+      : `${hasPriceRange(s, vehicle) ? 'from ' : ''}${formatInr(
+          price,
+          price % 1 !== 0,
+        )}/kWh`
   }`;
 }
 
@@ -222,6 +228,7 @@ export function MapChargerCard({
         {healthBadge(health)}
         {price !== null && (
           <Text style={styles.price}>
+            {hasPriceRange(station, vehicle) ? 'from ' : ''}
             {formatInr(price, price % 1 !== 0)}
             <Text style={styles.priceUnit}>/kWh</Text>
           </Text>

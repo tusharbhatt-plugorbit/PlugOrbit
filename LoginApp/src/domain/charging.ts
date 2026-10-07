@@ -95,10 +95,13 @@ export type Invoice = {
 };
 
 export function invoiceFor(energyKwh: number, pricePerKwh: number): Invoice {
-  const baseInr = round2(energyKwh * pricePerKwh);
+  // Bill on the energy as printed (2 dp), so "kWh × rate" always equals the
+  // line total and re-deriving an invoice from a stored session is idempotent.
+  const billedKwh = round2(energyKwh);
+  const baseInr = round2(billedKwh * pricePerKwh);
   const gstInr = round2(baseInr * GST_RATE);
   return {
-    energyKwh: round1(energyKwh),
+    energyKwh: billedKwh,
     pricePerKwh,
     baseInr,
     gstInr,
@@ -138,10 +141,6 @@ export function energyToCharge(
   batteryKwh: number,
 ): number {
   return (Math.max(toSoc - fromSoc, 0) / 100) * batteryKwh;
-}
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
 }
 
 function round2(n: number): number {

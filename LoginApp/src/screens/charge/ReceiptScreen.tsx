@@ -101,7 +101,7 @@ export default function ReceiptScreen(): React.JSX.Element {
 
       <Card>
         <KeyValue
-          label={`${invoice.energyKwh.toFixed(1)} kWh × ${formatInr(
+          label={`${invoice.energyKwh.toFixed(2)} kWh × ${formatInr(
             invoice.pricePerKwh,
             invoice.pricePerKwh % 1 !== 0,
           )}`}
