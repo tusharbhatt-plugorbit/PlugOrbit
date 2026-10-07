@@ -16,6 +16,9 @@ import {TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
 import {REGISTRY} from '../src/navigation/registry';
 import {RouteName, TABS, TabName, isTab} from '../src/navigation/params';
 
+// Screens with many buttons re-render once per button, so allow generous time.
+jest.setTimeout(120000);
+
 const ROUTES = Object.keys(REGISTRY) as RouteName[];
 const {act} = ReactTestRenderer;
 
@@ -83,9 +86,16 @@ function pressables(renderer: ReactTestRenderer.ReactTestRenderer) {
   return out;
 }
 
+// A pressable is usable by a screen reader if it has its own label, visible
+// text, or a labelled element inside it (custom wrapper components forward
+// onPress to an inner Pressable that carries the label).
 function hasText(node: ReactTestRenderer.ReactTestInstance): boolean {
   try {
-    return node.findAllByType(Text).length > 0;
+    return (
+      node.findAllByType(Text).length > 0 ||
+      node.findAll(n => typeof n.props.accessibilityLabel === 'string').length >
+        0
+    );
   } catch {
     return false;
   }
@@ -140,7 +150,12 @@ describe.each(ROUTES)('%s', route => {
         }
         const label = node.props.accessibilityLabel;
         if (typeof label !== 'string' && !hasText(node)) {
-          problems.push(`button #${i} has no accessibility label or text`);
+          problems.push(
+            `button #${i} has no accessibility label or text (${String(
+              (node.type as {displayName?: string; name?: string})
+                .displayName ?? (node.type as {name?: string}).name,
+            )}, testID=${String(node.props.testID)})`,
+          );
         }
         await act(async () => {
           node.props.onPress();

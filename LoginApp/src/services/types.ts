@@ -81,7 +81,14 @@ export interface StationService {
     origin: Coords,
     vehicle: Vehicle | null,
   ): Promise<StationWithDistance[]>;
-  waitEstimate(stationId: string): Promise<WaitEstimate>;
+  /**
+   * Pass the active vehicle so the estimate is for connectors it can use
+   * (a free CHAdeMO bay is no help to a CCS2-only car).
+   */
+  waitEstimate(
+    stationId: string,
+    vehicle?: Vehicle | null,
+  ): Promise<WaitEstimate>;
   /** TODO(integration): operator occupancy history model. */
   forecast(stationId: string): Promise<Forecast>;
   community(stationId: string): Promise<CommunityUpdate[]>;

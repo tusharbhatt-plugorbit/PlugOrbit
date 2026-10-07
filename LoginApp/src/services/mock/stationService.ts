@@ -188,13 +188,13 @@ export function createStationService(): StationService {
         .sort((a, b) => a.distanceKm - b.distanceKm);
     },
 
-    async waitEstimate(stationId) {
+    async waitEstimate(stationId, vehicle = null) {
       await guard(150);
       const s = loadStations().find(x => x.id === stationId);
       if (!s) {
         throw new ApiError('This station could not be found.');
       }
-      return waitFor(s, null);
+      return waitFor(s, vehicle);
     },
 
     async forecast(stationId): Promise<Forecast> {

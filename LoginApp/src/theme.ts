@@ -68,6 +68,8 @@ export const type = {
   label: {fontSize: 13, fontWeight: '700'},
   caption: {fontSize: 12.5, fontWeight: '500'},
   micro: {fontSize: 11, fontWeight: '800', letterSpacing: 0.6},
+  // One oversized figure per screen (battery %, price): the "hero" number.
+  hero: {fontSize: 56, fontWeight: '800', letterSpacing: -1},
 } as const;
 
 // One elevation recipe for iOS (shadow*) and Android (elevation).
