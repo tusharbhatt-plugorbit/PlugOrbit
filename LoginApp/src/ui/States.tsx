@@ -345,7 +345,6 @@ const styles = StyleSheet.create({
   },
   skeletonLine: {marginTop: spacing.sm},
   skeletonBlock: {backgroundColor: '#D9E0E8'},
-  skeletonBlock: {backgroundColor: '#D9E0E8'},
   skeletonList: {gap: spacing.md},
   notice: {
     flexDirection: 'row',
