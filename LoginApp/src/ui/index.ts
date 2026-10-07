@@ -16,3 +16,6 @@ export * from './station';
 export * from './trip';
 export * from './useNow';
 export * from './useResource';
+export * from './PlaceField';
+export * from './SessionRing';
+export * from './StationMiniMap';

@@ -25,6 +25,17 @@ export function formatDuration(totalMinutes: number): string {
   return r === 0 ? `${h} h` : `${h} h ${r} min`;
 }
 
+/** "4h 38m": compact, for stat tiles where "4 h 38 min" would wrap. */
+export function formatDurationShort(totalMinutes: number): string {
+  const m = Math.max(0, Math.round(totalMinutes));
+  if (m < 60) {
+    return `${m}m`;
+  }
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r === 0 ? `${h}h` : `${h}h ${r}m`;
+}
+
 export function formatClock(epoch: number): string {
   const d = new Date(epoch);
   let h = d.getHours();

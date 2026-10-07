@@ -20,7 +20,8 @@ jest.mock('react-native-maps', () => {
     );
   });
   const Marker = props => React.createElement(View, props, props.children);
-  return {__esModule: true, default: MapView, Marker, PROVIDER_GOOGLE: 'google'};
+  const Polyline = () => null;
+  return {__esModule: true, default: MapView, Marker, Polyline, PROVIDER_GOOGLE: 'google'};
 });
 
 // Native geolocation: succeed at the default centre unless a test overrides it.

@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import type {Route, RouteStop} from '../domain/types';
 import {colors, radii, spacing, type} from '../theme';
-import {formatDuration, formatInr} from '../utils/format';
+import {formatDurationShort, formatInr} from '../utils/format';
 import {Pill} from './Badges';
 import {Card} from './Card';
 import {Icon, IconName} from './Icon';
@@ -63,7 +63,7 @@ export function RouteSummary({
         <Stat
           icon="clock"
           label="Total time"
-          value={formatDuration(route.driveMin)}
+          value={formatDurationShort(route.driveMin)}
         />
         <Stat
           icon="battery"
