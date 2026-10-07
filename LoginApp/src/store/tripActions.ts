@@ -13,7 +13,7 @@ export function cacheRoute(route: Route, stopIndex = 0): void {
       ? {
           stationId: stop.station.id,
           connectorId: stop.connectorId,
-          backupStationId: stop.backup.id,
+          backupStationId: stop.backup?.id ?? null,
           at: Date.now(),
         }
       : null,

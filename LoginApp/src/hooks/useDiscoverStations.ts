@@ -1,8 +1,9 @@
-import {DEFAULT_CENTER} from '../config/google';
+import {DEFAULT_CENTER, hasGoogleApiKey} from '../config/google';
+import {isDemoFallback, isOutsideDemoArea} from '../domain/rules';
 import type {StationWithDistance, Vehicle} from '../domain/types';
 import {LocationError, getCurrentLocation} from '../services/location';
 import {useServices} from '../services';
-import {OfflineError} from '../services/types';
+import {OfflineError, StationNotFoundError} from '../services/types';
 import type {StationService} from '../services/types';
 import {demoStore} from '../store/demoStore';
 import {Coords} from '../utils/geo';
@@ -16,7 +17,50 @@ export type Origin = {
   /** Where the device is, or null when we fell back to the default centre. */
   userLocation: Coords | null;
   locationIssue: LocationIssue | null;
+  /**
+   * True when the device is nowhere near the demo chargers (all around New
+   * Delhi), so distances are measured from there and the screen must say so.
+   */
+  demoArea: boolean;
 };
+
+/** The existing "location is off" notice pattern, for the demo-area case. */
+export const DEMO_AREA_TITLE = 'No chargers near you';
+export const DEMO_AREA_BODY = 'Showing demo chargers around New Delhi.';
+export const DEMO_AREA_MESSAGE = `${DEMO_AREA_TITLE}. ${DEMO_AREA_BODY}`;
+
+const DEMO_ORIGIN: Origin = {
+  origin: DEFAULT_CENTER,
+  userLocation: null,
+  locationIssue: null,
+  demoArea: true,
+};
+
+// Set when a search had to fall back to the demo centre, cleared when a search
+// around the device finds chargers again. Screens that only measure distance
+// (Saved, Details, Navigation) follow it so they agree with the list.
+let demoAreaSeen = false;
+
+export function noteDemoArea(seen: boolean): void {
+  demoAreaSeen = seen;
+}
+
+/**
+ * Where the device is, as an origin. Without a Google key the demo chargers
+ * are the only ones there are, so a phone more than a search radius from them
+ * is treated as being in New Delhi (with a notice) instead of finding nothing.
+ */
+export function originFromDevice(here: Coords): Origin {
+  if (!hasGoogleApiKey && isOutsideDemoArea(here, DEFAULT_CENTER)) {
+    return DEMO_ORIGIN;
+  }
+  return {
+    origin: here,
+    userLocation: here,
+    locationIssue: null,
+    demoArea: false,
+  };
+}
 
 export type DiscoverData = Origin & {
   /** Every known charger near the origin, including ones the car can't use. */
@@ -39,16 +83,17 @@ export function readDiscoverCache(): DiscoverData | null {
 export function clearDiscoverCache(): void {
   cache = null;
   lastOrigin = null;
+  demoAreaSeen = false;
 }
 
 const ORIGIN_FRESH_MS = 2 * 60 * 1000;
 let lastOriginAt = 0;
 
 /**
- * Where to measure distances from: the device when permitted, otherwise the
- * default centre (New Delhi) with the reason, so screens can explain it.
+ * Where to search from: the device when permitted, otherwise the default
+ * centre (New Delhi) with the reason, so screens can explain it.
  */
-export async function resolveOrigin(force = false): Promise<Origin> {
+async function locate(force: boolean): Promise<Origin> {
   if (!force && lastOrigin && Date.now() - lastOriginAt < ORIGIN_FRESH_MS) {
     return lastOrigin;
   }
@@ -57,8 +102,7 @@ export async function resolveOrigin(force = false): Promise<Origin> {
     if (demoStore.get().locationDenied) {
       throw new LocationError('denied', 'Location permission was denied.');
     }
-    const here = await getCurrentLocation();
-    result = {origin: here, userLocation: here, locationIssue: null};
+    result = originFromDevice(await getCurrentLocation());
   } catch (e) {
     result = {
       origin: DEFAULT_CENTER,
@@ -67,6 +111,7 @@ export async function resolveOrigin(force = false): Promise<Origin> {
         e instanceof LocationError && e.code === 'denied'
           ? 'denied'
           : 'unavailable',
+      demoArea: false,
     };
   }
   lastOrigin = result;
@@ -74,20 +119,34 @@ export async function resolveOrigin(force = false): Promise<Origin> {
   return result;
 }
 
+/**
+ * Where to measure distances from. Like a search origin, but it also follows a
+ * demo-area fallback the last search had to make, so a charger opened from the
+ * list shows the same distance as the list did.
+ */
+export async function resolveOrigin(force = false): Promise<Origin> {
+  const where = await locate(force);
+  return demoAreaSeen && where.userLocation ? DEMO_ORIGIN : where;
+}
+
 export async function loadDiscover(
   stationService: StationService,
   vehicle: Vehicle | null,
   forceLocate = false,
 ): Promise<DiscoverData> {
-  const where = await resolveOrigin(forceLocate);
+  const searchFrom = await locate(forceLocate);
   try {
     const stations = await stationService.nearby({
-      origin: where.origin,
+      origin: searchFrom.origin,
       vehicle,
       // Always load everything: hiding is a view concern (applyFilters), which
       // lets "Show them" reveal incompatible chargers without another request.
       includeIncompatible: true,
     });
+    // Nothing near the device, so the service looked around New Delhi instead.
+    const fellBack = isDemoFallback(searchFrom.origin, stations);
+    noteDemoArea(fellBack || searchFrom.demoArea);
+    const where = fellBack ? DEMO_ORIGIN : searchFrom;
     cache = {...where, stations, fromCache: false, loadedAt: Date.now()};
     return cache;
   } catch (e) {
@@ -109,9 +168,33 @@ export function useDiscoverStations(
   );
 }
 
+/**
+ * AsyncView copy for a charger that failed to load. A charger that simply
+ * isn't available right now (removed, or a Google Maps one that isn't near
+ * you) is not a connection problem, so it doesn't say "check your connection".
+ */
+export function stationErrorProps(
+  error: Error | null,
+  title: string,
+  body?: string,
+): {errorTitle: string; errorBody?: string} {
+  if (error instanceof StationNotFoundError) {
+    return {
+      errorTitle: 'This charger isn’t available right now',
+      errorBody:
+        'It may have been removed, or it’s a Google Maps charger that isn’t near you at the moment. Find it again in Nearby chargers.',
+    };
+  }
+  return {errorTitle: title, errorBody: body};
+}
+
 export type ByIdResult = {
   stations: StationWithDistance[];
-  /** Ids that no longer resolve (removed or unknown). */
+  /**
+   * Ids that don't resolve right now: removed, or a Google Maps charger that
+   * isn't among the results we last loaded. Not an error, so a screen can say
+   * so and offer a way forward instead of "check your connection".
+   */
   missing: string[];
   fromCache: boolean;
 };
@@ -139,6 +222,10 @@ export async function loadStationsById(
   settled.forEach((r, i) => {
     if (r.status === 'fulfilled') {
       stations.push(r.value);
+      return;
+    }
+    if (r.reason instanceof StationNotFoundError) {
+      missing.push(unique[i]);
       return;
     }
     firstError = firstError ?? r.reason;

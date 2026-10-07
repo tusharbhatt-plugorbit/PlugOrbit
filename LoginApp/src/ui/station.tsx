@@ -5,12 +5,14 @@ import {
   compatibleConnectors,
   isCompatible,
   hasPriceRange,
+  hasRating,
+  hasUnconfirmedConnectors,
   lowestPrice,
   maxPowerKw,
   stationHealth,
   StationHealth,
 } from '../domain/rules';
-import {dataTrust, timeAgo} from '../domain/trust';
+import {priceAgeLabel} from '../domain/trust';
 import type {StationWithDistance, Vehicle} from '../domain/types';
 import {colors, elevation, radii, spacing, type} from '../theme';
 import {formatDistance} from '../utils/geo';
@@ -31,11 +33,23 @@ export function healthBadge(health: StationHealth) {
   return <StatusBadge status={HEALTH_TO_STATUS[health]} />;
 }
 
+export const UNCONFIRMED_CONNECTORS = 'Connector type unconfirmed';
+
+/** Shown instead of "compatible" when the source doesn't list the connectors. */
+export function UnconfirmedConnectorsPill() {
+  return (
+    <Pill label={UNCONFIRMED_CONNECTORS} tone="amber" icon="triangle-alert" />
+  );
+}
+
 /** "CCS2 • 60 kW • ₹18/kWh" for the connectors this car can actually use. */
 export function connectorSummary(
   s: StationWithDistance,
   vehicle: Vehicle | null,
 ): string {
+  if (hasUnconfirmedConnectors(s)) {
+    return UNCONFIRMED_CONNECTORS;
+  }
   const usable = compatibleConnectors(s, vehicle);
   const list = usable.length > 0 ? usable : s.connectors;
   const types = [...new Set(list.map(c => c.type))].join(' / ');
@@ -66,17 +80,8 @@ export function PriceLine({
       <Text style={styles.caption}>Price not published by the operator</Text>
     );
   }
-  const trust = dataTrust(station.priceFeed, now);
-  const label =
-    trust === 'live'
-      ? 'Price updated'
-      : trust === 'unknown'
-      ? 'Price'
-      : `Price (${trust === 'user' ? 'user-confirmed' : 'estimated'}), updated`;
   return (
-    <Text style={styles.caption}>
-      {label} {timeAgo(station.priceFeed.updatedAt, now)}
-    </Text>
+    <Text style={styles.caption}>{priceAgeLabel(station.priceFeed, now)}</Text>
   );
 }
 
@@ -108,13 +113,16 @@ export const ChargerCard = React.memo(function ChargerCardInner({
   const health = stationHealth(station, vehicle);
   const free = availableCount(station, vehicle);
   const compatible = isCompatible(station, vehicle);
+  const unconfirmed = hasUnconfirmedConnectors(station);
   return (
     <Card
       onPress={onPress}
       tone={recommended || selected ? 'lime' : 'default'}
       accessibilityLabel={`${station.name}, ${station.distanceKm.toFixed(
         1,
-      )} kilometres, ${free} bays free`}
+      )} kilometres, ${
+        unconfirmed ? 'connector type unconfirmed' : `${free} bays free`
+      }`}
       testID={testID}
       style={selected ? styles.selected : undefined}>
       <View style={styles.topRow}>
@@ -128,14 +136,18 @@ export const ChargerCard = React.memo(function ChargerCardInner({
       </View>
       <Text style={styles.line}>{connectorSummary(station, vehicle)}</Text>
       <Text style={styles.line}>
-        {formatDistance(station.distanceKm)} • {station.detourMin} min detour •
-        ★ {station.rating.toFixed(1)}
+        {formatDistance(station.distanceKm)} • {station.detourMin} min detour
+        {hasRating(station) ? ` • ★ ${station.rating.toFixed(1)}` : ''}
       </Text>
       <View style={styles.trustRow}>
         <ConfidenceBadge feed={station.statusFeed} now={now} subject="Status" />
         {station.sponsored && <Pill label="Sponsored" tone="slate" />}
-        {!compatible && (
-          <Pill label="Not compatible" tone="danger" icon="triangle-alert" />
+        {unconfirmed ? (
+          <UnconfirmedConnectorsPill />
+        ) : (
+          !compatible && (
+            <Pill label="Not compatible" tone="danger" icon="triangle-alert" />
+          )
         )}
         {station.integration === 'external' && (
           <Pill label="Operator app" tone="slate" icon="smartphone" />
@@ -191,6 +203,9 @@ export function MapChargerCard({
   const free = availableCount(station, vehicle);
   const total = compatibleConnectors(station, vehicle).length;
   const price = lowestPrice(station, vehicle);
+  const bays = hasUnconfirmedConnectors(station)
+    ? UNCONFIRMED_CONNECTORS
+    : `${maxPowerKw(station, vehicle)} kW • ${free}/${total} available`;
   return (
     <View style={[styles.mapCard, elevation(3), {bottom}]} testID="map-card">
       <View style={styles.mapTop}>
@@ -211,7 +226,7 @@ export function MapChargerCard({
               {formatDistance(station.distanceKm)} • {station.hours}
             </Text>
             <Text style={styles.line} numberOfLines={1}>
-              {maxPowerKw(station, vehicle)} kW • {free}/{total} available
+              {bays}
             </Text>
           </View>
         </Pressable>
@@ -324,6 +339,9 @@ export function BackupChargerCard({
           subject="Backup status"
         />
       </View>
+      <View style={styles.priceRow}>
+        <PriceLine station={station} vehicle={vehicle} now={now} />
+      </View>
     </Card>
   );
 }
@@ -353,6 +371,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: spacing.sm,
   },
+  priceRow: {marginTop: spacing.xs},
   footRow: {
     flexDirection: 'row',
     alignItems: 'center',

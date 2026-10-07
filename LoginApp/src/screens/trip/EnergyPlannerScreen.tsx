@@ -1,11 +1,19 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {stopCostLabel, tripCost} from '../../domain/routeCost';
+import {priceAgeLabel} from '../../domain/trust';
 import type {Route} from '../../domain/types';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
-import {formatInr} from '../../utils/format';
-import {Card, EmptyState, KeyValue, PrimaryButton, Screen} from '../../ui';
+import {
+  Card,
+  EmptyState,
+  KeyValue,
+  PrimaryButton,
+  Screen,
+  useNow,
+} from '../../ui';
 
 type Leg = {
   key: string;
@@ -15,9 +23,11 @@ type Leg = {
   /** Charge-to level when this leg is a stop. */
   chargeTo?: number;
   note: string;
+  /** How old the price behind a stop's cost is, and who vouches for it. */
+  priceNote?: string;
 };
 
-function legsFor(route: Route): Leg[] {
+function legsFor(route: Route, now: number): Leg[] {
   const out: Leg[] = [
     {
       key: 'start',
@@ -32,7 +42,11 @@ function legsFor(route: Route): Leg[] {
       label: s.station.name,
       arrive: s.arriveSoc,
       chargeTo: s.chargeToSoc,
-      note: `Stop ${i + 1} • ~${s.chargeMin} min • ${formatInr(s.costInr)}`,
+      note: `Stop ${i + 1} • ~${s.chargeMin} min • ${stopCostLabel(s.costInr)}`,
+      priceNote:
+        s.costInr === null
+          ? undefined
+          : priceAgeLabel(s.station.priceFeed, now),
     });
   });
   out.push({
@@ -48,6 +62,7 @@ function legsFor(route: Route): Leg[] {
 export default function EnergyPlannerScreen(): React.JSX.Element {
   const nav = useNavigation();
   const route = useApp(s => s.activeRoute);
+  const now = useNow(30_000);
 
   if (!route) {
     return (
@@ -66,9 +81,9 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
     );
   }
 
-  const legs = legsFor(route);
+  const legs = legsFor(route, now);
   const lowest = Math.min(...legs.map(l => l.arrive));
-  const totalCost = route.stops.reduce((m, s) => m + s.costInr, 0);
+  const totalCost = tripCost(route.stops);
 
   return (
     <Screen
@@ -125,6 +140,9 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
               />
             </View>
             <Text style={styles.note}>{leg.note}</Text>
+            {leg.priceNote ? (
+              <Text style={styles.priceNote}>{leg.priceNote}</Text>
+            ) : null}
           </View>
         ))}
         <View style={styles.legend}>
@@ -140,12 +158,13 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
       <Card>
         <KeyValue label="Lowest point" value={`${lowest}%`} emphasis />
         <KeyValue label="Safety reserve" value={`${route.safetyReservePct}%`} />
-        <KeyValue label="Charging cost" value={formatInr(totalCost)} />
+        <KeyValue label="Charging cost" value={totalCost.label} />
         <KeyValue label="Stops" value={String(route.stops.length)} last />
       </Card>
       <Text style={styles.fine}>
         Estimates use your car’s typical highway consumption. Speed, load and
-        weather change it, which is why we keep a reserve.
+        weather change it, which is why we keep a reserve. Costs use each stop’s
+        last published price, with its age shown above.
       </Text>
     </Screen>
   );
@@ -193,6 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   note: {...type.caption, color: colors.muted, marginTop: 4},
+  priceNote: {...type.caption, color: colors.muted, fontSize: 12},
   legend: {
     flexDirection: 'row',
     alignItems: 'center',

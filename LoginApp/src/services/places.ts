@@ -1,4 +1,5 @@
 import {MAX_RESULTS, SEARCH_RADIUS_M, googleApiKey} from '../config/google';
+import type {ConnectorType} from '../domain/types';
 import type {Coords} from '../utils/geo';
 
 // Places API (New) – Nearby Search.
@@ -24,6 +25,8 @@ type ConnectorAggregation = {
   count?: number;
   availableCount?: number;
   outOfServiceCount?: number;
+  /** RFC 3339 time Google last refreshed the availability counts. */
+  availabilityLastUpdateTime?: string;
 };
 
 type PlaceResult = {
@@ -42,6 +45,29 @@ type PlaceResult = {
   currentOpeningHours?: {openNow?: boolean};
 };
 
+/**
+ * Google's connector types mapped to ours. Anything else (J1772 is a Type 1
+ * plug, CCS combo 1, Tesla/NACS, "other") is deliberately left unmapped: we
+ * would rather say "unconfirmed" than guess a plug a car can't use.
+ */
+const CONNECTOR_TYPES = new Map<string, ConnectorType>([
+  ['EV_CONNECTOR_TYPE_CCS_COMBO_2', 'CCS2'],
+  ['EV_CONNECTOR_TYPE_TYPE_2', 'Type2'],
+  ['EV_CONNECTOR_TYPE_CHADEMO', 'CHAdeMO'],
+  ['EV_CONNECTOR_TYPE_UNSPECIFIED_GB_T', 'GBT'],
+  ['EV_CONNECTOR_TYPE_GB_T', 'GBT'],
+]);
+
+/** One group of identical connectors, exactly as Google reports it. */
+export type ChargerConnectors = {
+  type: ConnectorType;
+  powerKw: number;
+  /** How many connectors of this kind, when Google says. */
+  count: number | null;
+  available: number | null;
+  outOfService: number | null;
+};
+
 /** A charger as Google Places describes it (no live operator data). */
 export type Charger = {
   id: string;
@@ -54,6 +80,13 @@ export type Charger = {
   total: number | null;
   hours: string | null;
   pricePerKwh: number | null;
+  /**
+   * Connector groups whose type and power Google gave us. Empty when it said
+   * nothing usable, which means "unconfirmed", not "none".
+   */
+  connectors: ChargerConnectors[];
+  /** Epoch ms of Google's own availability timestamp, or null when absent. */
+  availabilityUpdatedAt: number | null;
 };
 
 export class PlacesError extends Error {
@@ -100,6 +133,24 @@ export function toCharger(place: PlaceResult): Charger | null {
       ? aggregates.reduce((sum, a) => sum + (a.count ?? 0), 0)
       : null);
 
+  const connectors: ChargerConnectors[] = [];
+  aggregates.forEach(a => {
+    const type = CONNECTOR_TYPES.get(a.type ?? '');
+    if (!type || typeof a.maxChargeRateKw !== 'number') {
+      return;
+    }
+    connectors.push({
+      type,
+      powerKw: a.maxChargeRateKw,
+      count: a.count ?? null,
+      available: a.availableCount ?? null,
+      outOfService: a.outOfServiceCount ?? null,
+    });
+  });
+  const stamps = aggregates
+    .map(a => Date.parse(a.availabilityLastUpdateTime ?? ''))
+    .filter(t => !Number.isNaN(t));
+
   return {
     id: place.id,
     name: place.displayName?.text ?? 'EV charging station',
@@ -111,6 +162,8 @@ export function toCharger(place: PlaceResult): Charger | null {
     total,
     hours: describeHours(place),
     pricePerKwh: null,
+    connectors,
+    availabilityUpdatedAt: stamps.length > 0 ? Math.max(...stamps) : null,
   };
 }
 

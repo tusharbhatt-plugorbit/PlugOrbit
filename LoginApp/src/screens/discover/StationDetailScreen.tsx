@@ -1,12 +1,14 @@
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {whyRecommended} from '../../domain/discover';
-import {estimateDetourMin} from '../../domain/rules';
+import {estimateDetourMin, isDemoFallback} from '../../domain/rules';
 import {
   availableCount,
   compatibleConnectors,
+  hasUnconfirmedConnectors,
   organicScore,
   stationHealth,
+  waitBasisLabel,
   waitLabel,
 } from '../../domain/rules';
 import {toggleFavouriteStation} from '../../domain/favourites';
@@ -31,6 +33,7 @@ import {
   Card,
   ConfidencePill,
   ConnectorChip,
+  EmptyState,
   ListCard,
   ListRow,
   Notice,
@@ -55,7 +58,8 @@ import {
   StationHero,
 } from '../../ui/StationDetailParts';
 
-type Loaded = {station: StationWithDistance; fromCache: boolean};
+// `station` is null when the id doesn't resolve right now (see loadStationsById).
+type Loaded = {station: StationWithDistance | null; fromCache: boolean};
 
 const NEAREST_COUNT = 5;
 // A "backup" further away than this isn't a backup, it's a different trip.
@@ -106,11 +110,7 @@ function WaitCard({
   const basis =
     wait === null
       ? 'We couldn’t estimate the wait just now.'
-      : wait.basis === 'live_queue'
-      ? 'Based on the live queue at this charger.'
-      : wait.basis === 'history'
-      ? 'Based on how long sessions usually last here.'
-      : 'Not enough data to estimate a wait.';
+      : waitBasisLabel(wait);
   return (
     <Card testID="wait-card">
       <View style={styles.waitHead}>
@@ -288,7 +288,8 @@ function StationDetailLoaded({
   const unusable = station.connectors.filter(c => !usable.includes(c));
   const free = availableCount(station, vehicle);
   const health = stationHealth(station, vehicle);
-  const noCompatible = vehicle !== null && usable.length === 0;
+  const unconfirmed = hasUnconfirmedConnectors(station);
+  const noCompatible = vehicle !== null && usable.length === 0 && !unconfirmed;
   const busy = usable.length > 0 && free === 0 && health === 'busy';
   const offline = usable.length > 0 && health === 'offline';
 
@@ -311,10 +312,12 @@ function StationDetailLoaded({
   // Chargers near this one that the car can use: the backup, and the pool for
   // "compare".
   const nearbyRes = useResource(async () => {
-    const found = await stationService.nearby({
-      origin: {latitude: station.latitude, longitude: station.longitude},
-      vehicle,
-    });
+    const around = {latitude: station.latitude, longitude: station.longitude};
+    const found = await stationService.nearby({origin: around, vehicle});
+    // Nothing real near this charger: don't offer demo chargers far away.
+    if (isDemoFallback(around, found)) {
+      return [];
+    }
     return found
       .filter(s => s.id !== station.id && s.distanceKm <= BACKUP_MAX_KM)
       .slice(0, NEAREST_COUNT)
@@ -418,6 +421,16 @@ function StationDetailLoaded({
           onToggleFavourite={toggleFavourite}
         />
 
+        {unconfirmed && (
+          <Notice
+            tone="warn"
+            icon="triangle-alert"
+            title="Connector type unconfirmed"
+            body={`Google Maps doesn’t say which plugs this charger has, so we can’t tell whether it fits ${
+              vehicle ? `your ${vehicleName(vehicle)}` : 'your car'
+            }. Check the plug on site before you rely on it.`}
+          />
+        )}
         {noCompatible && vehicle && (
           <Notice
             tone="danger"
@@ -608,14 +621,15 @@ function StationDetailLoaded({
 
 /** 06 Station detail. */
 export default function StationDetailScreen(): React.JSX.Element {
+  const nav = useNavigation();
   const {params} = useRoute<'StationDetail'>();
   const {station: stationService} = useServices();
   const resource = useResource<Loaded>(async () => {
     const r = await loadStationsById(stationService, [params.stationId]);
-    return {station: r.stations[0], fromCache: r.fromCache};
+    return {station: r.stations[0] ?? null, fromCache: r.fromCache};
   }, [params.stationId, stationService]);
 
-  if (resource.data) {
+  if (resource.data?.station) {
     return (
       <StationDetailLoaded
         station={resource.data.station}
@@ -624,6 +638,25 @@ export default function StationDetailScreen(): React.JSX.Element {
         refreshing={resource.refreshing}
         reload={resource.reload}
       />
+    );
+  }
+  if (resource.data) {
+    // Not an outage: this id just isn't among the chargers we can see now.
+    // Chargers from Google Maps only load while they're near you.
+    return (
+      <Screen title="Station details">
+        <EmptyState
+          icon="plug-zap"
+          title="This charger isn’t available right now"
+          body="It may have been removed, or it’s a Google Maps charger that isn’t near you at the moment. Find it again in Nearby chargers."
+          primary={{
+            label: 'Find chargers',
+            icon: 'search',
+            onPress: () => nav.navigate('StationList'),
+          }}
+          secondary={{label: 'Try again', onPress: resource.reload}}
+        />
+      </Screen>
     );
   }
   return (

@@ -58,7 +58,7 @@ const focused = useIsFocused();         // false while a screen is kept alive un
 1. **Compatibility**: incompatible chargers are hidden unless `filters.includeIncompatible` is on. Use `applyFilters`, `isCompatible`, `compatibleConnectors`. Never list a connector the vehicle can't use as selectable.
 2. **LIVE**: only `ConfidenceBadge` prints it, derived from `dataTrust(feed, now)` (fresh `operator_feed` only). Otherwise Estimated / User-confirmed / Unknown. Never hand-write "LIVE".
 3. **Last updated**: every status and price shows its age (`ConfidenceBadge`, `PriceLine`, `timeAgo`).
-4. **Backups**: every `RouteStop` has a `backup`. Always render it (`BackupChargerCard`).
+4. **Backups**: every `RouteStop` has a `backup`: a nearby, reachable, compatible alternative (short detour, reachable on the arrival battery). Render it with `StopBackup` / `BackupChargerCard`. Only when no charger qualifies is `backup` null with a `backupNote`; `StopBackup` then shows an explicit warning, never a far-away station and never nothing.
 5. **Remote start** needs a validated payment method + successful pre-authorisation, and only on `integration === 'integrated'` stations with the link up. For `external` stations show `station.operatorInstructions` and never pretend PlugOrbit controls the charger.
 6. **Waits**: always a range + confidence (`waitLabel`, `ConfidencePill`). Never a single minute count as a wait.
 7. **Sponsorship** never affects order/reliability (`rankOrganic` ignores it). Show a "Sponsored" pill, nothing more.

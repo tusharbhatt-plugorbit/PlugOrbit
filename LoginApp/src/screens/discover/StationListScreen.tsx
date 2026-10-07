@@ -4,6 +4,7 @@ import {
   DEFAULT_FILTERS,
   applyFilters,
   countActiveFilters,
+  hasUnconfirmedConnectors,
   isCompatible,
   stationHealth,
 } from '../../domain/rules';
@@ -20,6 +21,8 @@ import {
 import {toggleFavouriteStation} from '../../domain/favourites';
 import type {StationWithDistance, Vehicle} from '../../domain/types';
 import {
+  DEMO_AREA_BODY,
+  DEMO_AREA_TITLE,
   DiscoverData,
   useDiscoverStations,
 } from '../../hooks/useDiscoverStations';
@@ -141,6 +144,15 @@ function StationListBody({
   const incompatibleTotal = vehicle
     ? data.stations.filter(s => !isCompatible(s, vehicle)).length
     : 0;
+  // Chargers whose connectors the source never listed are hidden with the
+  // incompatible ones, but "doesn't fit" would be a claim we can't make.
+  const unconfirmedTotal = vehicle
+    ? data.stations.filter(hasUnconfirmedConnectors).length
+    : 0;
+  const hiddenNote =
+    unconfirmedTotal > 0 ? ', or we can’t confirm their connectors' : '';
+  const shownNote =
+    unconfirmedTotal > 0 ? ' or whose connectors we can’t confirm' : '';
   const activeFilters = countActiveFilters(filters);
 
   const recommendedId = useMemo(() => {
@@ -225,6 +237,17 @@ function StationListBody({
         }
         body="Showing chargers near New Delhi. Distances are measured from there."
         action={<TextButton label="Try again" onPress={onRetryLocation} />}
+      />,
+    );
+  }
+  if (data.demoArea) {
+    notices.push(
+      <Notice
+        key="demo"
+        tone="warn"
+        icon="map-pin"
+        title={DEMO_AREA_TITLE}
+        body={`${DEMO_AREA_BODY} Distances are measured from there.`}
       />,
     );
   }
@@ -367,7 +390,8 @@ function StationListBody({
           <Text style={styles.hiddenText}>
             {hiddenCount} charger{hiddenCount === 1 ? '' : 's'} hidden because{' '}
             {hiddenCount === 1 ? 'it doesn’t' : 'they don’t'} fit your{' '}
-            {vehicleName(vehicle)}.
+            {vehicleName(vehicle)}
+            {hiddenNote}.
           </Text>
           <TextButton
             label="Show them"
@@ -385,7 +409,8 @@ function StationListBody({
           <Text style={styles.hiddenText}>
             Showing {incompatibleTotal} charger
             {incompatibleTotal === 1 ? '' : 's'} that can’t charge your{' '}
-            {vehicleName(vehicle)}.
+            {vehicleName(vehicle)}
+            {shownNote}.
           </Text>
           <TextButton
             label="Hide them"

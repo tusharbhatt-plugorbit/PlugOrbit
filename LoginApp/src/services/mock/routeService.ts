@@ -4,7 +4,7 @@ import {
   compatibleConnectors,
   effectivePowerKw,
   isCompatible,
-  lowestPrice,
+  stationHealth,
 } from '../../domain/rules';
 import type {
   Route,
@@ -12,6 +12,7 @@ import type {
   RouteStop,
   RouteStrategy,
   Station,
+  StationConnector,
   StationWithDistance,
   Vehicle,
 } from '../../domain/types';
@@ -28,6 +29,14 @@ const ROAD_FACTOR = 1.16; // straight-line -> road distance
 const AVG_SPEED_KMH = 66;
 const MAX_LATERAL_KM = 14;
 const MAX_CHARGE_TO = 80;
+const MAX_STOPS = 6;
+// A backup is a nearby alternative to the stop, not a different trip: at most
+// this many extra minutes, and the driver must be able to reach it.
+const BACKUP_MAX_EXTRA_MIN = 30;
+// Backtracking to a charger behind the stop may use the safety reserve, but
+// never the last of the battery.
+const BACKUP_FLOOR_PCT = 5;
+const NO_BACKUP_NOTE = `No compatible backup charger within a ${BACKUP_MAX_EXTRA_MIN} min detour that your battery could reach.`;
 
 type Path = {points: Coords[]; cum: number[]; totalKm: number};
 
@@ -99,8 +108,27 @@ type Candidate = {
   lateral: number;
   powerKw: number;
   connectorId: string;
+  /** Price of the connector the stop would use; null when unpublished. */
   price: number | null;
 };
+
+/**
+ * The connector a stop would really use: the fastest the car can draw among
+ * the free ones (all of them when none is free), cheapest on a tie.
+ */
+function bestConnector(
+  conns: StationConnector[],
+  vehicle: Vehicle,
+): StationConnector {
+  const open = conns.filter(c => c.status === 'available');
+  const pool = open.length > 0 ? open : conns;
+  const price = (c: StationConnector) => c.pricePerKwh ?? Number.MAX_VALUE;
+  return [...pool].sort(
+    (a, b) =>
+      effectivePowerKw(b, vehicle) - effectivePowerKw(a, vehicle) ||
+      price(a) - price(b),
+  )[0];
+}
 
 function candidatesFor(
   stations: Station[],
@@ -117,25 +145,14 @@ function candidatesFor(
     if (lateral > MAX_LATERAL_KM) {
       return;
     }
-    const conns = compatibleConnectors(s, vehicle);
-    const best =
-      conns.find(
-        c =>
-          c.status === 'available' &&
-          c.powerKw ===
-            Math.max(
-              ...conns
-                .filter(x => x.status === 'available')
-                .map(x => x.powerKw),
-            ),
-      ) ?? [...conns].sort((a, b) => b.powerKw - a.powerKw)[0];
+    const best = bestConnector(compatibleConnectors(s, vehicle), vehicle);
     out.push({
       station: {...s, distanceKm: lateral, detourMin: detourFor(lateral)},
       along,
       lateral,
       powerKw: effectivePowerKw(best, vehicle),
       connectorId: best.id,
-      price: lowestPrice(s, vehicle),
+      price: best.pricePerKwh,
     });
   });
   return out;
@@ -166,29 +183,85 @@ function scoreFor(
   }
 }
 
+type BackupCtx = {
+  strategy: RouteStrategy;
+  vehicle: Vehicle;
+  /** Battery the driver arrives at the stop with. */
+  arriveSoc: number;
+  pctPerKm: number;
+  reserve: number;
+  /** Km along the path of the previous stop; -Infinity before the first. */
+  afterKm: number;
+  totalKm: number;
+};
+
+/** Minutes to divert from `chosen` to `other` (one way), as the card shows. */
+function extraMinFor(chosen: Candidate, other: Candidate): number {
+  return Math.max(
+    3,
+    Math.round(
+      Math.abs(other.along - chosen.along) * 0.9 +
+        other.station.detourMin -
+        chosen.station.detourMin,
+    ),
+  );
+}
+
+/**
+ * The best nearby alternative to `chosen`, or null when nothing is a real
+ * backup: a short detour, usable (compatible, not offline), after the previous
+ * stop so switching keeps the stops in order, and reachable on the battery the
+ * driver would arrive with. Far-away chargers are a different trip, not a
+ * backup, so they are never returned.
+ */
 function pickBackup(
   chosen: Candidate,
   all: Candidate[],
-  strategy: RouteStrategy,
-  vehicle: Vehicle,
-): Candidate {
-  const pool = all.filter(c => c.station.id !== chosen.station.id);
-  const near = pool.filter(c => Math.abs(c.along - chosen.along) <= 45);
-  const list = near.length > 0 ? near : pool;
-  if (list.length === 0) {
-    // Every stop needs a backup, so a corridor with a single charger can't
-    // be recommended at all.
-    throw new ApiError('No backup charger is available on this route yet.');
-  }
-  return [...list].sort(
-    (a, b) => scoreFor(b, strategy, vehicle) - scoreFor(a, strategy, vehicle),
-  )[0];
+  ctx: BackupCtx,
+): Candidate | null {
+  const options = all.filter(c => {
+    if (c.station.id === chosen.station.id) {
+      return false;
+    }
+    if (c.along <= ctx.afterKm + 3 || c.along >= ctx.totalKm - 2) {
+      return false;
+    }
+    if (stationHealth(c.station, ctx.vehicle) === 'offline') {
+      return false;
+    }
+    if (extraMinFor(chosen, c) > BACKUP_MAX_EXTRA_MIN) {
+      return false;
+    }
+    const gapKm = Math.max(
+      Math.abs(c.along - chosen.along),
+      distanceKm(chosen.station, c.station) * ROAD_FACTOR,
+    );
+    const left = ctx.arriveSoc - gapKm * ctx.pctPerKm;
+    // Ahead of the stop the backup becomes part of the plan, so it must keep
+    // the reserve; backtracking may dip into it, but never to empty.
+    return left >= (c.along < chosen.along ? BACKUP_FLOOR_PCT : ctx.reserve);
+  });
+  return (
+    [...options].sort(
+      (a, b) =>
+        scoreFor(b, ctx.strategy, ctx.vehicle) -
+        scoreFor(a, ctx.strategy, ctx.vehicle),
+    )[0] ?? null
+  );
 }
+
+type Resume = {
+  /** Stops before the one being replaced stay exactly as they were. */
+  keep: readonly RouteStop[];
+  /** The backup the driver was shown: it becomes the next stop. */
+  backupId: string;
+};
 
 function planOnce(
   request: RouteRequest,
   exclude: ReadonlySet<string>,
   now: number,
+  resume?: Resume,
 ): Route {
   const from = findPlace(request.fromLabel);
   const to = findPlace(request.toLabel);
@@ -219,44 +292,92 @@ function planOnce(
   const stations = loadStations();
   const cands = candidatesFor(stations, path, vehicle, exclude);
 
-  const stops: RouteStop[] = [];
-  let pos = 0;
-  let soc = request.startSoc;
+  const stops: RouteStop[] = [...(resume?.keep ?? [])];
+  const previous = stops[stops.length - 1];
+  let pos = previous ? project(path, previous.station).along : 0;
+  let soc = previous ? previous.chargeToSoc : request.startSoc;
+  let forcedId = resume?.backupId ?? null;
 
-  for (let guardLoop = 0; guardLoop < 6; guardLoop++) {
+  for (let n = stops.length; n < MAX_STOPS; n++) {
     const needToEnd = (path.totalKm - pos) * pctPerKm;
-    if (soc - needToEnd >= reserve) {
+    if (forcedId === null && soc - needToEnd >= reserve) {
       break;
     }
-    const reachKm = Math.max(0, (soc - reserve) / pctPerKm);
-    const reachable = cands.filter(
-      c =>
-        c.along > pos + 3 &&
-        c.along <= pos + reachKm &&
-        c.along < path.totalKm - 2,
-    );
-    if (reachable.length === 0) {
-      throw new ApiError(
-        'No compatible charger is reachable with this battery level. Charge a little first or lower your reserve.',
+    const backupFor = (c: Candidate) =>
+      pickBackup(c, cands, {
+        strategy: request.strategy,
+        vehicle,
+        arriveSoc: soc - (c.along - pos) * pctPerKm,
+        pctPerKm,
+        reserve,
+        afterKm: stops.length > 0 ? pos : -Infinity,
+        totalKm: path.totalKm,
+      });
+    const ranked = (list: Candidate[]) =>
+      [...list].sort(
+        (a, b) =>
+          scoreFor(b, request.strategy, vehicle) -
+          scoreFor(a, request.strategy, vehicle),
       );
+
+    let chosen: Candidate | undefined;
+    let backup: Candidate | null = null;
+    if (forcedId !== null) {
+      // "Switch to backup": exactly the charger the driver was shown.
+      chosen = cands.find(c => c.station.id === forcedId);
+      forcedId = null;
+      if (!chosen) {
+        throw new ApiError('That backup charger is no longer on this route.');
+      }
+      backup = backupFor(chosen);
+    } else {
+      const reachKm = Math.max(0, (soc - reserve) / pctPerKm);
+      const reachable = cands.filter(
+        c =>
+          c.along > pos + 3 &&
+          c.along <= pos + reachKm &&
+          c.along < path.totalKm - 2,
+      );
+      if (reachable.length === 0) {
+        throw new ApiError(
+          'No compatible charger is reachable with this battery level. Charge a little first or lower your reserve.',
+        );
+      }
+      // Don't stop absurdly early: prefer the far half of what is reachable.
+      const farHalf = reachable.filter(c => c.along >= pos + reachKm * 0.45);
+      const pool = farHalf.length > 0 ? farHalf : reachable;
+      // Every stop needs a backup, so prefer a stop that has a real one, even
+      // a little earlier. Only when none does is a stop recommended without.
+      const early = reachable.filter(c => c.along >= pos + reachKm * 0.25);
+      for (const tier of [pool, early]) {
+        for (const c of ranked(tier)) {
+          const b = backupFor(c);
+          if (b) {
+            chosen = c;
+            backup = b;
+            break;
+          }
+        }
+        if (chosen) {
+          break;
+        }
+      }
+      chosen = chosen ?? ranked(pool)[0];
     }
-    // Don't stop absurdly early: prefer the far half of what is reachable.
-    const farHalf = reachable.filter(c => c.along >= pos + reachKm * 0.45);
-    const pool = farHalf.length > 0 ? farHalf : reachable;
-    const chosen = [...pool].sort(
-      (a, b) =>
-        scoreFor(b, request.strategy, vehicle) -
-        scoreFor(a, request.strategy, vehicle),
-    )[0];
-    const backup = pickBackup(chosen, cands, request.strategy, vehicle);
 
     const arriveSoc = soc - (chosen.along - pos) * pctPerKm;
     const remainingPct = (path.totalKm - chosen.along) * pctPerKm;
     const need = remainingPct + reserve + 4;
-    const chargeTo = clamp(
-      need > MAX_CHARGE_TO ? MAX_CHARGE_TO : Math.ceil(need / 5) * 5,
-      Math.min(arriveSoc + 12, MAX_CHARGE_TO),
-      MAX_CHARGE_TO,
+    // Whole percents only, and never "charge down" when we arrive above it.
+    const chargeTo = Math.max(
+      Math.round(
+        clamp(
+          need > MAX_CHARGE_TO ? MAX_CHARGE_TO : Math.ceil(need / 5) * 5,
+          Math.min(arriveSoc + 12, MAX_CHARGE_TO),
+          MAX_CHARGE_TO,
+        ),
+      ),
+      Math.round(arriveSoc),
     );
     const chargeMin = minutesToCharge(
       arriveSoc,
@@ -265,25 +386,22 @@ function planOnce(
       vehicle.batteryKwh,
     );
     const kwh = energyToCharge(arriveSoc, chargeTo, vehicle.batteryKwh);
-    const price = chosen.price ?? 18;
 
     stops.push({
       station: chosen.station,
       connectorId: chosen.connectorId,
-      backup: backup.station,
-      backupExtraMin: Math.max(
-        3,
-        Math.round(
-          Math.abs(backup.along - chosen.along) * 0.9 +
-            backup.station.detourMin -
-            chosen.station.detourMin,
-        ),
-      ),
+      backup: backup ? backup.station : null,
+      backupExtraMin: backup ? extraMinFor(chosen, backup) : 0,
+      ...(backup ? {} : {backupNote: NO_BACKUP_NOTE}),
       arriveSoc: Math.round(arriveSoc),
       chargeToSoc: chargeTo,
       chargeMin,
       detourMin: chosen.station.detourMin,
-      costInr: Math.round(kwh * price * (1 + GST_RATE)),
+      // The price of the connector this stop uses; never an invented one.
+      costInr:
+        chosen.price === null
+          ? null
+          : Math.round(kwh * chosen.price * (1 + GST_RATE)),
       wait: waitFor(chosen.station, vehicle),
     });
 
@@ -319,6 +437,7 @@ function planOnce(
     strategy: request.strategy,
     polyline,
     stops,
+    ...(waypoints.length > 0 ? {via: waypoints.map(w => w.name)} : {}),
     computedAt: now,
   };
 }
@@ -336,6 +455,7 @@ function requestFromRoute(route: Route): RouteRequest {
     vehicle,
     safetyReservePct: route.safetyReservePct,
     avoidPaidParking: false,
+    via: route.via,
   };
 }
 
@@ -373,32 +493,20 @@ export function createRouteService(): RouteService {
       if (!stop) {
         return route;
       }
-      const request = requestFromRoute(route);
-      // Re-plan without the failed station so the next backup is genuinely different.
-      try {
-        const replanned = planOnce(
-          request,
-          new Set([stop.station.id]),
-          Date.now(),
+      if (!stop.backup) {
+        throw new ApiError(
+          'This stop has no backup charger planned. Pick another charger.',
         );
-        return replanned;
-      } catch {
-        // Fall back to swapping in the previous backup without re-planning.
-        const stops = route.stops.map((s, i) =>
-          i === stopIndex
-            ? {
-                ...s,
-                station: s.backup,
-                connectorId:
-                  compatibleConnectors(s.backup, request.vehicle)[0]?.id ??
-                  s.connectorId,
-                backup: s.station,
-                detourMin: s.backup.detourMin,
-              }
-            : s,
-        );
-        return {...route, stops, computedAt: Date.now()};
       }
+      // Swap in exactly the backup the driver was shown. Earlier stops and
+      // every waypoint stay; battery, cost and the new stop's own backup are
+      // recomputed, and the charger that failed stays out of the new plan.
+      return planOnce(
+        requestFromRoute(route),
+        new Set([stop.station.id]),
+        Date.now(),
+        {keep: route.stops.slice(0, stopIndex), backupId: stop.backup.id},
+      );
     },
 
     async suggestions(text) {

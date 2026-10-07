@@ -1,7 +1,9 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useMemo, useRef} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {nearestAlternative} from '../../domain/alternative';
 import {availableCount, stationHealth} from '../../domain/rules';
-import type {StationWithDistance} from '../../domain/types';
+import {timeAgo} from '../../domain/trust';
+import type {RouteStop, StationWithDistance} from '../../domain/types';
 import {useUserOrigin} from '../../hooks/useUserOrigin';
 import {
   useIsFocused,
@@ -19,13 +21,14 @@ import {
   BackupChargerCard,
   Card,
   ConfidenceBadge,
+  healthBadge,
+  Notice,
   Pill,
   PrimaryButton,
   Screen,
   SecondaryButton,
   showToast,
   StationMiniMap,
-  StatusBadge,
   TextButton,
   useNow,
   useResource,
@@ -65,6 +68,18 @@ export default function NavigationScreen(): React.JSX.Element {
     return () => clearInterval(id);
   }, [focused, ready, reload]);
 
+  // Is the charger a stop on the cached plan? Then its planned backup applies.
+  const stopIndex = useMemo(() => {
+    if (!route) {
+      return -1;
+    }
+    const hinted = params.stopIndex;
+    return hinted !== undefined &&
+      route.stops[hinted]?.station.id === params.stationId
+      ? hinted
+      : route.stops.findIndex(s => s.station.id === params.stationId);
+  }, [route, params.stopIndex, params.stationId]);
+
   // The watched charger can no longer be used: go to the backup alert, once.
   const data = res.data;
   useEffect(() => {
@@ -75,18 +90,22 @@ export default function NavigationScreen(): React.JSX.Element {
     const health = stationHealth(data, vehicle);
     if (!free && (health === 'busy' || health === 'offline')) {
       handled.current = true;
-      showToast(`${data.name} is no longer free.`, 'warn');
+      showToast(
+        health === 'offline'
+          ? `${data.name} is offline right now.`
+          : `${data.name} has no free bay right now.`,
+        'warn',
+      );
+      // The alert is about the charger we are heading to, not the plan's.
       nav.replace('BackupAlert', {
-        stopIndex: params.stopIndex,
+        stationId: data.id,
+        stopIndex: stopIndex >= 0 ? stopIndex : undefined,
         reason: health === 'offline' ? 'offline' : 'occupied',
       });
     }
-  }, [data, vehicle, focused, nav, params.stopIndex]);
+  }, [data, vehicle, focused, nav, stopIndex]);
 
-  const stop =
-    route && params.stopIndex !== undefined
-      ? route.stops[params.stopIndex]
-      : undefined;
+  const stop = stopIndex >= 0 ? route?.stops[stopIndex] : undefined;
 
   return (
     <Screen title="Navigate" stack>
@@ -104,8 +123,7 @@ export default function NavigationScreen(): React.JSX.Element {
             origin={origin}
             known={known}
             now={now}
-            backup={stop?.backup}
-            backupExtra={stop?.backupExtraMin}
+            stop={stop}
           />
         )}
       />
@@ -118,18 +136,38 @@ function Body({
   origin,
   known,
   now,
-  backup,
-  backupExtra,
+  stop,
 }: {
   station: StationWithDistance;
   origin: {latitude: number; longitude: number};
   known: boolean;
   now: number;
-  backup?: StationWithDistance;
-  backupExtra?: number;
+  /** The plan's stop for this charger, when it is one. */
+  stop?: RouteStop;
 }) {
   const nav = useNavigation();
+  const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
+  const health = stationHealth(station, vehicle);
+  const updated =
+    station.statusFeed.updatedAt === null
+      ? 'never updated'
+      : `updated ${timeAgo(station.statusFeed.updatedAt, now)}`;
+  const planned = stop?.backup ?? null;
+  // Off the plan (Home, Compare, Station detail) there is no planned backup:
+  // offer the nearest compatible alternative to this charger instead.
+  const alt = useResource(
+    async () => {
+      const near = await stationService.nearby({origin: station, vehicle});
+      return {backup: nearestAlternative(near, station.id, vehicle)};
+    },
+    [station.id, vehicle?.id ?? null],
+    {enabled: planned === null},
+  );
+  const backup = planned ?? alt.data?.backup ?? null;
+  const backupExtra = planned
+    ? stop?.backupExtraMin ?? 0
+    : Math.max(3, backup?.detourMin ?? 0);
   const driveMin = Math.max(2, Math.round((station.distanceKm / AVG_KMH) * 60));
   const arrive = now + driveMin * 60_000;
 
@@ -160,7 +198,9 @@ function Body({
 
       <Card tone="lime">
         <View style={styles.watchRow}>
-          <Pill label="Status watch ON" tone="lime" dot />
+          {health !== 'unknown' && (
+            <Pill label="Status watch ON" tone="lime" dot />
+          )}
           <ConfidenceBadge
             feed={station.statusFeed}
             now={now}
@@ -168,18 +208,16 @@ function Body({
           />
         </View>
         <View style={styles.statusRow}>
-          <StatusBadge
-            status={
-              availableCount(station, vehicle) > 0 ? 'available' : 'occupied'
-            }
-          />
+          {healthBadge(health)}
           <Text style={styles.sub}>
-            We’ll alert you if it changes, and move you to your backup.
+            {health === 'unknown'
+              ? `Status unknown (${updated}). We can’t see this charger’s status, so we can’t alert you. Check it when you arrive.`
+              : 'We’ll alert you if it changes, and move you to your backup.'}
           </Text>
         </View>
       </Card>
 
-      {backup && backupExtra !== undefined && (
+      {backup ? (
         <BackupChargerCard
           station={backup}
           vehicle={vehicle}
@@ -187,6 +225,17 @@ function Body({
           extraMin={backupExtra}
           onPress={() => nav.navigate('StationDetail', {stationId: backup.id})}
         />
+      ) : (
+        alt.status === 'ready' && (
+          <Notice
+            tone="warn"
+            title="No backup nearby"
+            body={
+              stop?.backupNote ??
+              'No other compatible charger is within reach of this one. Check it before you set off.'
+            }
+          />
+        )
       )}
 
       <PrimaryButton label="Open navigation" icon="navigation" onPress={open} />

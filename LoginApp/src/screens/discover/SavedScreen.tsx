@@ -114,9 +114,9 @@ function StationsTab() {
               <Notice
                 tone="info"
                 title={`${data.missing.length} saved charger${
-                  data.missing.length === 1 ? ' is' : 's are'
-                } no longer available`}
-                body="The operator may have removed it."
+                  data.missing.length === 1 ? ' isn’t' : 's aren’t'
+                } available right now`}
+                body="It may have been removed, or it’s a Google Maps charger that isn’t near you at the moment."
                 action={
                   <TextButton
                     label="Remove from saved"
@@ -134,6 +134,13 @@ function StationsTab() {
             <Text style={styles.count}>
               {shown.length} saved charger{shown.length === 1 ? '' : 's'}
             </Text>
+            {shown.length === 0 && (
+              <PrimaryButton
+                label="Find chargers"
+                icon="search"
+                onPress={() => nav.navigate('StationList')}
+              />
+            )}
             {shown.map(s => (
               <ChargerCard
                 key={s.id}

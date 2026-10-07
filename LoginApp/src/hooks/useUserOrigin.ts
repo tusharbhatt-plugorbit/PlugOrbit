@@ -1,44 +1,41 @@
 import {useEffect, useState} from 'react';
 import {DEFAULT_CENTER} from '../config/google';
-import {LocationError, getCurrentLocation} from '../services/location';
-import {demoStore} from '../store/demoStore';
 import type {Coords} from '../utils/geo';
+import {resolveOrigin} from './useDiscoverStations';
 
-/**
- * Where the driver is, falling back to the default centre when location is
- * off or denied. `known` says which one you got.
- */
-export function useUserOrigin(): {
+type UserOrigin = {
   origin: Coords;
   known: boolean;
   ready: boolean;
-} {
-  const [state, setState] = useState<{
-    origin: Coords;
-    known: boolean;
-    ready: boolean;
-  }>({
+  /** The device is far from the demo chargers, so distances start in New Delhi. */
+  demoArea: boolean;
+};
+
+/**
+ * Where the driver is, falling back to the default centre when location is
+ * off or denied, or when the phone is nowhere near the demo chargers (the same
+ * rule the list uses, so a charger shows the same distance everywhere).
+ * `known` says whether you got the device's own position.
+ */
+export function useUserOrigin(): UserOrigin {
+  const [state, setState] = useState<UserOrigin>({
     origin: DEFAULT_CENTER,
     known: false,
     ready: false,
+    demoArea: false,
   });
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        if (demoStore.get().locationDenied) {
-          throw new LocationError('denied', 'Location permission was denied.');
-        }
-        const here = await getCurrentLocation();
-        if (alive) {
-          setState({origin: here, known: true, ready: true});
-        }
-      } catch {
-        if (alive) {
-          setState({origin: DEFAULT_CENTER, known: false, ready: true});
-        }
+    resolveOrigin(true).then(where => {
+      if (alive) {
+        setState({
+          origin: where.origin,
+          known: where.userLocation !== null,
+          ready: true,
+          demoArea: where.demoArea,
+        });
       }
-    })();
+    });
     return () => {
       alive = false;
     };

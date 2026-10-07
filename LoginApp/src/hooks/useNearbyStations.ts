@@ -1,12 +1,17 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {DEFAULT_CENTER} from '../config/google';
-import {estimateDetourMin} from '../domain/rules';
+import {estimateDetourMin, isDemoFallback} from '../domain/rules';
 import type {StationWithDistance, Vehicle} from '../domain/types';
 import {LocationError, getCurrentLocation} from '../services/location';
 import {useServices} from '../services';
 import {OfflineError} from '../services/types';
 import {demoStore} from '../store/demoStore';
 import {distanceKm, Coords} from '../utils/geo';
+import {
+  DEMO_AREA_MESSAGE,
+  noteDemoArea,
+  originFromDevice,
+} from './useDiscoverStations';
 
 export type Phase = 'locating' | 'loading' | 'ready';
 
@@ -14,6 +19,7 @@ export type Notice = {
   kind:
     | 'location-denied'
     | 'location-unavailable'
+    | 'demo-area'
     | 'search-failed'
     | 'offline';
   message: string;
@@ -35,6 +41,11 @@ const INITIAL: State = {
   userLocation: null,
   origin: DEFAULT_CENTER,
   notice: null,
+};
+
+const DEMO_AREA_NOTICE: Notice = {
+  kind: 'demo-area',
+  message: DEMO_AREA_MESSAGE,
 };
 
 function locationNotice(error: unknown): Notice {
@@ -66,7 +77,12 @@ export function useNearbyStations(vehicle: Vehicle | null) {
   }, []);
 
   const search = useCallback(
-    async (origin: Coords, signal: AbortSignal, carry: Notice | null) => {
+    async (
+      origin: Coords,
+      signal: AbortSignal,
+      carry: Notice | null,
+      fromDevice = false,
+    ) => {
       setState(s => ({...s, phase: 'loading', origin, notice: carry}));
       try {
         const stations = await stationService.nearby({
@@ -76,7 +92,19 @@ export function useNearbyStations(vehicle: Vehicle | null) {
         if (signal.aborted) {
           return;
         }
-        setState(s => ({...s, phase: 'ready', stations, notice: carry}));
+        // Nothing near here, so the service looked around New Delhi instead:
+        // move the search centre there and say so, as for a denied location.
+        const fellBack = isDemoFallback(origin, stations);
+        if (fromDevice) {
+          noteDemoArea(fellBack || carry?.kind === 'demo-area');
+        }
+        setState(s => ({
+          ...s,
+          phase: 'ready',
+          stations,
+          ...(fellBack ? {origin: DEFAULT_CENTER, userLocation: null} : {}),
+          notice: fellBack ? DEMO_AREA_NOTICE : carry,
+        }));
       } catch (e) {
         if (signal.aborted) {
           return;
@@ -114,8 +142,12 @@ export function useNearbyStations(vehicle: Vehicle | null) {
       if (signal.aborted) {
         return;
       }
-      origin = here;
-      setState(s => ({...s, userLocation: here}));
+      const where = originFromDevice(here);
+      origin = where.origin;
+      if (where.demoArea) {
+        carry = DEMO_AREA_NOTICE;
+      }
+      setState(s => ({...s, userLocation: where.userLocation}));
     } catch (e) {
       if (signal.aborted) {
         return;
@@ -123,7 +155,7 @@ export function useNearbyStations(vehicle: Vehicle | null) {
       carry = locationNotice(e);
       setState(s => ({...s, userLocation: null}));
     }
-    await search(origin, signal, carry);
+    await search(origin, signal, carry, true);
   }, [begin, search]);
 
   /** Search around an arbitrary point ("Search this area"). */
@@ -140,7 +172,13 @@ export function useNearbyStations(vehicle: Vehicle | null) {
       first.current = false;
       refresh();
     } else {
-      searchAt(state.origin);
+      // Keep the reason the search is centred where it is (e.g. the demo area).
+      const kind = state.notice?.kind;
+      const keep =
+        kind === 'location-denied' ||
+        kind === 'location-unavailable' ||
+        kind === 'demo-area';
+      search(state.origin, begin(), keep ? state.notice : null);
     }
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps

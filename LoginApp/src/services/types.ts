@@ -52,6 +52,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The id doesn't resolve to a charger we can show right now: removed, or a
+ * Google Maps charger that isn't among the results we last loaded. Still an
+ * ApiError (same `name`) so generic error copy keeps working.
+ */
+export class StationNotFoundError extends ApiError {
+  constructor(message = 'This charger isn’t available right now.') {
+    super(message);
+  }
+}
+
 export class IntegrationUnavailableError extends Error {
   constructor(message = 'Remote start is not available for this charger.') {
     super(message);

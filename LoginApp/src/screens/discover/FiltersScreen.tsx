@@ -199,7 +199,11 @@ export default function FiltersScreen(): React.JSX.Element {
                         vehicle && !filters.includeIncompatible
                           ? 'compatible '
                           : ''
-                      }near you`}
+                      }${
+                        resource.data?.demoArea
+                          ? 'around New Delhi'
+                          : 'near you'
+                      }`}
                 </Text>
               </View>
             </View>

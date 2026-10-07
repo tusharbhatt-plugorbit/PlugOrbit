@@ -53,6 +53,22 @@ export function timeAgo(at: number | null, now: number): string {
   return `${Math.round(h / 24)} d ago`;
 }
 
+/**
+ * How old a price is and who vouches for it, e.g. "Price updated 3 min ago" or
+ * "Price (estimated), updated 46 min ago". Only a fresh operator feed is
+ * stated plainly; every other source says what it is.
+ */
+export function priceAgeLabel(feed: FeedInfo, now: number): string {
+  const trust = dataTrust(feed, now);
+  const label =
+    trust === 'live'
+      ? 'Price updated'
+      : trust === 'unknown'
+      ? 'Price'
+      : `Price (${trust === 'user' ? 'user-confirmed' : 'estimated'}), updated`;
+  return `${label} ${timeAgo(feed.updatedAt, now)}`;
+}
+
 export const TRUST_LABEL: Record<TrustLevel, string> = {
   live: 'LIVE',
   estimated: 'Estimated',

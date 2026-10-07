@@ -12,6 +12,7 @@ import {
   CONFIDENCE_LABEL,
   availableCount,
   compatibleConnectors,
+  hasUnconfirmedConnectors,
   lowestPrice,
   stationHealth,
   waitLabel,
@@ -236,16 +237,29 @@ function CompareBody({
     })),
   });
 
+  // A charger with unlisted connectors has nothing to compare, not "0".
+  const known = stations.map(s => !hasUnconfirmedConnectors(s));
   const free = stations.map(s => availableCount(s, vehicle));
-  const bestFree = bestIndices(free, 'higher');
+  const bestFree = bestIndices(
+    free.map((n, i) => (known[i] ? n : null)),
+    'higher',
+  );
   rows.push({
     label: 'Free bays',
-    cells: stations.map((s, i) => ({
-      value: `${free[i]} of ${compatibleConnectors(s, vehicle).length}`,
-      sub: vehicle ? 'compatible' : undefined,
-      best: bestFree.has(i),
-      a11y: `${free[i]} free`,
-    })),
+    cells: stations.map((s, i) =>
+      hasUnconfirmedConnectors(s)
+        ? {
+            value: 'Unknown',
+            sub: 'connectors unconfirmed',
+            a11y: 'unknown, connectors unconfirmed',
+          }
+        : {
+            value: `${free[i]} of ${compatibleConnectors(s, vehicle).length}`,
+            sub: vehicle ? 'compatible' : undefined,
+            best: bestFree.has(i),
+            a11y: `${free[i]} free`,
+          },
+    ),
   });
 
   const bestDetour = bestIndices(
@@ -263,10 +277,20 @@ function CompareBody({
   });
 
   const kw = stations.map(s => bestEffectiveKw(s, vehicle));
-  const bestKw = bestIndices(kw, 'higher');
+  const bestKw = bestIndices(
+    kw.map((n, i) => (known[i] ? n : null)),
+    'higher',
+  );
   rows.push({
     label: 'Charging speed',
     cells: stations.map((s, i) => {
+      if (hasUnconfirmedConnectors(s)) {
+        return {
+          value: 'Unconfirmed',
+          sub: 'power not listed',
+          a11y: 'unconfirmed, power not listed',
+        };
+      }
       const rated = Math.max(
         ...compatibleConnectors(s, vehicle).map(c => c.powerKw),
         0,
@@ -326,12 +350,12 @@ function CompareBody({
       const w = waitList[i];
       return {
         value: w ? waitLabel(w) : 'Wait unknown',
-        sub:
-          w && w.basis !== 'none' ? CONFIDENCE_LABEL[w.confidence] : undefined,
+        // The confidence label is always shown, even for "Wait unknown".
+        sub: CONFIDENCE_LABEL[w?.confidence ?? 'low'],
         best: bestWait.has(i),
         a11y: w
           ? `${waitLabel(w)}, ${CONFIDENCE_LABEL[w.confidence]}`
-          : 'unknown',
+          : `Wait unknown, ${CONFIDENCE_LABEL.low}`,
       };
     }),
   });
@@ -529,6 +553,20 @@ export default function CompareScreen(): React.JSX.Element {
     />
   );
 
+  // Not an outage: these ids just aren't among the chargers we can see now.
+  const unavailable = (
+    <EmptyState
+      icon="scale"
+      title="These chargers aren’t available right now"
+      body="They may have been removed, or they’re Google Maps chargers that aren’t near you at the moment. Choose chargers from the list to compare."
+      primary={{
+        label: 'Choose chargers',
+        icon: 'search',
+        onPress: () => nav.navigate('StationList'),
+      }}
+    />
+  );
+
   if (ids.length < 2) {
     return <Screen title="Compare chargers">{guide}</Screen>;
   }
@@ -548,7 +586,7 @@ export default function CompareScreen(): React.JSX.Element {
         loading={<ListSkeleton count={3} />}
         errorTitle="Couldn’t compare these chargers"
         errorBody="We couldn’t load them. Check your connection and try again."
-        render={() => guide}
+        render={d => (d.missing > 0 ? unavailable : guide)}
       />
     </Screen>
   );

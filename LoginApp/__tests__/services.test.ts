@@ -104,7 +104,7 @@ describe('routeService', () => {
       expect(route.stops.length).toBeGreaterThan(0);
       route.stops.forEach(stop => {
         expect(stop.backup).toBeTruthy();
-        expect(stop.backup.id).not.toBe(stop.station.id);
+        expect(stop.backup?.id).not.toBe(stop.station.id);
         expect(stop.station.connectors.length).toBeGreaterThan(0);
       });
     }
@@ -135,7 +135,7 @@ describe('routeService', () => {
     const failed = route.stops[0].station.id;
     const next = await services.route.switchToBackup(route, 0);
     expect(next.stops.some(s => s.station.id === failed)).toBe(false);
-    next.stops.forEach(s => expect(s.backup.id).not.toBe(s.station.id));
+    next.stops.forEach(s => expect(s.backup?.id).not.toBe(s.station.id));
   });
 });
 

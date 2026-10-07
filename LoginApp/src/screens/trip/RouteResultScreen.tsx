@@ -2,8 +2,9 @@ import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {STALE_AFTER_MS, timeAgo} from '../../domain/trust';
-import {CONFIDENCE_LABEL, waitLabel} from '../../domain/rules';
-import type {RouteStop, RouteStrategy} from '../../domain/types';
+import {stopCostLabel} from '../../domain/routeCost';
+import {waitAtTime, waitBasisLabel, waitLabel} from '../../domain/rules';
+import type {RouteStop, RouteStrategy, Vehicle} from '../../domain/types';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {openDirections} from '../../services/directions';
@@ -15,15 +16,14 @@ import {
   toggleSavedRoute,
 } from '../../store/tripActions';
 import {colors, spacing, type} from '../../theme';
-import {formatInr} from '../../utils/format';
 import {
-  BackupChargerCard,
   Card,
   ConfidenceBadge,
   ConfidencePill,
   EmptyState,
   IconButton,
   Notice,
+  PriceLine,
   PrimaryButton,
   RouteMap,
   RouteSummary,
@@ -32,6 +32,7 @@ import {
   SegmentedControl,
   showToast,
   StatusBadge,
+  StopBackup,
   StopRow,
   TextButton,
   useNow,
@@ -97,6 +98,7 @@ export default function RouteResultScreen(): React.JSX.Element {
       const next = await routeService.plan({
         fromLabel: route.fromLabel,
         toLabel: route.toLabel,
+        via: route.via,
         startSoc: route.startSoc,
         strategy,
         vehicle,
@@ -201,19 +203,17 @@ export default function RouteResultScreen(): React.JSX.Element {
               <StopRow stop={stop} index={i} last />
               <StopCard
                 stop={stop}
+                vehicle={vehicle}
                 now={now}
                 onOpen={() =>
                   nav.navigate('StationDetail', {stationId: stop.station.id})
                 }
               />
-              <BackupChargerCard
-                station={stop.backup}
+              <StopBackup
+                stop={stop}
                 vehicle={vehicle}
                 now={now}
-                extraMin={stop.backupExtraMin}
-                onPress={() =>
-                  nav.navigate('StationDetail', {stationId: stop.backup.id})
-                }
+                onOpen={id => nav.navigate('StationDetail', {stationId: id})}
               />
             </View>
           ))}
@@ -238,16 +238,20 @@ export default function RouteResultScreen(): React.JSX.Element {
 
 function StopCard({
   stop,
+  vehicle,
   now,
   onOpen,
 }: {
   stop: RouteStop;
+  vehicle: Vehicle | null;
   now: number;
   onOpen: () => void;
 }) {
   const connector =
     stop.station.connectors.find(c => c.id === stop.connectorId) ??
     stop.station.connectors[0];
+  // "No wait" only while the live feed it came from is still live.
+  const wait = waitAtTime(stop.wait, stop.station.statusFeed, now);
   return (
     <Card
       tone="lime"
@@ -257,7 +261,7 @@ function StopCard({
       <Text style={styles.stopName}>{stop.station.name}</Text>
       <Text style={styles.stopMeta}>
         Arrive ~{stop.arriveSoc}% • charge ~{stop.chargeMin} min •{' '}
-        {formatInr(stop.costInr)}
+        {stopCostLabel(stop.costInr)}
       </Text>
       <View style={styles.badges}>
         <StatusBadge status={connector.status} />
@@ -267,17 +271,19 @@ function StopCard({
           subject="Status"
         />
       </View>
-      <View style={styles.waitRow}>
-        <Text style={styles.stopMeta}>Wait: {waitLabel(stop.wait)}</Text>
-        {stop.wait.basis !== 'none' && stop.wait.maxMinutes > 0 && (
-          <ConfidencePill confidence={stop.wait.confidence} />
-        )}
-      </View>
-      {stop.wait.basis === 'none' && (
-        <Text style={styles.fine}>
-          {CONFIDENCE_LABEL[stop.wait.confidence]}
-        </Text>
+      {stop.costInr !== null && (
+        <View style={styles.priceLine}>
+          <PriceLine station={stop.station} vehicle={vehicle} now={now} />
+        </View>
       )}
+      <View style={styles.waitRow}>
+        <Text style={styles.stopMeta}>
+          {wait.basis === 'none' ? '' : 'Wait: '}
+          {waitLabel(wait)}
+        </Text>
+        <ConfidencePill confidence={wait.confidence} />
+      </View>
+      <Text style={styles.fine}>{waitBasisLabel(wait)}</Text>
     </Card>
   );
 }
@@ -302,6 +308,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     flexWrap: 'wrap',
   },
-  fine: {...type.caption, color: colors.muted},
+  fine: {...type.caption, color: colors.muted, marginTop: 2},
+  priceLine: {marginTop: 4},
   links: {flexDirection: 'row', justifyContent: 'center', gap: spacing.xl},
 });

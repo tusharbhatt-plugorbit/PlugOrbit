@@ -17,9 +17,11 @@ import {
   KeyValue,
   Notice,
   PercentSlider,
+  PriceLine,
   PrimaryButton,
   Screen,
   Stepper,
+  useNow,
   useResource,
 } from '../../ui';
 
@@ -30,6 +32,7 @@ export default function CostCalculatorScreen(): React.JSX.Element {
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const battery = useApp(s => s.battery);
+  const now = useNow(30_000);
   const station = useResource(
     () => stationService.get(params?.stationId as string),
     [params?.stationId],
@@ -126,13 +129,18 @@ export default function CostCalculatorScreen(): React.JSX.Element {
 
       <Card>
         <View style={styles.row}>
-          <View>
+          <View style={styles.flex}>
             <Text style={styles.label}>Price per kWh</Text>
             <Text style={styles.fine}>
-              {manualPrice === null && stationPrice !== null
+              {manualPrice !== null
+                ? 'Your estimate'
+                : stationPrice !== null
                 ? 'From the station'
-                : 'Your estimate'}
+                : 'A typical price, not from a charger'}
             </Text>
+            {manualPrice === null && stationPrice !== null && station.data && (
+              <PriceLine station={station.data} vehicle={vehicle} now={now} />
+            )}
           </View>
           <Stepper
             label="price per kilowatt hour"
@@ -176,6 +184,7 @@ export default function CostCalculatorScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  flex: {flex: 1},
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted, marginTop: -6},
   row: {

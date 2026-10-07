@@ -1,6 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
+import {stationErrorProps} from '../../hooks/useDiscoverStations';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {colors, radii, spacing, type} from '../../theme';
@@ -112,7 +113,7 @@ export default function ReservationScreen(): React.JSX.Element {
       }>
       <AsyncView
         resource={res}
-        errorTitle="Couldn’t load this charger"
+        {...stationErrorProps(res.error, 'Couldn’t load this charger')}
         render={station => {
           if (station.integration !== 'integrated') {
             return (

@@ -1,9 +1,19 @@
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {nearestAlternative} from '../../domain/alternative';
 import {describeError} from '../../domain/describeError';
-import {CONFIDENCE_LABEL, waitLabel} from '../../domain/rules';
-import type {Route, StationWithDistance, Vehicle} from '../../domain/types';
-import {useNavigation, useRoute} from '../../navigation/NavigationContext';
+import {CONFIDENCE_LABEL, waitBasisLabel, waitLabel} from '../../domain/rules';
+import type {
+  Route,
+  StationWithDistance,
+  Vehicle,
+  WaitEstimate,
+} from '../../domain/types';
+import {
+  useIsActiveRef,
+  useNavigation,
+  useRoute,
+} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {cacheRoute} from '../../store/tripActions';
@@ -28,12 +38,15 @@ type Loaded = {
   failed: StationWithDistance;
   backup: StationWithDistance;
   extraMin: number;
+  /** The route stop being replaced; null when the charger is not on the plan. */
   stopIndex: number | null;
+  wait: WaitEstimate;
 };
 
 /**
- * 10 Backup alert. The charger you chose became occupied (or offline): one tap
- * moves to the backup that was already planned. Never leaves you without one.
+ * 10 Backup alert. The charger you are heading to is occupied (or offline):
+ * one tap moves to the backup that was already planned for it, or, off a
+ * route, to its nearest alternative. Never about a charger you didn't choose.
  */
 export default function BackupAlertScreen(): React.JSX.Element {
   const nav = useNavigation();
@@ -43,7 +56,20 @@ export default function BackupAlertScreen(): React.JSX.Element {
   const route = useApp(s => s.activeRoute);
   const chosen = useApp(s => s.chosen);
   const now = useNow(15_000);
+  const stationId = params?.stationId;
   const stopIndex = useMemo(() => {
+    if (stationId !== undefined) {
+      // Only a plan stop when the plan really has this charger at that index.
+      if (!route) {
+        return null;
+      }
+      const hinted = params?.stopIndex;
+      const i =
+        hinted !== undefined && route.stops[hinted]?.station.id === stationId
+          ? hinted
+          : route.stops.findIndex(s => s.station.id === stationId);
+      return i >= 0 ? i : null;
+    }
     if (params?.stopIndex !== undefined) {
       return params.stopIndex;
     }
@@ -52,22 +78,28 @@ export default function BackupAlertScreen(): React.JSX.Element {
       return i >= 0 ? i : 0;
     }
     return route && route.stops.length > 0 ? 0 : null;
-  }, [params?.stopIndex, route, chosen]);
+  }, [stationId, params?.stopIndex, route, chosen]);
 
   const res = useResource<Loaded | null>(async () => {
-    if (route && stopIndex !== null && route.stops[stopIndex]) {
-      const stop = route.stops[stopIndex];
-      const [failed, backup] = await Promise.all([
-        stationService.get(stop.station.id),
-        stationService.get(stop.backup.id),
-      ]);
-      return {failed, backup, extraMin: stop.backupExtraMin, stopIndex};
+    const stop =
+      route && stopIndex !== null ? route.stops[stopIndex] : undefined;
+    const failedId =
+      stop?.station.id ??
+      stationId ??
+      chosen?.stationId ??
+      'st-chargezone-neemrana';
+    const [failed, wait] = await Promise.all([
+      stationService.get(failedId),
+      stationService.waitEstimate(failedId, vehicle),
+    ]);
+    if (stop?.backup && stopIndex !== null) {
+      const backup = await stationService.get(stop.backup.id);
+      return {failed, backup, extraMin: stop.backupExtraMin, stopIndex, wait};
     }
-    // No plan: fall back to the chosen charger and the nearest alternative.
-    const id = chosen?.stationId ?? 'st-chargezone-neemrana';
-    const failed = await stationService.get(id);
+    // Not on the plan (or the plan has no backup for it): the nearest usable
+    // alternative to *this* charger.
     const near = await stationService.nearby({origin: failed, vehicle});
-    const backup = near.find(s => s.id !== id);
+    const backup = nearestAlternative(near, failed.id, vehicle);
     if (!backup) {
       return null;
     }
@@ -76,8 +108,9 @@ export default function BackupAlertScreen(): React.JSX.Element {
       backup,
       extraMin: Math.max(3, backup.detourMin),
       stopIndex: null,
+      wait,
     };
-  }, [route, stopIndex, chosen?.stationId, vehicle]);
+  }, [route, stopIndex, stationId, chosen?.stationId, vehicle]);
 
   const reason = params?.reason ?? 'occupied';
 
@@ -130,6 +163,7 @@ function AlertBody({
 }) {
   const nav = useNavigation();
   const {route: routeService} = useServices();
+  const active = useIsActiveRef();
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,12 +172,17 @@ function AlertBody({
     setError(null);
     try {
       if (route && data.stopIndex !== null) {
+        // The plan swaps in exactly the backup shown above.
         const next = await routeService.switchToBackup(route, data.stopIndex);
+        if (!active.current) {
+          return;
+        }
         cacheRoute(next, data.stopIndex);
-        const stop = next.stops[data.stopIndex] ?? next.stops[0];
-        showToast(`Switched to ${stop.station.name}.`, 'success');
+        const stop = next.stops[data.stopIndex];
+        const target = stop ? stop.station : data.backup;
+        showToast(`Switched to ${target.name}.`, 'success');
         nav.replace('Navigation', {
-          stationId: stop.station.id,
+          stationId: target.id,
           stopIndex: data.stopIndex,
         });
       } else {
@@ -156,12 +195,8 @@ function AlertBody({
     }
   };
 
-  const wait = {
-    minMinutes: 10,
-    maxMinutes: 18,
-    confidence: 'medium' as const,
-    basis: 'history' as const,
-  };
+  const wait = data.wait;
+  const waitKnown = wait.basis !== 'none';
 
   return (
     <Screen
@@ -186,13 +221,14 @@ function AlertBody({
       <Card tone="danger">
         <Text style={styles.kicker}>Chosen stop</Text>
         <Text style={styles.title}>
-          Your charger became{' '}
-          {reason === 'offline' ? 'unavailable' : 'occupied'}
+          Your charger is {reason === 'offline' ? 'unavailable' : 'occupied'}
         </Text>
         <Text style={styles.sub}>
-          {data.failed.name} just{' '}
-          {reason === 'offline' ? 'went offline' : 'filled up'}. We found the
-          next best option automatically.
+          {data.failed.name}{' '}
+          {reason === 'offline'
+            ? 'is offline right now'
+            : 'has no free bay right now'}
+          . We found the next best option automatically.
         </Text>
       </Card>
 
@@ -211,22 +247,35 @@ function AlertBody({
 
       <Card>
         <Text style={styles.waitTitle}>Or wait at {data.failed.name}</Text>
-        <Text style={styles.sub}>Expected wait {waitLabel(wait)}</Text>
-        <View style={styles.pill}>
-          <ConfidencePill confidence={wait.confidence} />
-        </View>
-        <Text style={styles.fine}>
-          {CONFIDENCE_LABEL[wait.confidence]}: based on recent sessions, so
-          treat it as a range.
-        </Text>
-        <View style={styles.row}>
-          <SecondaryButton
-            label="Join queue"
-            icon="users"
-            compact
-            onPress={() => nav.navigate('Queue', {stationId: data.failed.id})}
-          />
-        </View>
+        {reason === 'offline' ? (
+          <Text style={styles.sub}>
+            Wait unknown. This charger is offline, so there is no queue to join.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.sub}>
+              {waitKnown ? `Expected wait ${waitLabel(wait)}` : 'Wait unknown'}
+            </Text>
+            {waitKnown && (
+              <View style={styles.pill}>
+                <ConfidencePill confidence={wait.confidence} />
+              </View>
+            )}
+            <Text style={styles.fine}>
+              {CONFIDENCE_LABEL[wait.confidence]}. {waitBasisLabel(wait)}
+            </Text>
+            <View style={styles.row}>
+              <SecondaryButton
+                label="Join queue"
+                icon="users"
+                compact
+                onPress={() =>
+                  nav.navigate('Queue', {stationId: data.failed.id})
+                }
+              />
+            </View>
+          </>
+        )}
       </Card>
     </Screen>
   );

@@ -88,14 +88,22 @@ export type Station = {
   address: string;
   latitude: number;
   longitude: number;
+  /** 0-5 driver rating; 0 means "not rated" (never invent one). */
   rating: number;
   /** Share of recent sessions that started and finished without a fault. */
   successfulSessionsPct: number;
-  /** Organic reliability 0-100. Never influenced by sponsorship. */
+  /**
+   * Organic reliability 0-100, never influenced by sponsorship. 0 means
+   * unknown (Google Maps chargers carry no reliability data).
+   */
   reliabilityPct: number;
   sponsored: boolean;
   hours: string;
   amenities: readonly Amenity[];
+  /**
+   * Empty when the source doesn't say which connectors exist (Google Maps
+   * without EV data). Such a charger is "unconfirmed", never "compatible".
+   */
   connectors: readonly StationConnector[];
   integration: IntegrationMode;
   /** Operator instructions shown for external stations. */
@@ -135,7 +143,12 @@ export type WaitEstimate = {
   minMinutes: number;
   maxMinutes: number;
   confidence: Confidence;
-  basis: 'live_queue' | 'history' | 'none';
+  /**
+   * `live_queue`: a fresh operator feed. `reported`: a bay was last reported
+   * free by something other than a live feed (estimate, driver, stale feed).
+   * `history`: how long sessions usually last. `none`: not enough data.
+   */
+  basis: 'live_queue' | 'reported' | 'history' | 'none';
 };
 
 // ------------------------------------------------------------------ routes --
@@ -145,14 +158,22 @@ export type RouteStrategy = 'fastest' | 'cheapest' | 'reliable';
 export type RouteStop = {
   station: StationWithDistance;
   connectorId: string;
-  /** Required: every recommended stop ships with a backup. */
-  backup: StationWithDistance;
+  /**
+   * Every recommended stop ships with a backup. It is null only when no
+   * compatible charger lies within a short detour that the arrival battery
+   * could reach; `backupNote` then says so and the UI must warn, not hide it.
+   */
+  backup: StationWithDistance | null;
+  /** Extra minutes to reach the backup; 0 when there is none. */
   backupExtraMin: number;
+  backupNote?: string;
+  /** Whole percent, so the plan never prints 70.35%. */
   arriveSoc: number;
   chargeToSoc: number;
   chargeMin: number;
   detourMin: number;
-  costInr: number;
+  /** Null when the chosen connector has no published price. */
+  costInr: number | null;
   wait: WaitEstimate;
 };
 
@@ -168,6 +189,8 @@ export type Route = {
   strategy: RouteStrategy;
   polyline: readonly Coords[];
   stops: readonly RouteStop[];
+  /** Intermediate places of a multi-stop trip, kept so a re-plan keeps them. */
+  via?: readonly string[];
   /** Epoch ms the route was computed; used for cache age labels. */
   computedAt: number;
 };

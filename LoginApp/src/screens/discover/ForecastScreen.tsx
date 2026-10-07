@@ -1,9 +1,11 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import {CONFIDENCE_LABEL} from '../../domain/rules';
+import {CONFIDENCE_LABEL, availabilityHeadline} from '../../domain/rules';
 import type {Forecast} from '../../domain/types';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
+import {stationErrorProps} from '../../hooks/useDiscoverStations';
+import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {
   AsyncView,
@@ -28,6 +30,7 @@ export default function ForecastScreen(): React.JSX.Element {
   const nav = useNavigation();
   const {params} = useRoute<'Forecast'>();
   const now = useNow(30_000);
+  const vehicle = useApp(selectActiveVehicle);
   const {station: stationService} = useServices();
   const station = useResource(
     () => stationService.get(params.stationId),
@@ -56,13 +59,17 @@ export default function ForecastScreen(): React.JSX.Element {
 
       <AsyncView
         resource={forecast}
-        errorTitle="Couldn’t load the forecast"
+        {...stationErrorProps(forecast.error, 'Couldn’t load the forecast')}
         render={f => (
           <>
             <Card>
               <View style={styles.liveRow}>
                 <Text style={styles.live}>
-                  Live now: {f.freeNow} of {f.total} free
+                  {station.data
+                    ? availabilityHeadline(station.data, vehicle, now)
+                    : station.status === 'loading'
+                    ? 'Checking the latest status…'
+                    : 'Status unavailable'}
                 </Text>
                 {station.data && (
                   <ConfidenceBadge

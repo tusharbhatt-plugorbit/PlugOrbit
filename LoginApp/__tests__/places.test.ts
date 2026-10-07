@@ -69,6 +69,85 @@ describe('toCharger', () => {
     });
   });
 
+  test('keeps Google’s own connector types, powers and counts', () => {
+    const charger = toCharger({
+      ...base,
+      evChargeOptions: {
+        connectorAggregation: [
+          {
+            type: 'EV_CONNECTOR_TYPE_CCS_COMBO_2',
+            maxChargeRateKw: 60,
+            count: 2,
+            availableCount: 1,
+            outOfServiceCount: 1,
+          },
+          {
+            type: 'EV_CONNECTOR_TYPE_TYPE_2',
+            maxChargeRateKw: 7.4,
+            count: 1,
+            availableCount: 0,
+          },
+          {type: 'EV_CONNECTOR_TYPE_CHADEMO', maxChargeRateKw: 50, count: 1},
+        ],
+      },
+    });
+    expect(charger?.connectors).toEqual([
+      {type: 'CCS2', powerKw: 60, count: 2, available: 1, outOfService: 1},
+      {type: 'Type2', powerKw: 7.4, count: 1, available: 0, outOfService: null},
+      {
+        type: 'CHAdeMO',
+        powerKw: 50,
+        count: 1,
+        available: null,
+        outOfService: null,
+      },
+    ]);
+  });
+
+  test('never guesses a connector Google did not name', () => {
+    // J1772 is a Type 1 plug: not Type 2, so it is left out, not remapped.
+    // A group with no power can't be shown without inventing one.
+    const charger = toCharger({
+      ...base,
+      evChargeOptions: {
+        connectorAggregation: [
+          {type: 'EV_CONNECTOR_TYPE_J1772', maxChargeRateKw: 22, count: 2},
+          {type: 'EV_CONNECTOR_TYPE_OTHER', maxChargeRateKw: 22, count: 1},
+          {type: 'EV_CONNECTOR_TYPE_CCS_COMBO_2', count: 1},
+          {maxChargeRateKw: 50, count: 1},
+        ],
+      },
+    });
+    expect(charger?.connectors).toEqual([]);
+    expect(toCharger({...base})?.connectors).toEqual([]);
+  });
+
+  test('carries Google’s own availability timestamp, or null', () => {
+    const charger = toCharger({
+      ...base,
+      evChargeOptions: {
+        connectorAggregation: [
+          {
+            type: 'EV_CONNECTOR_TYPE_TYPE_2',
+            maxChargeRateKw: 22,
+            availableCount: 1,
+            availabilityLastUpdateTime: '2026-10-07T08:00:00Z',
+          },
+          {
+            type: 'EV_CONNECTOR_TYPE_CHADEMO',
+            maxChargeRateKw: 50,
+            availableCount: 0,
+            availabilityLastUpdateTime: '2026-10-07T08:30:00Z',
+          },
+        ],
+      },
+    });
+    expect(charger?.availabilityUpdatedAt).toBe(
+      Date.parse('2026-10-07T08:30:00Z'),
+    );
+    expect(toCharger({...base})?.availabilityUpdatedAt).toBeNull();
+  });
+
   test('leaves availability null when Google does not report it', () => {
     const charger = toCharger({
       ...base,

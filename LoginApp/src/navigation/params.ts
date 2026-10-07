@@ -21,7 +21,12 @@ export type RouteParams = {
   RoutePlanner: {toLabel?: string; fromLabel?: string} | undefined; // 08
   RouteResult: undefined; // 09 (reads the cached active route)
   BackupAlert:
-    | {stopIndex?: number; reason?: 'occupied' | 'offline'}
+    | {
+        /** The charger the driver is heading to; the alert is about this one. */
+        stationId?: string;
+        stopIndex?: number;
+        reason?: 'occupied' | 'offline';
+      }
     | undefined; // 10
   Navigation: {stationId: string; stopIndex?: number}; // 11
   ScanQr: {stationId?: string} | undefined; // 12

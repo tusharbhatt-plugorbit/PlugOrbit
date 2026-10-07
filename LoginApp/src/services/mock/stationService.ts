@@ -1,27 +1,35 @@
 import {
+  NEARBY_RADIUS_KM,
+  REPORTED_FREE_WAIT,
   compatibleConnectors,
   availableCount,
   estimateDetourMin,
   isCompatible,
+  isOutsideDemoArea,
 } from '../../domain/rules';
+import {dataTrust} from '../../domain/trust';
 import type {
   CommunityUpdate,
+  ConnectorStatus,
+  FeedInfo,
   Forecast,
   QueueTicket,
   Reservation,
   Station,
+  StationConnector,
   StationQuery,
   StationWithDistance,
   Vehicle,
   WaitEstimate,
 } from '../../domain/types';
-import {hasGoogleApiKey} from '../../config/google';
+import {DEFAULT_CENTER, hasGoogleApiKey} from '../../config/google';
 import {appStore} from '../../store/appStore';
 import {demoStore} from '../../store/demoStore';
 import {distanceKm, Coords} from '../../utils/geo';
 import {fetchNearbyChargers} from '../places';
+import type {Charger} from '../places';
 import type {StationService} from '../types';
-import {ApiError} from '../types';
+import {ApiError, StationNotFoundError} from '../types';
 import {buildStations} from './data';
 import {guard, hash, uid} from './runtime';
 
@@ -35,13 +43,28 @@ export function withDistanceTo(
   return {...station, distanceKm: d, detourMin: detourFor(d)};
 }
 
+// The charger the presenter switch applied to, captured the first time it is
+// seen on. Switching to the backup makes the backup the *chosen* stop; without
+// this it would be forced occupied too and the app would bounce back to the
+// Backup alert in a loop.
+let occupiedTargetId: string | null = null;
+demoStore.subscribe(() => {
+  if (!demoStore.get().stationOccupied) {
+    occupiedTargetId = null;
+  }
+});
+
 /** Presenter override: the chosen (or default) charger becomes occupied. */
 function applyDemoOverrides(stations: Station[]): Station[] {
   const demo = demoStore.get();
   if (!demo.stationOccupied) {
     return stations;
   }
-  const targetId = appStore.get().chosen?.stationId ?? 'st-chargezone-neemrana';
+  if (occupiedTargetId === null) {
+    occupiedTargetId =
+      appStore.get().chosen?.stationId ?? 'st-chargezone-neemrana';
+  }
+  const targetId = occupiedTargetId;
   return stations.map(s =>
     s.id !== targetId
       ? s
@@ -61,7 +84,107 @@ export function loadStations(): Station[] {
   return applyDemoOverrides(buildStations(Date.now()));
 }
 
-/** Google Places results become external, estimated-only stations. */
+// A bay-by-bay list is only a way to show Google's counts; cap it so one odd
+// place can't flood a card.
+const MAX_BAYS_PER_KIND = 12;
+
+/**
+ * One bay per connector Google counts: the first `available` are free, the
+ * next `outOfService` are offline, the rest are occupied. Only the totals are
+ * Google's; which physical bay is which is not known.
+ */
+function googleConnectors(c: Charger, stationId: string): StationConnector[] {
+  const out: StationConnector[] = [];
+  c.connectors.forEach(group => {
+    const known = group.available !== null;
+    const available = group.available ?? 0;
+    const offline = group.outOfService ?? 0;
+    const count = Math.min(
+      MAX_BAYS_PER_KIND,
+      Math.max(group.count ?? 0, available + offline, 1),
+    );
+    for (let i = 0; i < count; i++) {
+      const status: ConnectorStatus = !known
+        ? 'unknown'
+        : i < available
+        ? 'available'
+        : i < available + offline
+        ? 'offline'
+        : 'occupied';
+      out.push({
+        id: `${stationId}-c${out.length + 1}`,
+        label: `C${out.length + 1}`,
+        type: group.type,
+        powerKw: group.powerKw,
+        status,
+        pricePerKwh: null,
+        idleFeePerMin: null,
+      });
+    }
+  });
+  return out;
+}
+
+/**
+ * Google Places results become external stations carrying only what Google
+ * returned. Nothing is invented: no rating, reliability, price or connector it
+ * did not give (see `hasUnconfirmedConnectors`), and the status is Google's
+ * estimate stamped with Google's own timestamp, or our fetch time without one.
+ */
+function toGoogleStation(c: Charger, fetchedAt: number): Station {
+  const id = `g-${c.id}`;
+  const connectors = googleConnectors(c, id);
+  const hasCounts = c.connectors.some(g => g.available !== null);
+  const statusFeed: FeedInfo = hasCounts
+    ? {source: 'google_places', updatedAt: c.availabilityUpdatedAt ?? fetchedAt}
+    : {source: 'none', updatedAt: null};
+  return {
+    id,
+    name: c.name,
+    operator: 'Google Maps',
+    address: c.address ?? '',
+    latitude: c.latitude,
+    longitude: c.longitude,
+    rating: 0,
+    successfulSessionsPct: 0,
+    reliabilityPct: 0,
+    sponsored: false,
+    hours: c.hours ?? 'Hours unknown',
+    amenities: [],
+    connectors,
+    integration: 'external',
+    operatorInstructions:
+      'This station comes from Google Maps. Use the operator’s own app or QR code to start and pay.',
+    statusFeed,
+    priceFeed: {source: 'none', updatedAt: null},
+  };
+}
+
+// Every Google station we have shown, newest last, so Details, Directions,
+// Saved, Compare and the rest can open it by id. Not persisted: after a restart
+// a saved Google charger is "not available right now" until it is found again.
+const MAX_CACHED_PLACES = 120;
+const placesCache = new Map<string, Station>();
+
+/** Test helper. */
+export function clearPlacesCache(): void {
+  placesCache.clear();
+}
+
+function rememberPlaces(stations: Station[]): void {
+  stations.forEach(s => {
+    placesCache.delete(s.id);
+    placesCache.set(s.id, s);
+  });
+  while (placesCache.size > MAX_CACHED_PLACES) {
+    const oldest = placesCache.keys().next().value;
+    if (oldest === undefined) {
+      break;
+    }
+    placesCache.delete(oldest);
+  }
+}
+
 async function googleStations(origin: Coords): Promise<Station[]> {
   if (!hasGoogleApiKey) {
     return [];
@@ -69,57 +192,40 @@ async function googleStations(origin: Coords): Promise<Station[]> {
   try {
     const chargers = await fetchNearbyChargers(origin);
     const now = Date.now();
-    return chargers.map(c => ({
-      id: `g-${c.id}`,
-      name: c.name,
-      operator: 'Google Maps',
-      address: c.address ?? '',
-      latitude: c.latitude,
-      longitude: c.longitude,
-      rating: 4,
-      successfulSessionsPct: 0,
-      reliabilityPct: 60,
-      sponsored: false,
-      hours: c.hours ?? 'Hours unknown',
-      amenities: [],
-      connectors: [
-        {
-          id: `g-${c.id}-c1`,
-          label: 'C1',
-          type: 'CCS2',
-          powerKw: c.powerKw ?? 22,
-          status:
-            c.available === null
-              ? 'unknown'
-              : c.available > 0
-              ? 'available'
-              : 'occupied',
-          pricePerKwh: null,
-          idleFeePerMin: null,
-        },
-      ],
-      integration: 'external',
-      operatorInstructions:
-        'This station comes from Google Maps. Use the operator’s own app or QR code to start and pay.',
-      statusFeed: {source: 'google_places', updatedAt: now},
-      priceFeed: {source: 'none', updatedAt: null},
-    }));
+    const stations = chargers.map(c => toGoogleStation(c, now));
+    rememberPlaces(stations);
+    return stations;
   } catch {
     return [];
   }
 }
 
+/** A mock station, or a Google one we've shown; otherwise not found. */
+function findStation(stationId: string): Station {
+  const found =
+    loadStations().find(s => s.id === stationId) ?? placesCache.get(stationId);
+  if (!found) {
+    throw new StationNotFoundError();
+  }
+  return found;
+}
+
+/** Wait for this station and car. "No wait" needs a live operator feed. */
 export function waitFor(
   station: Station,
   vehicle: Vehicle | null,
+  now: number = Date.now(),
 ): WaitEstimate {
+  const live = dataTrust(station.statusFeed, now) === 'live';
   if (availableCount(station, vehicle) > 0) {
-    return {
-      minMinutes: 0,
-      maxMinutes: 0,
-      confidence: 'high',
-      basis: 'live_queue',
-    };
+    return live
+      ? {
+          minMinutes: 0,
+          maxMinutes: 0,
+          confidence: 'high',
+          basis: 'live_queue',
+        }
+      : REPORTED_FREE_WAIT;
   }
   const connectors = compatibleConnectors(station, vehicle);
   if (connectors.length > 0 && connectors.every(c => c.status === 'offline')) {
@@ -127,17 +233,41 @@ export function waitFor(
   }
   if (station.statusFeed.source === 'operator_feed') {
     const base = 10 + (hash(station.id) % 8);
-    return {
-      minMinutes: base,
-      maxMinutes: base + 8,
-      confidence: 'medium',
-      basis: 'history',
-    };
+    // A feed that has gone quiet still gives a range, but a wider, lower one.
+    return live
+      ? {
+          minMinutes: base,
+          maxMinutes: base + 8,
+          confidence: 'medium',
+          basis: 'history',
+        }
+      : {
+          minMinutes: Math.max(5, base - 5),
+          maxMinutes: base + 13,
+          confidence: 'low',
+          basis: 'history',
+        };
   }
   return {minMinutes: 0, maxMinutes: 0, confidence: 'low', basis: 'none'};
 }
 
 const communityLog = new Map<string, CommunityUpdate[]>();
+
+// Beyond this a "backup" for a queue isn't a backup, it's another trip.
+const QUEUE_BACKUP_MAX_KM = 60;
+
+/** Mock plus Google stations within reach of `query.origin`, nearest first. */
+async function around(query: StationQuery): Promise<StationWithDistance[]> {
+  const [mock, google] = await Promise.all([
+    Promise.resolve(loadStations()),
+    googleStations(query.origin),
+  ]);
+  return [...mock, ...google]
+    .map(s => withDistanceTo(s, query.origin))
+    .filter(s => s.distanceKm <= NEARBY_RADIUS_KM)
+    .filter(s => query.includeIncompatible || isCompatible(s, query.vehicle))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
 
 export function createStationService(): StationService {
   return {
@@ -146,30 +276,22 @@ export function createStationService(): StationService {
       if (demoStore.get().noCompatible) {
         return [];
       }
-      const [mock, google] = await Promise.all([
-        Promise.resolve(loadStations()),
-        googleStations(query.origin),
-      ]);
-      return [...mock, ...google]
-        .map(s => withDistanceTo(s, query.origin))
-        .filter(s => s.distanceKm <= 400)
-        .filter(
-          s => query.includeIncompatible || isCompatible(s, query.vehicle),
-        )
-        .sort((a, b) => a.distanceKm - b.distanceKm);
+      const found = await around(query);
+      // The built-in chargers are all around New Delhi. A phone far from there
+      // that Google found nothing for would otherwise see an empty app, so look
+      // around the demo centre instead; callers tell the driver (isDemoFallback).
+      if (
+        found.length === 0 &&
+        isOutsideDemoArea(query.origin, DEFAULT_CENTER)
+      ) {
+        return around({...query, origin: DEFAULT_CENTER});
+      }
+      return found;
     },
 
     async get(stationId, origin) {
       await guard(200);
-      const all = loadStations();
-      const found = all.find(s => s.id === stationId);
-      if (!found) {
-        throw new ApiError('This station could not be found.');
-      }
-      return withDistanceTo(
-        found,
-        origin ?? {latitude: 28.6139, longitude: 77.209},
-      );
+      return withDistanceTo(findStation(stationId), origin ?? DEFAULT_CENTER);
     },
 
     async search(text, origin, vehicle) {
@@ -190,19 +312,12 @@ export function createStationService(): StationService {
 
     async waitEstimate(stationId, vehicle = null) {
       await guard(150);
-      const s = loadStations().find(x => x.id === stationId);
-      if (!s) {
-        throw new ApiError('This station could not be found.');
-      }
-      return waitFor(s, vehicle);
+      return waitFor(findStation(stationId), vehicle);
     },
 
     async forecast(stationId): Promise<Forecast> {
       await guard(450);
-      const s = loadStations().find(x => x.id === stationId);
-      if (!s) {
-        throw new ApiError('This station could not be found.');
-      }
+      const s = findStation(stationId);
       const total = s.connectors.length;
       const freeNow = s.connectors.filter(c => c.status === 'available').length;
       const h = hash(stationId);
@@ -305,15 +420,14 @@ export function createStationService(): StationService {
 
     async joinQueue(stationId): Promise<QueueTicket> {
       await guard(400);
-      const stations = loadStations();
-      const s = stations.find(x => x.id === stationId);
-      if (!s) {
-        throw new ApiError('This station could not be found.');
-      }
+      const s = findStation(stationId);
+      // The nearest charger with known connectors, and only if it's a short
+      // detour: a Google charger far from the demo data has no real backup.
       const backup =
-        stations
-          .filter(x => x.id !== stationId && isCompatible(x, null))
+        [...loadStations(), ...placesCache.values()]
+          .filter(x => x.id !== stationId && x.connectors.length > 0)
           .map(x => withDistanceTo(x, s))
+          .filter(x => x.distanceKm <= QUEUE_BACKUP_MAX_KM)
           .sort((a, b) => a.distanceKm - b.distanceKm)[0] ?? null;
       const ticket: QueueTicket = {
         id: uid('q'),
@@ -343,10 +457,7 @@ export function createStationService(): StationService {
 
     async reserve(stationId, arrivalAt, holdMinutes): Promise<Reservation> {
       await guard(500);
-      const s = loadStations().find(x => x.id === stationId);
-      if (!s) {
-        throw new ApiError('This station could not be found.');
-      }
+      const s = findStation(stationId);
       if (s.integration !== 'integrated') {
         throw new ApiError(
           'Reservations are only available at PlugOrbit partner chargers.',

@@ -1,11 +1,14 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import type {Route, RouteStop} from '../domain/types';
+import {stopCostLabel} from '../domain/routeCost';
+import type {Route, RouteStop, Vehicle} from '../domain/types';
 import {colors, radii, spacing, type} from '../theme';
-import {formatDurationShort, formatInr} from '../utils/format';
+import {formatDurationShort} from '../utils/format';
 import {Pill} from './Badges';
 import {Card} from './Card';
 import {Icon, IconName} from './Icon';
+import {BackupChargerCard} from './station';
+import {Notice} from './States';
 
 function Stat({
   icon,
@@ -106,10 +109,49 @@ export function StopRow({
         <Text style={styles.stopName}>{stop.station.name}</Text>
         <Text style={styles.stopMeta}>
           Arrive {stop.arriveSoc}% → charge to {stop.chargeToSoc}% • ~
-          {stop.chargeMin} min • {formatInr(stop.costInr)}
+          {stop.chargeMin} min • {stopCostLabel(stop.costInr)}
         </Text>
       </View>
     </View>
+  );
+}
+
+/**
+ * The backup under a recommended stop. When no charger qualifies the stop says
+ * so with a warning: a missing backup is never silently left out.
+ */
+export function StopBackup({
+  stop,
+  vehicle,
+  now,
+  onOpen,
+}: {
+  stop: RouteStop;
+  vehicle: Vehicle | null;
+  now: number;
+  onOpen: (stationId: string) => void;
+}) {
+  const backup = stop.backup;
+  if (!backup) {
+    return (
+      <Notice
+        tone="warn"
+        title="No backup for this stop"
+        body={
+          stop.backupNote ??
+          'No compatible charger is close enough to be a backup here.'
+        }
+      />
+    );
+  }
+  return (
+    <BackupChargerCard
+      station={backup}
+      vehicle={vehicle}
+      now={now}
+      extraMin={stop.backupExtraMin}
+      onPress={() => onOpen(backup.id)}
+    />
   );
 }
 

@@ -1,6 +1,10 @@
+import {distanceKm} from '../utils/geo';
+import type {Coords} from '../utils/geo';
+import {dataTrust, timeAgo} from './trust';
 import type {
   ConnectorStatus,
   Confidence,
+  FeedInfo,
   Station,
   StationConnector,
   StationFilters,
@@ -33,7 +37,26 @@ export function isCompatible(
   station: Station,
   vehicle: Vehicle | null,
 ): boolean {
+  if (!vehicle) {
+    // Nothing can be ruled out without a car, so nothing is hidden.
+    return true;
+  }
   return station.connectors.some(c => connectorFits(c, vehicle));
+}
+
+/**
+ * True when the source never said which connectors this charger has (Google
+ * Maps without EV data). It is not confirmed compatible, so with a car set it
+ * stays hidden unless the driver asks for chargers that may not fit, and
+ * whenever it is shown it must say "Connector type unconfirmed".
+ */
+export function hasUnconfirmedConnectors(station: Station): boolean {
+  return station.connectors.length === 0;
+}
+
+/** False for chargers nobody has rated (rating 0), so no star is printed. */
+export function hasRating(station: Station): boolean {
+  return station.rating > 0;
 }
 
 export function compatibleConnectors(
@@ -122,6 +145,17 @@ export function applyFilters<T extends StationWithDistance>(
   return stations.filter(s => {
     if (!filters.includeIncompatible && !isCompatible(s, vehicle)) {
       return false;
+    }
+    if (hasUnconfirmedConnectors(s)) {
+      // No connector data to test these filters against, so they can't pass.
+      if (
+        filters.connector !== 'any' ||
+        filters.minPowerKw > 0 ||
+        filters.availableOnly
+      ) {
+        return false;
+      }
+      return filters.amenities.every(a => s.amenities.includes(a));
     }
     const pool = filters.includeIncompatible
       ? s.connectors
@@ -220,9 +254,76 @@ export function waitLabel(w: WaitEstimate): string {
     return 'Wait unknown';
   }
   if (w.maxMinutes === 0) {
-    return 'No wait expected';
+    // "No wait" is a claim only a live operator feed can back up.
+    return w.basis === 'live_queue' ? 'No wait expected' : 'Wait unknown';
+  }
+  if (w.minMinutes === 0) {
+    return `Up to ~${w.maxMinutes} min`;
   }
   return `~${w.minMinutes}-${w.maxMinutes} min`;
+}
+
+/** A bay reported free by something that isn't a live feed: a wide, low range. */
+export const REPORTED_FREE_WAIT: WaitEstimate = {
+  minMinutes: 0,
+  maxMinutes: 10,
+  confidence: 'low',
+  basis: 'reported',
+};
+
+/** What a wait estimate is built on, in words (shown beside its confidence). */
+export function waitBasisLabel(w: WaitEstimate): string {
+  switch (w.basis) {
+    case 'live_queue':
+      return 'Based on the live queue at this charger.';
+    case 'reported':
+      return 'Based on the last reported bay status, which isn’t a live feed.';
+    case 'history':
+      return 'Based on how long sessions usually last here.';
+    default:
+      return 'Not enough data to estimate a wait.';
+  }
+}
+
+/**
+ * Re-states a wait for the moment it is shown. "No wait expected" belongs to a
+ * live feed, so once the feed it came from is no longer live (a plan made a
+ * while ago) it becomes a low-confidence range instead.
+ */
+export function waitAtTime(
+  w: WaitEstimate,
+  feed: FeedInfo,
+  now: number,
+): WaitEstimate {
+  if (w.basis !== 'live_queue' || dataTrust(feed, now) === 'live') {
+    return w;
+  }
+  return REPORTED_FREE_WAIT;
+}
+
+/**
+ * Headline for "how many bays are free". It says "Live now" only for a fresh
+ * operator feed; anything else says when it was last reported, and a charger
+ * with no status never turns "unknown" into "0 free".
+ */
+export function availabilityHeadline(
+  station: Station,
+  vehicle: Vehicle | null,
+  now: number,
+): string {
+  const usable = compatibleConnectors(station, vehicle);
+  const trust = dataTrust(station.statusFeed, now);
+  if (
+    trust === 'unknown' ||
+    usable.length === 0 ||
+    usable.every(c => c.status === 'unknown')
+  ) {
+    return 'Status unknown';
+  }
+  const counts = `${availableCount(station, vehicle)} of ${usable.length} free`;
+  return trust === 'live'
+    ? `Live now: ${counts}`
+    : `Last reported ${timeAgo(station.statusFeed.updatedAt, now)}: ${counts}`;
 }
 
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
@@ -249,4 +350,29 @@ export function connectorStatusLabel(status: ConnectorStatus): string {
 /** Rough extra drive minutes to reach a station `km` away (straight-line). */
 export function estimateDetourMin(km: number): number {
   return Math.max(1, Math.round(km * 1.65));
+}
+
+// -------------------------------------------------------------- demo area --
+
+/** nearby() looks this far around the search origin. */
+export const NEARBY_RADIUS_KM = 400;
+
+/** True when `origin` is too far from the demo chargers' centre to find any. */
+export function isOutsideDemoArea(origin: Coords, demoCentre: Coords): boolean {
+  return distanceKm(origin, demoCentre) > NEARBY_RADIUS_KM;
+}
+
+/**
+ * True when `found` came from searching around the demo centre because
+ * `origin` itself had nothing: a normal search never returns a charger
+ * beyond NEARBY_RADIUS_KM, a fallback one only does.
+ */
+export function isDemoFallback(
+  origin: Coords,
+  found: readonly Coords[],
+): boolean {
+  return (
+    found.length > 0 &&
+    found.every(s => distanceKm(origin, s) > NEARBY_RADIUS_KM)
+  );
 }

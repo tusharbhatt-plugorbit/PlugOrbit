@@ -5,6 +5,8 @@ import {
   availableCount,
   compatibleConnectors,
   effectivePowerKw,
+  hasRating,
+  hasUnconfirmedConnectors,
   stationHealth,
 } from '../domain/rules';
 import type {
@@ -19,7 +21,12 @@ import {ConfidenceBadge, Pill, StatusBadge, typeLabel} from './Badges';
 import {Card, KeyValue} from './Card';
 import {CheckRow, StatBlock} from './DiscoverParts';
 import {Icon} from './Icon';
-import {PriceLine, ReliabilityBar, healthBadge} from './station';
+import {
+  PriceLine,
+  ReliabilityBar,
+  UnconfirmedConnectorsPill,
+  healthBadge,
+} from './station';
 import {vehicleName} from './session';
 
 // Beyond this a "detour" is really a drive, so say so.
@@ -42,6 +49,7 @@ export function StationHero({
   const health = stationHealth(station, vehicle);
   const usable = compatibleConnectors(station, vehicle);
   const free = availableCount(station, vehicle);
+  const unconfirmed = hasUnconfirmedConnectors(station);
   return (
     <Card tone="dark" style={styles.hero} testID="station-hero">
       <View style={styles.heroTop}>
@@ -76,6 +84,8 @@ export function StationHero({
       <View style={styles.heroTrust}>
         {usable.length > 0 ? (
           healthBadge(health)
+        ) : unconfirmed ? (
+          <UnconfirmedConnectorsPill />
         ) : (
           <Pill label="Not compatible" tone="danger" icon="triangle-alert" />
         )}
@@ -102,14 +112,22 @@ export function StationHero({
         <StatBlock
           onDark
           label="Bays free"
-          value={usable.length > 0 ? `${free} of ${usable.length}` : 'None fit'}
-          sub="compatible"
+          value={
+            usable.length > 0
+              ? `${free} of ${usable.length}`
+              : unconfirmed
+              ? 'Unknown'
+              : 'None fit'
+          }
+          sub={unconfirmed ? 'connectors unconfirmed' : 'compatible'}
         />
         <StatBlock
           onDark
           label="Rating"
-          value={`★ ${station.rating.toFixed(1)}`}
-          sub="driver rating"
+          value={
+            hasRating(station) ? `★ ${station.rating.toFixed(1)}` : 'Not rated'
+          }
+          sub={hasRating(station) ? 'driver rating' : 'no ratings yet'}
         />
       </View>
 

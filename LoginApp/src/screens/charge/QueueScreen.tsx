@@ -1,7 +1,8 @@
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import {CONFIDENCE_LABEL, waitLabel} from '../../domain/rules';
+import {CONFIDENCE_LABEL, waitBasisLabel, waitLabel} from '../../domain/rules';
 import {describeError} from '../../domain/describeError';
+import {stationErrorProps} from '../../hooks/useDiscoverStations';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {DEFAULT_CENTER} from '../../config/google';
 import {useServices} from '../../services';
@@ -39,8 +40,8 @@ export default function QueueScreen(): React.JSX.Element {
     [params.stationId],
   );
   const waitRes = useResource(
-    () => stationService.waitEstimate(params.stationId),
-    [params.stationId],
+    () => stationService.waitEstimate(params.stationId, vehicle),
+    [params.stationId, vehicle?.id ?? null],
     {enabled: !mine},
   );
 
@@ -136,9 +137,7 @@ export default function QueueScreen(): React.JSX.Element {
               <ConfidencePill confidence={mine.wait.confidence} />
             </View>
             <Text style={styles.fine}>
-              {mine.wait.basis === 'live_queue'
-                ? 'Based on the live queue.'
-                : 'Based on recent sessions here, so it’s a range, not a promise.'}{' '}
+              {waitBasisLabel(mine.wait)} It’s a range, not a promise.{' '}
               {CONFIDENCE_LABEL[mine.wait.confidence]}.
             </Text>
           </Card>
@@ -167,7 +166,7 @@ export default function QueueScreen(): React.JSX.Element {
       ) : (
         <AsyncView
           resource={stationRes}
-          errorTitle="Couldn’t load this charger"
+          {...stationErrorProps(stationRes.error, 'Couldn’t load this charger')}
           render={station => (
             <>
               <Text style={styles.lead}>Join the queue</Text>
@@ -185,6 +184,7 @@ export default function QueueScreen(): React.JSX.Element {
                       <View style={styles.pillRow}>
                         <ConfidencePill confidence={w.confidence} />
                       </View>
+                      <Text style={styles.fine}>{waitBasisLabel(w)}</Text>
                     </>
                   )}
                 />

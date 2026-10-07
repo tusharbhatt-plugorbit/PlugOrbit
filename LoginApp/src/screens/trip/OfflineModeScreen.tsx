@@ -91,8 +91,11 @@ export default function OfflineModeScreen(): React.JSX.Element {
   const stations: Array<{role: string; station: StationWithDistance}> =
     route.stops.flatMap((s, i) => [
       {role: `Stop ${i + 1}`, station: s.station},
-      {role: `Backup for stop ${i + 1}`, station: s.backup},
+      ...(s.backup
+        ? [{role: `Backup for stop ${i + 1}`, station: s.backup}]
+        : []),
     ]);
+  const unbacked = route.stops.filter(s => !s.backup).length;
 
   return (
     <Screen
@@ -114,6 +117,16 @@ export default function OfflineModeScreen(): React.JSX.Element {
         title={offline ? 'You’re offline' : 'Your trip is saved on this phone'}
         body={`${route.fromLabel} → ${route.toLabel}: route, chosen charger and backup are cached. Statuses below are last-known, not live.`}
       />
+
+      {unbacked > 0 && (
+        <Notice
+          tone="warn"
+          title={`No backup for ${unbacked} of ${route.stops.length} ${
+            route.stops.length === 1 ? 'stop' : 'stops'
+          }`}
+          body="No compatible charger is close enough to be a backup there. Check the charger before you rely on it."
+        />
+      )}
 
       <Text style={styles.section}>Cached route chargers</Text>
       {stations.map(({role, station}) => (
