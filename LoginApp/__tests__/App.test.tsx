@@ -177,9 +177,11 @@ test('a verified code lands on the Find a Charger home screen', async () => {
   const otpInput = renderer.root.findByType(TextInput);
   await ReactTestRenderer.act(() => otpInput.props.onChangeText('123456'));
   await pressByText(renderer, 'Verify & Create Account  →');
-  await ReactTestRenderer.act(() => {
+  // Async act, so the home screen's location lookup settles inside it.
+  await ReactTestRenderer.act(async () => {
     jest.advanceTimersByTime(1000);
   });
+  await ReactTestRenderer.act(async () => {});
 
   expect(textsOf(renderer)).toContain('Find a Charger');
 });

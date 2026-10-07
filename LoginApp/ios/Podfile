@@ -8,6 +8,21 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Reads a value from LoginApp/.env (git-ignored; see .env.example) so the Google
+# Maps key is never committed. Returns '' when the file or entry is missing.
+def read_env_value(name)
+  path = File.join(__dir__, '..', '.env')
+  return '' unless File.exist?(path)
+
+  File.readlines(path).each do |line|
+    line = line.strip
+    next unless line.start_with?("#{name}=")
+
+    return line.sub("#{name}=", '').strip.gsub(/\A["']|["']\z/, '')
+  end
+  ''
+end
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -23,6 +38,9 @@ target 'LoginApp' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Google Maps provider for react-native-maps (needs GMSServices key, see AppDelegate).
+  pod 'react-native-maps/Google', :path => '../node_modules/react-native-maps'
+
   post_install do |installer|
     react_native_post_install(
       installer,
@@ -30,5 +48,23 @@ target 'LoginApp' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Expose GOOGLE_MAPS_API_KEY (from .env) as a build setting, so Info.plist can
+    # reference $(GOOGLE_MAPS_API_KEY). It lands only in the generated, git-ignored
+    # Pods/Target Support Files/*.xcconfig, never in a tracked file.
+    begin
+      maps_key = read_env_value('GOOGLE_MAPS_API_KEY')
+      if maps_key.empty?
+        Pod::UI.warn 'GOOGLE_MAPS_API_KEY is not set in LoginApp/.env: iOS will use Apple Maps and demo chargers.'
+      end
+      installer.aggregate_targets.each do |aggregate_target|
+        aggregate_target.xcconfigs.each do |config_name, config_file|
+          config_file.attributes['GOOGLE_MAPS_API_KEY'] = maps_key
+          config_file.save_as(aggregate_target.xcconfig_path(config_name))
+        end
+      end
+    rescue StandardError => e
+      Pod::UI.warn "Could not inject GOOGLE_MAPS_API_KEY into the Pods xcconfig: #{e.message}"
+    end
   end
 end

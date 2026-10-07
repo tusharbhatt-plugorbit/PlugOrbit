@@ -1,14 +1,15 @@
 import React, {useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
-import type {Charger} from '../data/chargers';
+import type {ChargerWithDistance} from '../data/chargers';
+import {formatDistance} from '../utils/geo';
 import {colors, elevation, radii, spacing} from '../theme';
 import {BoltGlyph, CloseIcon, NavigateIcon} from './Icons';
 
 type Props = {
-  charger: Charger;
+  charger: ChargerWithDistance;
   bottomInset: number;
   onClose: () => void;
-  onDirections?: (charger: Charger) => void;
+  onDirections?: (charger: ChargerWithDistance) => void;
 };
 
 function ChargerCardBase({
@@ -18,7 +19,25 @@ function ChargerCardBase({
   onDirections,
 }: Props): React.JSX.Element {
   const enter = useRef(new Animated.Value(0)).current;
-  const busy = charger.available === 0;
+  const status =
+    charger.available === null
+      ? 'unknown'
+      : charger.available === 0
+      ? 'busy'
+      : 'available';
+  const busy = status === 'busy';
+  const distance = formatDistance(charger.distanceKm);
+  const hoursLine = [distance, charger.hours].filter(Boolean).join('  •  ');
+  const powerLine = [
+    charger.powerKw !== null ? `${charger.powerKw} kW` : null,
+    charger.available !== null && charger.total !== null
+      ? `${charger.available}/${charger.total} available`
+      : charger.total !== null
+      ? `${charger.total} connectors`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('  •  ');
 
   // Slide/fade in whenever a different charger is selected.
   useEffect(() => {
@@ -58,11 +77,18 @@ function ChargerCardBase({
             {charger.name}
           </Text>
           <Text style={styles.line} numberOfLines={1}>
-            {charger.distanceKm} km • {charger.hours}
+            {hoursLine}
           </Text>
-          <Text style={styles.line} numberOfLines={1}>
-            {charger.powerKw} kW • {charger.available}/{charger.total} available
-          </Text>
+          {powerLine !== '' && (
+            <Text style={styles.line} numberOfLines={1}>
+              {powerLine}
+            </Text>
+          )}
+          {charger.address !== null && (
+            <Text style={styles.address} numberOfLines={1}>
+              {charger.address}
+            </Text>
+          )}
         </View>
 
         <Pressable
@@ -76,15 +102,31 @@ function ChargerCardBase({
       </View>
 
       <View style={styles.priceRow}>
-        <View style={[styles.pill, busy && styles.pillBusy]}>
-          <Text style={[styles.pillText, busy && styles.pillTextBusy]}>
-            {busy ? 'Busy' : 'Available'}
+        <View
+          style={[
+            styles.pill,
+            busy && styles.pillBusy,
+            status === 'unknown' && styles.pillUnknown,
+          ]}>
+          <Text
+            style={[
+              styles.pillText,
+              busy && styles.pillTextBusy,
+              status === 'unknown' && styles.pillTextUnknown,
+            ]}>
+            {status === 'unknown'
+              ? 'Status unknown'
+              : busy
+              ? 'Busy'
+              : 'Available'}
           </Text>
         </View>
-        <Text style={styles.price}>
-          ₹{charger.pricePerKwh}
-          <Text style={styles.priceUnit}>/kWh</Text>
-        </Text>
+        {charger.pricePerKwh !== null && (
+          <Text style={styles.price}>
+            ₹{charger.pricePerKwh}
+            <Text style={styles.priceUnit}>/kWh</Text>
+          </Text>
+        )}
       </View>
 
       <Pressable
@@ -126,6 +168,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   line: {color: colors.inkSoft, fontSize: 12.5, marginTop: 2},
+  address: {color: colors.muted, fontSize: 12, marginTop: 2},
   close: {
     width: 28,
     height: 28,
@@ -148,8 +191,10 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   pillBusy: {backgroundColor: colors.dangerSoft},
+  pillUnknown: {backgroundColor: '#E2E8F0'},
   pillText: {color: colors.limeDark, fontSize: 12, fontWeight: '800'},
   pillTextBusy: {color: colors.danger},
+  pillTextUnknown: {color: colors.inkSoft},
   price: {color: colors.ink, fontSize: 16, fontWeight: '800'},
   priceUnit: {color: colors.muted, fontSize: 12, fontWeight: '600'},
   cta: {

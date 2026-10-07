@@ -1,3 +1,46 @@
+# Google Maps, location & nearby chargers
+
+The **Find a Charger** screen uses:
+
+| What | How |
+|---|---|
+| Current location | `@react-native-community/geolocation` (Android: Google's Fused Location Provider via Play Services; iOS: Core Location) |
+| Map | `react-native-maps` with the Google Maps SDK (Android + iOS) |
+| Nearby charging stations | [Places API (New) – Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), type `electric_vehicle_charging_station`, with live connector counts from `evChargeOptions` |
+| Directions | Opens the Google Maps app/site via the [Maps URLs API](https://developers.google.com/maps/documentation/urls/get-started#directions-action) (no key needed) |
+
+## 1. Create an API key
+
+In [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) (billing must be enabled):
+
+1. Enable **Maps SDK for Android**, **Maps SDK for iOS** and **Places API (New)**.
+2. Create an API key and **restrict it** (Android package `com.loginapp` + SHA-1, iOS bundle ID, and only the three APIs above). The key ships inside the app, so restriction is what protects it.
+
+## 2. Configure the app
+
+```sh
+cp .env.example .env     # then set GOOGLE_MAPS_API_KEY=...
+```
+
+`.env` is git-ignored. One key feeds all three places:
+
+- **JS** (Places requests): inlined at bundle time by `react-native-dotenv`. Restart Metro with `npm start -- --reset-cache` after changing it.
+- **Android**: `android/app/build.gradle` reads `.env` into the `com.google.android.geo.API_KEY` manifest entry. Rebuild the app.
+- **iOS**: `ios/Podfile` copies it into the generated `Pods/.../*.xcconfig` as `GOOGLE_MAPS_API_KEY`; `Info.plist` (`GMSApiKey`) and `AppDelegate.swift` pick it up. Run `cd ios && bundle exec pod install` after changing it, then rebuild.
+
+## Behaviour without a key / location
+
+- **No key**: the app still runs. It shows 5 demo chargers around New Delhi, an in-app notice says so, and iOS uses Apple Maps instead of Google.
+- **Location denied or unavailable**: the app explains why, searches around New Delhi instead, and the notice has a **Retry** button (the locate button also retries).
+- **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
+
+## Notes
+
+- Places returns up to 20 stations within 10 km, nearest first. Panning more than 2 km away offers **Search this area**. Tune `SEARCH_RADIUS_M` / `MAX_RESULTS` in `src/config/google.ts`.
+- Google doesn't publish tariffs, so price per kWh is only shown for demo data. Availability shows "Status unknown" when Google doesn't report it.
+- Requesting `evChargeOptions` bills at the Places *Enterprise* SKU. To avoid shipping a key in the app (and cap spend), call Places from the `Backend` service instead and keep the key server-side.
+- Native changes (Podfile, manifest, Gradle, AppDelegate) were written without access to Xcode/Android SDK. Please build both platforms once and report anything that doesn't compile.
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started

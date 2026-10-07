@@ -1,5 +1,7 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   StatusBar,
@@ -10,13 +12,20 @@ import {
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import ChargerCard from '../components/ChargerCard';
-import ChargerPin from '../components/ChargerPin';
-import {BackIcon, SearchIcon} from '../components/Icons';
-import MapBackdrop from '../components/MapBackdrop';
-import {CHARGERS, FILTERS, Filter, matchesFilter} from '../data/chargers';
+import ChargerMap, {ChargerMapHandle} from '../components/ChargerMap';
+import {BackIcon, LocateIcon, SearchIcon} from '../components/Icons';
+import {FILTERS, Filter, matchesFilter} from '../data/chargers';
+import type {ChargerWithDistance} from '../data/chargers';
+import {useNearbyChargers} from '../hooks/useNearbyChargers';
+import {openDirections} from '../services/directions';
 import {colors, elevation, radii, spacing} from '../theme';
+import {Coords, distanceKm} from '../utils/geo';
 
 const LOGO_MARK = require('../../assets/brand/logo-mark.png');
+
+// Offer "Search this area" once the map has been panned this far from the
+// point the current results were centred on.
+const RESEARCH_KM = 2;
 
 type HomeScreenProps = {
   onBack?: () => void;
@@ -24,17 +33,26 @@ type HomeScreenProps = {
 
 function HomeScreen({onBack}: HomeScreenProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
+  const mapRef = useRef<ChargerMapHandle>(null);
+  const {status, chargers, userLocation, origin, notice, refresh, searchAt} =
+    useNearbyChargers();
+
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
-  const [selectedId, setSelectedId] = useState<string | null>('1');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<Coords | null>(null);
+  const autoSelected = useRef(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return CHARGERS.filter(
+    return chargers.filter(
       ch =>
-        matchesFilter(ch, filter) && (!q || ch.name.toLowerCase().includes(q)),
+        matchesFilter(ch, filter) &&
+        (!q ||
+          ch.name.toLowerCase().includes(q) ||
+          (ch.address ?? '').toLowerCase().includes(q)),
     );
-  }, [query, filter]);
+  }, [chargers, query, filter]);
 
   // The card hides if the selected charger was filtered out.
   const selected = useMemo(
@@ -42,7 +60,60 @@ function HomeScreen({onBack}: HomeScreenProps): React.JSX.Element {
     [visible, selectedId],
   );
 
-  const closeCard = useCallback(() => setSelectedId(null), []);
+  // Fly to each new search origin (the device on first load, or "this area").
+  useEffect(() => {
+    mapRef.current?.animateTo(origin);
+    setMapCenter(null);
+  }, [origin]);
+
+  // Open the nearest charger once, so the screen lands on something useful.
+  useEffect(() => {
+    if (status === 'ready' && !autoSelected.current && chargers.length > 0) {
+      autoSelected.current = true;
+      setSelectedId(chargers[0].id);
+    }
+  }, [status, chargers]);
+
+  const select = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      const ch = chargers.find(c => c.id === id);
+      if (ch) {
+        mapRef.current?.animateTo(ch, true);
+      }
+    },
+    [chargers],
+  );
+  const deselect = useCallback(() => setSelectedId(null), []);
+
+  const recenter = useCallback(() => {
+    if (userLocation) {
+      mapRef.current?.animateTo(userLocation);
+    } else {
+      refresh();
+    }
+  }, [userLocation, refresh]);
+
+  const directions = useCallback(async (ch: ChargerWithDistance) => {
+    if (!(await openDirections(ch))) {
+      Alert.alert('Directions', 'Could not open Google Maps.');
+    }
+  }, []);
+
+  const searchHere = useCallback(() => {
+    if (mapCenter) {
+      setSelectedId(null);
+      searchAt(mapCenter);
+    }
+  }, [mapCenter, searchAt]);
+
+  const busy = status !== 'ready';
+  const showSearchHere =
+    !busy && mapCenter !== null && distanceKm(mapCenter, origin) > RESEARCH_KM;
+  const canRetry =
+    notice?.kind === 'location-denied' ||
+    notice?.kind === 'location-unavailable' ||
+    notice?.kind === 'search-failed';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -110,28 +181,85 @@ function HomeScreen({onBack}: HomeScreenProps): React.JSX.Element {
       </View>
 
       <View style={styles.map}>
-        <MapBackdrop />
+        <ChargerMap
+          ref={mapRef}
+          initialCenter={origin}
+          chargers={visible}
+          selectedId={selected?.id ?? null}
+          showUserLocation={userLocation !== null}
+          onSelect={select}
+          onDeselect={deselect}
+          onCenterChange={setMapCenter}
+        />
 
-        {visible.map(ch => (
-          <ChargerPin
-            key={ch.id}
-            charger={ch}
-            selected={ch.id === selected?.id}
-            onSelect={setSelectedId}
-          />
-        ))}
+        <View style={styles.overlayTop} pointerEvents="box-none">
+          {busy && (
+            <View style={[styles.pill, elevation(1)]} accessibilityRole="alert">
+              <ActivityIndicator size="small" color={colors.limeDark} />
+              <Text style={styles.pillText}>
+                {status === 'locating'
+                  ? 'Finding your location…'
+                  : 'Finding chargers nearby…'}
+              </Text>
+            </View>
+          )}
 
-        {visible.length === 0 && (
-          <View style={[styles.emptyBadge, elevation(1)]}>
-            <Text style={styles.emptyText}>No chargers match your search</Text>
-          </View>
-        )}
+          {showSearchHere && (
+            <Pressable
+              onPress={searchHere}
+              accessibilityRole="button"
+              style={({pressed}) => [
+                styles.pill,
+                styles.pillAction,
+                elevation(1),
+                pressed && styles.pillPressed,
+              ]}>
+              <Text style={styles.pillText}>Search this area</Text>
+            </Pressable>
+          )}
+
+          {!busy && notice && (
+            <View
+              style={[styles.notice, elevation(1)]}
+              accessibilityRole="alert">
+              <Text style={styles.noticeText}>{notice.message}</Text>
+              {canRetry && (
+                <Pressable
+                  onPress={refresh}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again">
+                  <Text style={styles.noticeAction}>Retry</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {!busy && !notice && visible.length === 0 && (
+            <View style={[styles.pill, elevation(1)]}>
+              <Text style={styles.pillText}>No chargers match your search</Text>
+            </View>
+          )}
+        </View>
+
+        <Pressable
+          onPress={recenter}
+          accessibilityRole="button"
+          accessibilityLabel="Go to my location"
+          style={({pressed}) => [
+            styles.locate,
+            elevation(2),
+            pressed && styles.pillPressed,
+          ]}>
+          <LocateIcon size={20} color={colors.ink} />
+        </Pressable>
 
         {selected && (
           <ChargerCard
             charger={selected}
             bottomInset={insets.bottom}
-            onClose={closeCard}
+            onClose={deselect}
+            onDirections={directions}
           />
         )}
       </View>
@@ -207,15 +335,56 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radii.xl,
     overflow: 'hidden',
   },
-  emptyBadge: {
-    alignSelf: 'center',
-    marginTop: spacing.xl,
+
+  overlayTop: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.lg,
+    right: 72,
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    height: 38,
+    borderRadius: radii.pill,
+  },
+  pillAction: {backgroundColor: colors.lime},
+  pillPressed: {opacity: 0.85},
+  pillText: {color: colors.ink, fontSize: 13, fontWeight: '700'},
+
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
   },
-  emptyText: {color: colors.muted, fontSize: 13, fontWeight: '600'},
+  noticeText: {
+    flexShrink: 1,
+    color: colors.inkSoft,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  noticeAction: {color: colors.limeDark, fontSize: 13, fontWeight: '800'},
+
+  locate: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 export default HomeScreen;
