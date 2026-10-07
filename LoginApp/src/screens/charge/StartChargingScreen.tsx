@@ -22,6 +22,7 @@ import {
   useNavigation,
   useRoute,
 } from '../../navigation/NavigationContext';
+import {resumeSession} from '../../app/initialStack';
 import {useServices} from '../../services';
 import {openDirections} from '../../services/directions';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
@@ -479,6 +480,11 @@ function StartForm({
                 <TextButton
                   label="Fix payment"
                   onPress={() => nav.navigate('PaymentMethods')}
+                />
+              ) : formError.kind === 'session' ? (
+                <TextButton
+                  label="Open my session"
+                  onPress={() => resumeSession(nav)}
                 />
               ) : undefined
             }

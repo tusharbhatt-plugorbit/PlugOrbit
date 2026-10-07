@@ -375,3 +375,37 @@ describe('seed history', () => {
     }
   });
 });
+
+describe('reservation hold', () => {
+  const {heldReservation} = require('../src/domain/reservation');
+  const base = {
+    id: 'r1',
+    stationId: 's',
+    stationName: 'S',
+    connectorLabel: 'C1',
+    arrivalAt: 1_000_000,
+    holdMinutes: 10,
+    status: 'held',
+    createdAt: 0,
+  };
+  test('is held until the slot plus the grace period, then released', () => {
+    expect(heldReservation(base, 1_000_000 + 9 * 60_000)).toBe(base);
+    expect(heldReservation(base, 1_000_000 + 10 * 60_000 + 1)).toBeNull();
+  });
+  test('cancelled or missing reservations never count as held', () => {
+    expect(heldReservation({...base, status: 'cancelled'}, 0)).toBeNull();
+    expect(heldReservation(null, 0)).toBeNull();
+  });
+});
+
+describe('maskUpi', () => {
+  const {maskUpi} = require('../src/domain/paymentForm');
+  test('tells different handles on the same bank apart', () => {
+    expect(maskUpi('ravi@okaxis')).not.toBe(maskUpi('rahul@okaxis'));
+    expect(maskUpi('ravi.k@okaxis')).toBe('ra•••k@okaxis');
+  });
+  test('fully hides very short handles', () => {
+    expect(maskUpi('ab@okaxis')).toBe('•••@okaxis');
+    expect(maskUpi('abc@okaxis')).not.toContain('abc');
+  });
+});

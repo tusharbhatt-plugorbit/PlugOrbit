@@ -137,7 +137,7 @@ export default function PrivacyScreen(): React.JSX.Element {
         <ExplainRow
           icon="map-pin"
           title="Your location"
-          body="Used on this device to sort chargers and plan routes. It is never shared with charger operators."
+          body="Used on this device to sort chargers and plan routes. When a Google Maps key is configured, it is also sent to Google to find chargers near you. It is never shared with charger operators."
         />
         <ExplainRow
           icon="battery-charging"
@@ -157,7 +157,7 @@ export default function PrivacyScreen(): React.JSX.Element {
         <Notice
           tone="info"
           title="Demo build"
-          body="Your choices are saved on this device. Nothing leaves it, because the demo feed has no real operator or payment backend."
+          body="Your choices are saved on this device, but only the vehicle battery switch changes behaviour in this demo. The others are applied once the backend is connected."
         />
       </View>
 

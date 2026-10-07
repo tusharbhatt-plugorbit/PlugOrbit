@@ -2,7 +2,11 @@ import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import type {RouteStrategy} from '../../domain/types';
-import {useNavigation, useRoute} from '../../navigation/NavigationContext';
+import {
+  useIsActiveRef,
+  useNavigation,
+  useRoute,
+} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {cacheRoute} from '../../store/tripActions';
@@ -29,6 +33,7 @@ const STRATEGIES: ReadonlyArray<{value: RouteStrategy; label: string}> = [
 /** 08 Plan a trip. Plans with the active car, the current battery and your reserve. */
 export default function RoutePlannerScreen(): React.JSX.Element {
   const nav = useNavigation();
+  const active = useIsActiveRef();
   const {params} = useRoute<'RoutePlanner'>();
   const {route: routeService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -83,8 +88,11 @@ export default function RoutePlannerScreen(): React.JSX.Element {
         safetyReservePct: prefs.minArrivalSocPct,
         avoidPaidParking: prefs.avoidPaidParking,
       });
-      cacheRoute(route);
-      nav.navigate('RouteResult');
+      // The user may have left while we planned: keep their saved trip as is.
+      if (active.current) {
+        cacheRoute(route);
+        nav.navigate('RouteResult');
+      }
     } catch (e) {
       const copy = describeError(e, 'We couldn’t plan this trip.');
       setError({

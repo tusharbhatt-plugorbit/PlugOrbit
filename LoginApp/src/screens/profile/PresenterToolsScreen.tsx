@@ -9,7 +9,7 @@ import {useServices} from '../../services';
 import {
   appStore,
   INITIAL_STATE,
-  resetAppStore,
+  resetAppData,
   useApp,
 } from '../../store/appStore';
 import {
@@ -97,10 +97,10 @@ export default function PresenterToolsScreen(): React.JSX.Element {
     setBusy(false);
   };
 
-  const resetData = () => {
+  const resetData = async () => {
     const keep = {signedIn: appStore.get().signedIn};
     resetDemo();
-    resetAppStore({
+    await resetAppData({
       ...INITIAL_STATE,
       ...keep,
       hydrated: true,

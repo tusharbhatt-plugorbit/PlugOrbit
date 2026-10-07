@@ -7,6 +7,7 @@ import {IntegrationUnavailableError} from '../src/services';
 import {
   ConnectorUnavailableError,
   PaymentRequiredError,
+  SessionInProgressError,
 } from '../src/services/mock/sessionService';
 import {VEHICLE_CATALOG} from '../src/services/mock/data';
 import {appStore, resetAppStore} from '../src/store/appStore';
@@ -213,6 +214,48 @@ describe('sessionService + paymentService', () => {
     expect(appStore.get().session).toBeNull();
     expect(appStore.get().history[0].id).toBe(started.id);
     expect(appStore.get().history[0].status).toBe('paid');
+  });
+
+  const startInput = {
+    stationId: 'st-chargezone-manesar',
+    connectorId: connector,
+    targetSoc: 80,
+    paymentMethodId: 'pm-upi',
+  };
+
+  test('a second start never overwrites an open session', async () => {
+    const first = await services.session.start(startInput);
+    await expect(services.session.start(startInput)).rejects.toBeInstanceOf(
+      SessionInProgressError,
+    );
+    expect(appStore.get().session?.id).toBe(first.id);
+    // Same while the first one is stopped and still unpaid.
+    await services.session.stop(first.id);
+    await expect(services.session.start(startInput)).rejects.toBeInstanceOf(
+      SessionInProgressError,
+    );
+    expect(appStore.get().session?.status).toBe('payment_due');
+  });
+
+  test('two simultaneous starts (double tap) open exactly one session', async () => {
+    const results = await Promise.allSettled([
+      services.session.start(startInput),
+      services.session.start(startInput),
+    ]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find(r => r.status === 'rejected') as
+      | PromiseRejectedResult
+      | undefined;
+    expect(rejected?.reason).toBeInstanceOf(SessionInProgressError);
+  });
+
+  test('a pre-authorisation that errors leaves no phantom session', async () => {
+    const pending = services.session.start(startInput);
+    // Let the first service call finish, then break the payment gateway call.
+    await new Promise<void>(r => setTimeout(() => r(), 0));
+    demoStore.set({apiError: true});
+    await expect(pending).rejects.toThrow();
+    expect(appStore.get().session).toBeNull();
   });
 
   test('a session interrupted mid-authorisation is cleaned up', async () => {

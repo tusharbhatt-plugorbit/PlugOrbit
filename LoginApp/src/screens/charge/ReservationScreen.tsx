@@ -3,7 +3,6 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
-import {useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {formatClock} from '../../utils/format';
 import {
@@ -20,6 +19,7 @@ import {
   TextButton,
   useResource,
 } from '../../ui';
+import {useHeldReservation} from '../../ui/useHeldReservation';
 import {ConfirmActionSheet} from '../../ui/ConfirmActionSheet';
 
 const HOLD_MIN = 10;
@@ -39,7 +39,7 @@ export default function ReservationScreen(): React.JSX.Element {
   const nav = useNavigation();
   const {params} = useRoute<'Reservation'>();
   const {station: stationService} = useServices();
-  const reservation = useApp(s => s.reservation);
+  const reservation = useHeldReservation();
   const res = useResource(
     () => stationService.get(params.stationId),
     [params.stationId],

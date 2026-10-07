@@ -1,5 +1,6 @@
+import type {Navigation} from '../navigation/NavigationContext';
 import type {RouteName, TabName} from '../navigation/params';
-import type {AppState} from '../store/appStore';
+import {appStore, AppState} from '../store/appStore';
 
 export type InitialRoute = {name: RouteName; params?: unknown};
 
@@ -88,5 +89,20 @@ export function sessionTarget(state: AppState): InitialRoute | null {
       return {name: 'PaymentFailure', params: {sessionId: s.id}};
     default:
       return {name: 'Payment', params: {sessionId: s.id}};
+  }
+}
+
+/**
+ * Open the screen an unfinished session belongs on, WITH its params (Payment
+ * and PaymentFailure need the session id). Used by the banner and the Charge
+ * and Activity tabs so they can never disagree.
+ */
+export function resumeSession(nav: Navigation): void {
+  const target = sessionTarget(appStore.get());
+  if (target) {
+    (nav.navigate as (name: RouteName, params?: unknown) => void)(
+      target.name,
+      target.params,
+    );
   }
 }

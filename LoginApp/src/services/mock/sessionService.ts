@@ -17,6 +17,16 @@ export class PaymentRequiredError extends Error {
   }
 }
 
+/** A session is already open (starting, charging, or waiting for payment). */
+export class SessionInProgressError extends Error {
+  constructor(
+    message = 'You already have a charging session open. Finish or pay for it first.',
+  ) {
+    super(message);
+    this.name = 'SessionInProgressError';
+  }
+}
+
 export class ConnectorUnavailableError extends Error {
   constructor(message = 'This connector just became unavailable.') {
     super(message);
@@ -30,6 +40,11 @@ export function createSessionService(): SessionService {
   return {
     async start(input) {
       await guard(400);
+      // Checked synchronously with the write below, so a double tap or a second
+      // screen can never overwrite an active or unpaid session.
+      if (appStore.get().session) {
+        throw new SessionInProgressError();
+      }
       const vehicle = getActiveVehicle();
       if (!vehicle) {
         throw new ApiError('Add your vehicle before charging.');
@@ -113,10 +128,31 @@ export function createSessionService(): SessionService {
       };
       appStore.set({session: pending});
 
-      const result = await payments.preauthorise(amount, method.id);
+      // Only ever drop OUR pending session (it may have been cancelled or
+      // replaced while we waited on the payment gateway).
+      const dropPending = () => {
+        const current = appStore.get().session;
+        if (current && current.id === pending.id) {
+          appStore.set({session: null});
+        }
+      };
+      let result;
+      try {
+        result = await payments.preauthorise(amount, method.id);
+      } catch (e) {
+        // Network/API failure: nothing was held, so do not leave a phantom
+        // 'authorising' session behind that could later be billed.
+        dropPending();
+        throw e;
+      }
       if (!result.ok) {
-        appStore.set({session: null});
+        dropPending();
         throw new PaymentRequiredError(result.message);
+      }
+      const now = appStore.get().session;
+      if (!now || now.id !== pending.id || now.status !== 'authorising') {
+        // Cancelled while authorising: the hold is released, do not start.
+        throw new ApiError('Starting was cancelled. Nothing was charged.');
       }
 
       const active: ChargingSession = {

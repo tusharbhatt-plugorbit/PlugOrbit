@@ -7,11 +7,12 @@ import {
   useNavigationState,
 } from '../navigation/NavigationContext';
 import type {RouteName} from '../navigation/params';
-import {appStore, useApp} from '../store/appStore';
+import {REGISTRY} from '../navigation/registry';
+import {useApp} from '../store/appStore';
 import {colors, elevation, radii, sizes, spacing, type} from '../theme';
 import {Icon} from '../ui';
 import {useNow} from '../ui/useNow';
-import {sessionTarget} from './initialStack';
+import {resumeSession} from './initialStack';
 
 // Screens that already show the session, so the banner would be redundant.
 const HIDE_ON: readonly RouteName[] = [
@@ -38,20 +39,22 @@ export function SessionBanner() {
     return null;
   }
   const metrics = computeSessionMetrics(session, now);
-  const target = sessionTarget(appStore.get());
   const label =
     session.status === 'active'
       ? `Charging ${Math.round(metrics.socPercent)}% • ${session.stationName}`
       : session.status === 'payment_failed'
       ? 'Payment needs attention'
       : 'Session ended • pay now';
-  // Sit above the tab bar when it is visible, otherwise near the bottom edge.
+  // Sit above the tab bar when it is visible (tab roots AND stack screens that
+  // keep it, like Nearby chargers), otherwise near the bottom edge.
+  const tabBarVisible = depth === 0 || !!REGISTRY[current]?.tabBar;
   const bottom =
-    (depth === 0 ? sizes.tabBar + insets.bottom : insets.bottom) + spacing.md;
+    (tabBarVisible ? sizes.tabBar + insets.bottom : insets.bottom) +
+    spacing.md;
   return (
     <View style={[styles.wrap, {bottom}]} pointerEvents="box-none">
       <Pressable
-        onPress={() => target && nav.navigate(target.name as 'ActiveSession')}
+        onPress={() => resumeSession(nav)}
         accessibilityRole="button"
         accessibilityLabel={label}
         testID="session-banner"

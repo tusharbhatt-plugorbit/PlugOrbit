@@ -8,6 +8,7 @@ export type ErrorKind =
   | 'integration'
   | 'payment'
   | 'connector'
+  | 'session'
   | 'unknown';
 
 export type ErrorCopy = {
@@ -22,6 +23,7 @@ const KIND_BY_NAME: Record<string, ErrorKind> = {
   IntegrationUnavailableError: 'integration',
   PaymentRequiredError: 'payment',
   ConnectorUnavailableError: 'connector',
+  SessionInProgressError: 'session',
 };
 
 /**
@@ -54,6 +56,12 @@ export function describeError(e: unknown, fallback: string): ErrorCopy {
       return {kind, title: 'Payment needs attention', body: message || fallback};
     case 'connector':
       return {kind, title: 'Charger not available', body: message || fallback};
+    case 'session':
+      return {
+        kind,
+        title: 'A session is already open',
+        body: message || fallback,
+      };
     default:
       return {kind, title: 'Something went wrong', body: fallback};
   }

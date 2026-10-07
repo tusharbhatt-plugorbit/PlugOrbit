@@ -49,14 +49,52 @@ function toLocationError(error: GeolocationError): LocationError {
   }
 }
 
+const NATIVE_TIMEOUT_MS = 15_000;
+
+// The Android Play Services provider ignores `timeout`, never reports a missing
+// fix, and keeps ONE native callback slot that a second request overwrites. So
+// we (a) only ever have one request in flight and (b) enforce the timeout here.
+let inflight: Promise<Coords> | null = null;
+
 export function getCurrentLocation(): Promise<Coords> {
+  if (inflight) {
+    return inflight;
+  }
   configure();
-  return new Promise((resolve, reject) => {
+  const request = new Promise<Coords>((resolve, reject) => {
+    let done = false;
+    const finish = (settle: () => void) => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        settle();
+      }
+    };
+    // A little after the native timeout, so the native one wins when it works.
+    const timer = setTimeout(
+      () =>
+        finish(() =>
+          reject(
+            new LocationError('timeout', 'Finding your location timed out.'),
+          ),
+        ),
+      NATIVE_TIMEOUT_MS + 2_000,
+    );
     Geolocation.getCurrentPosition(
       ({coords}) =>
-        resolve({latitude: coords.latitude, longitude: coords.longitude}),
-      error => reject(toLocationError(error)),
-      {enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000},
+        finish(() =>
+          resolve({latitude: coords.latitude, longitude: coords.longitude}),
+        ),
+      error => finish(() => reject(toLocationError(error))),
+      {enableHighAccuracy: true, timeout: NATIVE_TIMEOUT_MS, maximumAge: 60_000},
     );
   });
+  const release = () => {
+    if (inflight === request) {
+      inflight = null;
+    }
+  };
+  inflight = request;
+  request.then(release, release);
+  return request;
 }

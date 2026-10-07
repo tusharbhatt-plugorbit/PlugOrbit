@@ -10,7 +10,11 @@ import {
   rankOrganic,
 } from '../../domain/rules';
 import type {Station, StationWithDistance} from '../../domain/types';
-import {useNavigation, useRoute} from '../../navigation/NavigationContext';
+import {
+  useIsActiveRef,
+  useNavigation,
+  useRoute,
+} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {getCurrentLocation} from '../../services/location';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
@@ -39,6 +43,7 @@ const BRACKET = 34;
  */
 export default function ScanQrScreen(): React.JSX.Element {
   const nav = useNavigation();
+  const active = useIsActiveRef();
   const {params} = useRoute<'ScanQr'>();
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -67,9 +72,12 @@ export default function ScanQrScreen(): React.JSX.Element {
 
   const go = useCallback(
     (station: Station, connectorId: string) => {
-      nav.replace('StartCharging', {stationId: station.id, connectorId});
+      // The lookup is async: if the user already left, do not pull them back.
+      if (active.current) {
+        nav.replace('StartCharging', {stationId: station.id, connectorId});
+      }
     },
-    [nav],
+    [nav, active],
   );
 
   /** Turn a code into a charger, with a clear reason when it can't be used. */

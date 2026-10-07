@@ -20,6 +20,7 @@ import {
   PrimaryButton,
   useNow,
 } from '../../ui';
+import {useHeldReservation} from '../../ui/useHeldReservation';
 
 /** Trips tab: planning, saved routes, energy plans, reservations, multi-stop. */
 export default function TripsScreen(): React.JSX.Element {
@@ -27,7 +28,7 @@ export default function TripsScreen(): React.JSX.Element {
   const now = useNow(30_000);
   const route = useApp(s => s.activeRoute);
   const saved = useApp(s => s.savedRoutes);
-  const reservation = useApp(s => s.reservation);
+  const reservation = useHeldReservation();
   const queue = useApp(s => s.queue);
 
   return (

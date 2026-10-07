@@ -1,4 +1,4 @@
-import {createContext, useContext} from 'react';
+import {createContext, useContext, useEffect, useRef} from 'react';
 import type {NavArgs, RouteName, RouteParams, TabName} from './params';
 
 export type Navigation = {
@@ -72,4 +72,24 @@ export function useRoute<K extends RouteName>(): {
 export function useIsFocused(): boolean {
   const e = useContext(EntryContext);
   return e ? e.focused : true;
+}
+
+/**
+ * A ref that is true only while this screen is mounted AND visible. Check it
+ * when async work finishes, before navigating or writing shared state:
+ * `navigate`/`replace` act on whatever screen is on top at that moment, so a
+ * result that arrives after the user pressed Back would otherwise pop a screen
+ * they never asked for.
+ */
+export function useIsActiveRef(): {readonly current: boolean} {
+  const focused = useIsFocused();
+  const ref = useRef(focused);
+  ref.current = focused;
+  useEffect(
+    () => () => {
+      ref.current = false;
+    },
+    [],
+  );
+  return ref;
 }

@@ -1,3 +1,4 @@
+import {heldReservation} from '../domain/reservation';
 import {DEFAULT_FILTERS} from '../domain/rules';
 import type {
   AlertPreferences,
@@ -157,11 +158,27 @@ export async function hydrateAppStore(): Promise<void> {
   ) {
     appStore.set(seedState(Date.now()));
   }
+  if (s.reservation && !heldReservation(s.reservation, Date.now())) {
+    // The hold ran out while the app was closed: the bay is already released.
+    appStore.set({reservation: null});
+  }
   appStore.set({hydrated: true});
 }
 
 export function flushAppStore(): Promise<void> {
   return persisted ? persisted.flush() : Promise.resolve();
+}
+
+/**
+ * Production reset (Presenter tools): swap in a clean state but keep
+ * persistence running, and write it through now, so later changes are still
+ * saved and a restart does not bring the old data back.
+ */
+export async function resetAppData(
+  patch: Partial<AppState> = {},
+): Promise<void> {
+  appStore.replace({...INITIAL_STATE, ...patch});
+  await persisted?.flush();
 }
 
 /** Test helper: back to a clean slate without touching storage. */

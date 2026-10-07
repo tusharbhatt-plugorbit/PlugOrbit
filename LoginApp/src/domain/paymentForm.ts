@@ -15,14 +15,23 @@ export function validateUpiId(raw: string): string | null {
   return null;
 }
 
-/** "ravi.k@okaxis" -> "ra•••@okaxis": enough to recognise, not to reuse. */
+/**
+ * "ravi.k@okaxis" -> "ra•••k@okaxis": enough to recognise (and to tell two IDs
+ * apart), not to reuse. Handles of 3 characters or fewer are fully hidden.
+ */
 export function maskUpi(raw: string): string {
   const id = raw.trim();
   const at = id.indexOf('@');
   if (at < 1) {
     return '••••';
   }
-  return `${id.slice(0, Math.min(2, at))}•••${id.slice(at)}`;
+  const local = id.slice(0, at);
+  if (local.length <= 3) {
+    return `•••${id.slice(at)}`;
+  }
+  return `${local.slice(0, 2)}${'•'.repeat(local.length - 3)}${local.slice(
+    -1,
+  )}${id.slice(at)}`;
 }
 
 export function digitsOnly(raw: string): string {

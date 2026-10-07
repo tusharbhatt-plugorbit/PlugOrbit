@@ -1,9 +1,9 @@
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import {sessionTarget} from '../../app/initialStack';
+import {resumeSession} from '../../app/initialStack';
 import {billFor} from '../../domain/sessionBill';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
-import {appStore, useApp} from '../../store/appStore';
+import {useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {formatInr} from '../../utils/format';
 import {
@@ -45,12 +45,7 @@ export default function ActivityScreen(): React.JSX.Element {
     [history],
   );
 
-  const resume = () => {
-    const target = sessionTarget(appStore.get());
-    if (target) {
-      nav.navigate(target.name as 'ActiveSession');
-    }
-  };
+  const resume = () => resumeSession(nav);
 
   return (
     <Screen title="Activity" hideBack stack>

@@ -74,6 +74,7 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-# Local secrets (see .env.example)
-.env
-.env.local
+# Local secrets (see .env.example). react-native-dotenv also reads .env.<mode>
+# and .env.<mode>.local, so ignore every .env* file except the template.
+.env*
+!.env.example

@@ -3,9 +3,9 @@ import {StyleSheet, Text, View} from 'react-native';
 import {billFor} from '../../domain/sessionBill';
 import {rankOrganic} from '../../domain/rules';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
-import {sessionTarget} from '../../app/initialStack';
+import {resumeSession} from '../../app/initialStack';
 import {useNavigation} from '../../navigation/NavigationContext';
-import {appStore, selectActiveVehicle, useApp} from '../../store/appStore';
+import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
 import {formatClock, formatDate, formatInr} from '../../utils/format';
 import {
@@ -23,6 +23,7 @@ import {
   TextButton,
   useNow,
 } from '../../ui';
+import {useHeldReservation} from '../../ui/useHeldReservation';
 
 /**
  * Charge tab: start a session (scan / enter ID / pick a nearby charger) or
@@ -33,7 +34,7 @@ export default function ChargeScreen(): React.JSX.Element {
   const now = useNow(30_000);
   const vehicle = useApp(selectActiveVehicle);
   const session = useApp(s => s.session);
-  const reservation = useApp(s => s.reservation);
+  const reservation = useHeldReservation();
   const queue = useApp(s => s.queue);
   const history = useApp(s => s.history);
   const favourites = useApp(s => s.favouriteStationIds);
@@ -44,12 +45,7 @@ export default function ChargeScreen(): React.JSX.Element {
     [stations, vehicle],
   );
 
-  const resume = () => {
-    const target = sessionTarget(appStore.get());
-    if (target) {
-      nav.navigate(target.name as 'ActiveSession');
-    }
-  };
+  const resume = () => resumeSession(nav);
 
   return (
     <Screen title="Charge" hideBack stack>
