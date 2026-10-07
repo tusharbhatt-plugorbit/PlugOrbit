@@ -364,3 +364,14 @@ describe('formatting', () => {
     expect(formatDuration(120)).toBe('2 h');
   });
 });
+
+describe('seed history', () => {
+  test('every seeded session total equals its own invoice (no off-by-rupee demo data)', () => {
+    const {seedState} = require('../src/store/seed');
+    const history = seedState(Date.now()).history ?? [];
+    expect(history.length).toBeGreaterThan(0);
+    for (const h of history) {
+      expect(h.costInr).toBe(invoiceFor(h.energyKwh, h.pricePerKwh).totalInr);
+    }
+  });
+});

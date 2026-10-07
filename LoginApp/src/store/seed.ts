@@ -38,7 +38,7 @@ export function seedState(now: number): Partial<AppState> {
       startedAt: now - 9 * DAY,
       energyKwh: 18.9,
       durationMin: 33,
-      costInr: 382,
+      costInr: 381.36,
       receiptNo: 'RC-2024-003M8T17',
       status: 'paid',
       startSoc: 31,
@@ -111,7 +111,7 @@ export function seedState(now: number): Partial<AppState> {
     {
       id: 'n3',
       title: 'Refund initiated',
-      body: '₹382 is on its way back to your UPI account.',
+      body: '₹381.36 is on its way back to your UPI account.',
       at: now - 5 * HOUR,
       read: false,
       target: {route: 'TicketDetail', params: {ticketId: 'tk-142'}},
