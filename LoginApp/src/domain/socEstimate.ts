@@ -116,6 +116,14 @@ export function describeSocSource(
       detail: `Read ${age}. Your car is not connected, so this won’t update.`,
     };
   }
+  if (battery.source === 'estimate') {
+    return {
+      fromCar: false,
+      label: 'Estimated on your trip',
+      tone: 'info',
+      detail: `Worked out from your last reading and the distance driven (${age}). Correct it any time.`,
+    };
+  }
   return {
     fromCar: false,
     label: 'Manual reading',

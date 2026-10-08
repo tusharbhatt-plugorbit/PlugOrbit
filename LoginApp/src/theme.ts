@@ -30,6 +30,10 @@ export const colors = {
   info: '#1D4ED8',
   infoSoft: '#DBEAFE',
   slateSoft: '#E2E8F0',
+  // Amber / red for text and graphics ON the dark shell (the light-surface
+  // amber and danger are too dark to read on navy). Tailwind amber-300/red-300.
+  warnOnDark: '#FCD34D',
+  dangerOnDark: '#FCA5A5',
   limeHalo: 'rgba(162, 240, 103, 0.08)',
   limeHaloBorder: 'rgba(162, 240, 103, 0.28)',
   scrim: 'rgba(2, 6, 23, 0.55)',

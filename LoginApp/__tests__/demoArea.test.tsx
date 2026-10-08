@@ -51,7 +51,12 @@ async function renderTab(
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <TestApp tab={tab} services={services} />,
+      tab === 'Home' ? (
+        // The map used to be Home; it is now its own screen.
+        <TestApp stack={[{name: 'Map'}]} services={services} />
+      ) : (
+        <TestApp tab={tab} services={services} />
+      ),
     );
   });
   mounted.push(renderer);

@@ -5,6 +5,7 @@ import type {
   SessionSummary,
 } from '../../domain/types';
 import {appStore} from '../../store/appStore';
+import {onSessionSettled} from '../../store/tripCoordinator';
 import {demoStore} from '../../store/demoStore';
 import type {PaymentService} from '../types';
 import {ApiError} from '../types';
@@ -152,6 +153,8 @@ export function createPaymentService(): PaymentService {
           ? {...s.battery, percent: summary.endSoc, updatedAt: Date.now()}
           : s.battery,
       }));
+      // Paid: a trip that was charging here carries on from the new battery.
+      onSessionSettled(summary);
       return {ok: true, receiptNo, chargedInr: invoice.totalInr};
     },
   };

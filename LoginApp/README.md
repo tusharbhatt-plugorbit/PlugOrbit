@@ -1,9 +1,12 @@
 # PlugOrbit mobile (showcase prototype)
 
-React Native + TypeScript app: find a compatible EV charger, plan a route with a
-backup stop, start and pay for a charge, and recover cleanly if the app is
-interrupted. 49 screens, all navigable, on a typed mock service layer.
+**You drive. We handle the charge.** React Native + TypeScript EV charging
+co-driver: it checks your battery, plans the charging stop *and a backup*, watches
+the charger while you drive, moves you to the backup if the plan changes, keeps
+working in a dead zone, and handles scan, pay and receipt at the charger. 50
+screens, all navigable, on a typed mock service layer.
 
+- Every feature, and what is real vs mocked: [`docs/FEATURES.md`](docs/FEATURES.md)
 - Demo script: [`docs/DEMO_WALKTHROUGH.md`](docs/DEMO_WALKTHROUGH.md)
 - What is real vs mocked, and open decisions: [`docs/HANDOFF.md`](docs/HANDOFF.md)
 - How the code is organised: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)

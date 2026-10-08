@@ -33,11 +33,12 @@ const flush = async () => {
 
 const mounted: Renderer[] = [];
 
+// The map used to be Home; it is now its own screen, opened from Home.
 async function renderHome(services?: Partial<Services>): Promise<Renderer> {
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <TestApp tab="Home" services={services} />,
+      <TestApp stack={[{name: 'Map'}]} services={services} />,
     );
   });
   mounted.push(renderer);
@@ -48,8 +49,7 @@ async function renderHome(services?: Partial<Services>): Promise<Renderer> {
 const home = (r: Renderer) =>
   r.root.findAll(
     n =>
-      typeof n.props.testID === 'string' &&
-      n.props.testID === 'screen-tab-Home',
+      typeof n.props.testID === 'string' && n.props.testID === 'screen-Map-1',
   )[0];
 
 const textsOf = (r: Renderer) =>

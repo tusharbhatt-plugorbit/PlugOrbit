@@ -11,6 +11,11 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
   Activity: undefined,
   Profile: undefined,
 
+  Map: undefined,
+  SmartDrive: undefined,
+  TripSummary: undefined,
+  ChargePick: undefined,
+
   VehicleSetup: undefined,
   ManualSoc: undefined,
   StationList: undefined,

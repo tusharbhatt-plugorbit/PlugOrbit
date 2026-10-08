@@ -2,6 +2,7 @@ import {estimatePreauthInr, computeSessionMetrics} from '../../domain/charging';
 import {compatibleConnectors, effectivePowerKw} from '../../domain/rules';
 import type {ChargingSession} from '../../domain/types';
 import {appStore, getActiveVehicle} from '../../store/appStore';
+import {onSessionStarted, onSessionStopped} from '../../store/tripCoordinator';
 import {demoStore} from '../../store/demoStore';
 import type {SessionService} from '../types';
 import {ApiError, IntegrationUnavailableError} from '../types';
@@ -162,6 +163,8 @@ export function createSessionService(): SessionService {
         startedAt: Date.now(),
       };
       appStore.set({session: active});
+      // If PlugOrbit is co-driving a trip, this is its charging stop.
+      onSessionStarted(active);
       return active;
     },
 
@@ -180,6 +183,7 @@ export function createSessionService(): SessionService {
         status: 'payment_due',
       };
       appStore.set({session: stopped});
+      onSessionStopped(stopped);
       return stopped;
     },
 

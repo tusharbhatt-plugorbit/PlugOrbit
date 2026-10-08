@@ -22,6 +22,8 @@ src/ui/                 the component kit (import everything from '../../ui')
 src/navigation/         params.ts (all routes + params), registry.ts, AppNavigator
 src/screens/<group>/    one file per route: <Route>Screen.tsx, default export
 src/domain/             pure types + rules (trust, compatibility, charging maths)
+                        + the co-driver engine (recommendation, tripEngine, coDriver, ...)
+src/app/                MainApp, TripMonitorHost (the trip watcher)
 src/services/           interfaces (types.ts) + mock implementations (mock/)
 src/store/              appStore (persisted), demoStore (presenter switches)
 src/dev/                fixtures + test harness used by the crawl test
@@ -104,7 +106,45 @@ Query options: `route`, `params` (URL-encoded JSON), `session=active|payment_due
 `click=Label1|Label2` (clicks by accessible name / text, in order, before the screenshot). The web preview uses a fake map and the same mock services as the app.
 Reference layouts (information hierarchy only): `/tmp/claude-0/-home-user-PlugOrbit/0f7584b7-4273-5ae7-83d2-96022426ee59/scratchpad/refpack/mobile/NN_*.png`.
 
-## 9. Conventions
+## 9. The co-driver layer
+
+Added in the Dev_Phase1 pass. Feature description: `FEATURES.md`.
+
+```
+screens  ->  store (useApp)  +  services (useServices)
+                                   |
+                       tripService / recommendationService   (thin I/O)
+                                   |
+                     domain: tripEngine, recommendation, coDriver   (pure)
+```
+
+* **Pure engine, thin services.** `tripEngine.ts` is `(trip, event) -> (trip,
+  events)`: `createTrip`, `applyPosition`, `applyStatusCheck`, `applyRouteChange`,
+  `beginCharging`, `applyChargeEnded`, `applyBattery`, `applyOffline`,
+  `dismissSwitch`, `endTrip`. It never touches the store, the clock or the
+  network, so every behaviour is unit-testable. `services/mock/tripService.ts`
+  fetches statuses, calls the engine and hands the result to the store.
+* **Events fan out in one place.** `store/tripDelivery.ts#commitTrip` writes the
+  trip, applies `deliveryFor` (level + `notifyMode`, dedupe by event key, 5 min
+  critical cooldown), adds to the notification inbox, and emits on
+  `store/tripEvents.ts` so `TripMonitorHost` can toast. Screens do none of this.
+* **Watching.** `app/TripMonitorHost.tsx` is mounted once in `MainApp`. Every 8 s
+  it calls `trip.refresh()` while a trip is open; with the demo `autoDrive`
+  switch on it also calls `trip.advance(km)` each second. A real GPS feed would
+  call `advance` and nothing else would change.
+* **The recommendation engine** (`domain/recommendation.ts`) is pure:
+  `recommend(candidates, ctx)` returns the primary, backup, ranking, exclusions
+  and reason. `WEIGHTS` is the only place scoring importance lives. Sponsorship
+  is not an input; price is absent from the battery-critical weights.
+* **Single sources of truth.** Wording lives in `coDriver.ts` / `tripStatus.ts` /
+  `wording.ts`; battery bands in `battery.ts`; geometry in `routeGeometry.ts`
+  (shared by the planner and the engine so a stop's cost is the same everywhere).
+* **Persistence.** `activeTrip`, `offlineTrip`, `smartDrivePrefs` and
+  `completedTrips` are in the persisted store, so a restart resumes the trip.
+* **Truth rules** (never fake LIVE, cached is Estimated, no invented numbers) are
+  covered in `engine.test.ts` and `trip.flow.test.ts`; keep them green.
+
+## 10. Conventions
 
 * TypeScript strict; no `any` (use the domain types).
 * Prettier flags above; single quotes, no bracket spacing.

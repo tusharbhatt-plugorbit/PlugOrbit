@@ -157,8 +157,8 @@ export default function ProfileScreen(): React.JSX.Element {
         />
         <ListRow
           icon="battery-charging"
-          title="Charging alerts"
-          subtitle={`${alertsOn(alertPrefs)} of 5 alerts on`}
+          title="Alerts & Smart Drive"
+          subtitle={`${alertsOn(alertPrefs)} of 5 charging alerts on`}
           onPress={() => nav.navigate('Alerts')}
         />
         <ListRow

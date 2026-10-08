@@ -18,7 +18,11 @@ export type Vehicle = {
   rangeKm100: number;
 };
 
-export type SocSource = 'manual' | 'vehicle';
+/**
+ * `estimate` = worked out from the last reading and the distance driven since
+ * (a trip under way). It is never presented as a measurement.
+ */
+export type SocSource = 'manual' | 'vehicle' | 'estimate';
 
 export type BatteryReading = {
   /** 0-100. */
@@ -345,6 +349,10 @@ export type AppNotification = {
   read: boolean;
   /** Where tapping it should go. */
   target: {route: string; params?: Record<string, unknown>} | null;
+  /** How loudly a co-driver message spoke (absent on older notifications). */
+  level?: 'informational' | 'action' | 'important' | 'critical';
+  /** Stable key of the co-driver moment it reports, so it is never repeated. */
+  eventKey?: string;
 };
 
 // ------------------------------------------------------------- preferences --

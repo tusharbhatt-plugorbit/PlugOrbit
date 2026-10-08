@@ -23,6 +23,8 @@ export type DemoState = {
   cameraDenied: boolean;
   /** Pretend no compatible chargers exist nearby. */
   noCompatible: boolean;
+  /** Simulated drive: a trip advances by itself (a GPS feed replaces this). */
+  autoDrive: boolean;
 };
 
 export const DEMO_DEFAULTS: DemoState = {
@@ -34,6 +36,7 @@ export const DEMO_DEFAULTS: DemoState = {
   locationDenied: false,
   cameraDenied: false,
   noCompatible: false,
+  autoDrive: false,
 };
 
 export const demoStore = createStore<DemoState>(DEMO_DEFAULTS);

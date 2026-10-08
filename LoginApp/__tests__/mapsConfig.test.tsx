@@ -41,7 +41,7 @@ describe('Home without a Maps key', () => {
     seedSignedIn();
     let r!: Renderer;
     await act(async () => {
-      r = ReactTestRenderer.create(<TestApp tab="Home" />);
+      r = ReactTestRenderer.create(<TestApp stack={[{name: 'Map'}]} />);
     });
     mounted.push(r);
     for (let i = 0; i < 5; i++) {

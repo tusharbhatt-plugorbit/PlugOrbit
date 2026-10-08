@@ -13,6 +13,7 @@ import {
   EmptyState,
   Icon,
   IconButton,
+  Pill,
   PrimaryButton,
   Screen,
   SectionTitle,
@@ -65,7 +66,15 @@ export default function NotificationsScreen(): React.JSX.Element {
               style={({pressed}) => [styles.item, pressed && styles.pressed]}>
               <View style={[styles.dot, n.read && styles.dotRead]} />
               <View style={styles.flex}>
-                <Text style={styles.title}>{n.title}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.title, styles.flex]}>{n.title}</Text>
+                  {(n.level === 'critical' || n.level === 'important') && (
+                    <Pill
+                      label={n.level === 'critical' ? 'Urgent' : 'Plan changed'}
+                      tone={n.level === 'critical' ? 'danger' : 'amber'}
+                    />
+                  )}
+                </View>
                 <Text style={styles.body}>{n.body}</Text>
                 <Text style={styles.time}>{timeAgo(n.at, now)}</Text>
               </View>
@@ -174,6 +183,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.inputBorder,
   },
+  titleRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   title: {...type.heading, color: colors.ink},
   body: {...type.caption, color: colors.inkSoft, marginTop: 2, lineHeight: 18},
   time: {...type.caption, color: colors.muted, marginTop: 4, fontSize: 11.5},

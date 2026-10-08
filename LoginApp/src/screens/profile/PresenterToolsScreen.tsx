@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {DEMO_TIME_SCALE} from '../../domain/charging';
+import {describeError} from '../../domain/describeError';
 import {ROUTE_FIXTURES} from '../../dev/fixtures';
 import {ROUTE_NAMES} from '../../navigation/routeNames';
 import {useNavigation} from '../../navigation/NavigationContext';
@@ -49,7 +50,12 @@ const SKIP: ReadonlyArray<RouteName> = ['PresenterTools'];
  */
 export default function PresenterToolsScreen(): React.JSX.Element {
   const nav = useNavigation();
-  const {session: sessionService} = useServices();
+  const {
+    session: sessionService,
+    vehicle: vehicleService,
+    route: routeService,
+    trip: tripService,
+  } = useServices();
   const demo = useDemo(s => s);
   const hasSession = useApp(s => s.session !== null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +97,38 @@ export default function PresenterToolsScreen(): React.JSX.Element {
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : 'Couldn’t start the demo session.',
+        'warn',
+      );
+    }
+    setBusy(false);
+  };
+
+  // Delhi to Jaipur at 72%: the story from the product brief, one tap.
+  const startDemoTrip = async () => {
+    setBusy(true);
+    try {
+      const vehicle = appStore
+        .get()
+        .vehicles.find(v => v.id === appStore.get().activeVehicleId);
+      if (!vehicle) {
+        showToast('Add your car first.', 'warn');
+      } else {
+        await vehicleService.setBattery(72);
+        const route = await routeService.plan({
+          fromLabel: 'Delhi',
+          toLabel: 'Jaipur',
+          startSoc: 72,
+          strategy: 'reliable',
+          vehicle,
+          safetyReservePct: appStore.get().tripPrefs.minArrivalSocPct,
+          avoidPaidParking: false,
+        });
+        await tripService.start({route, smartDrive: true, replace: true});
+        nav.navigate('SmartDrive');
+      }
+    } catch (e) {
+      showToast(
+        describeError(e, 'We couldn’t start the demo trip.').body,
         'warn',
       );
     }
@@ -161,6 +199,23 @@ export default function PresenterToolsScreen(): React.JSX.Element {
         </View>
       </Card>
 
+      <SectionTitle title="Smart Drive" />
+      <ListCard>
+        <ListRow
+          icon="route"
+          iconTone="lime"
+          title="Start a demo trip"
+          subtitle="Delhi to Jaipur at 72%, then open Smart Drive"
+          onPress={startDemoTrip}
+        />
+        {flag(
+          'autoDrive',
+          'Auto-drive',
+          'The car moves along the route by itself while a trip runs',
+          true,
+        )}
+      </ListCard>
+
       <SectionTitle title="Scenarios" />
       <ListCard>
         <ListRow
@@ -173,7 +228,13 @@ export default function PresenterToolsScreen(): React.JSX.Element {
             // even if the switch was already on from an earlier run.
             demoStore.set({stationOccupied: false});
             demoStore.set({stationOccupied: true});
-            nav.navigate('BackupAlert');
+            if (appStore.get().activeTrip) {
+              // A trip is running: Smart Drive notices and takes it from here.
+              tripService.refresh().catch(() => undefined);
+              nav.navigate('SmartDrive');
+            } else {
+              nav.navigate('BackupAlert');
+            }
           }}
         />
         <ListRow

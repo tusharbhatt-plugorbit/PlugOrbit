@@ -10,6 +10,7 @@ import {
   EmptyState,
   Icon,
   KeyValue,
+  Notice,
   PrimaryButton,
   Screen,
   SecondaryButton,
@@ -22,6 +23,9 @@ export default function ReceiptScreen(): React.JSX.Element {
   const {params} = useRoute<'Receipt'>();
   const summary = useApp(s => s.history.find(h => h.id === params.sessionId));
   const rated = useApp(s => s.feedbackDone.includes(params.sessionId));
+  // A trip that was waiting for this charge is back on the road.
+  const trip = useApp(s => s.activeTrip);
+  const resumed = trip !== null && trip.phase === 'driving';
 
   if (!summary) {
     return (
@@ -51,13 +55,32 @@ export default function ReceiptScreen(): React.JSX.Element {
       stack
       footer={
         <>
-          {!rated && (
+          {resumed && (
             <PrimaryButton
-              label="Rate this stop"
-              icon="star"
-              onPress={() => nav.navigate('Feedback', {sessionId: summary.id})}
+              label="Continue trip"
+              icon="navigation"
+              onPress={() => nav.reset('SmartDrive')}
+              testID="continue-trip"
             />
           )}
+          {!rated &&
+            (resumed ? (
+              <SecondaryButton
+                label="Rate this stop"
+                icon="star"
+                onPress={() =>
+                  nav.navigate('Feedback', {sessionId: summary.id})
+                }
+              />
+            ) : (
+              <PrimaryButton
+                label="Rate this stop"
+                icon="star"
+                onPress={() =>
+                  nav.navigate('Feedback', {sessionId: summary.id})
+                }
+              />
+            ))}
           <SecondaryButton
             label="Done"
             icon="check"
@@ -77,6 +100,14 @@ export default function ReceiptScreen(): React.JSX.Element {
           {summary.stationName} • {formatDateTime(summary.startedAt)}
         </Text>
       </View>
+
+      {resumed && trip && (
+        <Notice
+          tone="lime"
+          title="You’re ready to continue."
+          body={`Battery ${summary.endSoc}%. Your trip to ${trip.destination} is back on track.`}
+        />
+      )}
 
       <Card>
         <KeyValue label="Session" value={summary.id} />

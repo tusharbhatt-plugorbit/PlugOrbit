@@ -1,12 +1,14 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {timeAgo} from '../../domain/trust';
+import {tripStatus} from '../../domain/tripStatus';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useApp} from '../../store/appStore';
 import {clearRoute} from '../../store/tripActions';
 import {colors, elevation, radii, spacing, type} from '../../theme';
 import {formatClock} from '../../utils/format';
 import {
+  ActiveTripCard,
   Card,
   Icon,
   ListCard,
@@ -27,6 +29,9 @@ export default function TripsScreen(): React.JSX.Element {
   const nav = useNavigation();
   const now = useNow(30_000);
   const route = useApp(s => s.activeRoute);
+  const trip = useApp(s => s.activeTrip);
+  const smartDrive = useApp(s => s.smartDrivePrefs);
+  const past = useApp(s => s.completedTrips);
   const saved = useApp(s => s.savedRoutes);
   const reservation = useHeldReservation();
   const queue = useApp(s => s.queue);
@@ -50,7 +55,18 @@ export default function TripsScreen(): React.JSX.Element {
         </Pressable>
       </Card>
 
-      {route ? (
+      {trip && trip.phase !== 'ended' && (
+        <>
+          <SectionTitle title="Trip in progress" />
+          <ActiveTripCard
+            trip={trip}
+            status={tripStatus(trip, smartDrive.remindKm)}
+            onOpen={() => nav.navigate('SmartDrive')}
+          />
+        </>
+      )}
+
+      {route && !trip ? (
         <>
           <SectionTitle
             title="Current plan"
@@ -141,6 +157,35 @@ export default function TripsScreen(): React.JSX.Element {
             />
           ))}
         </ListCard>
+      )}
+
+      {past.length > 0 && (
+        <>
+          <SectionTitle title="Past trips" />
+          <ListCard>
+            {past.slice(0, 4).map((r, i, arr) => (
+              <ListRow
+                key={r.tripId}
+                icon={r.completed ? 'circle-check-big' : 'flag'}
+                iconTone={r.completed ? 'lime' : 'default'}
+                title={`${r.origin} → ${r.destination}`}
+                subtitle={`${r.distanceKm} km • ${r.stops} ${
+                  r.stops === 1 ? 'stop' : 'stops'
+                }${r.costInr > 0 ? ` • ₹${r.costInr}` : ''} • ${timeAgo(
+                  r.endedAt,
+                  now,
+                )}`}
+                onPress={() =>
+                  nav.navigate('RoutePlanner', {
+                    fromLabel: r.origin,
+                    toLabel: r.destination,
+                  })
+                }
+                last={i === arr.length - 1}
+              />
+            ))}
+          </ListCard>
+        </>
       )}
 
       <SectionTitle title="Trip tools" />

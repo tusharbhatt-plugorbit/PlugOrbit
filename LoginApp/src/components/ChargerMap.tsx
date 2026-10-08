@@ -32,6 +32,8 @@ type Props = {
    * is drawn for fewer than two points, so callers can pass it unconditionally.
    */
   route?: readonly Coords[];
+  /** Station id -> role, so the driver's stop and its backup stand out. */
+  roles?: Readonly<Record<string, 'primary' | 'backup'>>;
 };
 
 // Android's default provider is already Google. On iOS the Google SDK throws
@@ -55,6 +57,7 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
     onCenterChange,
     onReady,
     route,
+    roles,
   },
   ref,
 ) {
@@ -123,6 +126,7 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
           vehicle={vehicle}
           selected={ch.id === selectedId}
           onSelect={onSelect}
+          role={roles?.[ch.id]}
         />
       ))}
     </MapView>

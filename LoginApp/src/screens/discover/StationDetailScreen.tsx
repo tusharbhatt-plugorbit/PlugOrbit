@@ -1,6 +1,8 @@
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {chargeConfidence} from '../../domain/chargeConfidence';
 import {whyRecommended} from '../../domain/discover';
+import {estimateVehicleCharge} from '../../domain/vehicleCharging';
 import {estimateDetourMin, isDemoFallback} from '../../domain/rules';
 import {
   availableCount,
@@ -31,6 +33,8 @@ import {
   BackupChargerCard,
   CardSkeleton,
   Card,
+  ChargeConfidenceCard,
+  VehicleChargeCard,
   ConfidencePill,
   ConnectorChip,
   EmptyState,
@@ -280,6 +284,7 @@ function StationDetailLoaded({
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const favourite = useApp(s => s.favouriteStationIds.includes(station.id));
+  const battery = useApp(s => s.battery);
   const integrationDown = useDemo(s => s.integrationDown);
   const [joining, setJoining] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -526,6 +531,24 @@ function StationDetailLoaded({
               </View>
             )}
           </Section>
+        )}
+
+        {vehicle && selected && (
+          <VehicleChargeCard
+            estimate={estimateVehicleCharge(
+              selected,
+              vehicle,
+              Math.min(battery?.percent ?? 20, 75),
+              80,
+            )}
+            vehicleLabel={vehicleName(vehicle)}
+          />
+        )}
+
+        {!noCompatible && (
+          <ChargeConfidenceCard
+            confidence={chargeConfidence(station, vehicle, now)}
+          />
         )}
 
         {station.integration === 'external' && (

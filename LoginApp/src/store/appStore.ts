@@ -1,3 +1,5 @@
+import type {ActiveTrip, OfflineTripSnapshot} from '../domain/activeTrip';
+import {DEFAULT_SMART_DRIVE_PREFS, SmartDrivePrefs} from '../domain/coDriver';
 import {heldReservation} from '../domain/reservation';
 import {DEFAULT_FILTERS} from '../domain/rules';
 import type {
@@ -29,6 +31,21 @@ export type ChosenStop = {
   at: number;
 };
 
+/** A finished trip, kept for the Trips tab. */
+export type TripRecord = {
+  tripId: string;
+  origin: string;
+  destination: string;
+  endedAt: number;
+  distanceKm: number;
+  stops: number;
+  energyKwh: number;
+  costInr: number;
+  arrivedWithSoc: number;
+  /** True when the driver reached the destination; false when they ended early. */
+  completed: boolean;
+};
+
 export type AppState = {
   hydrated: boolean;
   /** Account is signed in (set by the OTP flow). */
@@ -58,6 +75,12 @@ export type AppState = {
   paymentMethods: PaymentMethod[];
   /** Feedback already given, so the prompt isn't shown twice. */
   feedbackDone: string[];
+  /** The journey PlugOrbit is co-driving, if any. Survives restarts. */
+  activeTrip: ActiveTrip | null;
+  /** The plan saved for dead zones (refreshed whenever the monitor sees signal). */
+  offlineTrip: OfflineTripSnapshot | null;
+  smartDrivePrefs: SmartDrivePrefs;
+  completedTrips: TripRecord[];
 };
 
 export const INITIAL_STATE: AppState = {
@@ -101,6 +124,10 @@ export const INITIAL_STATE: AppState = {
   queue: null,
   paymentMethods: [],
   feedbackDone: [],
+  activeTrip: null,
+  offlineTrip: null,
+  smartDrivePrefs: DEFAULT_SMART_DRIVE_PREFS,
+  completedTrips: [],
 };
 
 export const appStore = createStore<AppState>(INITIAL_STATE);
@@ -129,6 +156,10 @@ const PERSISTED_KEYS: ReadonlyArray<keyof AppState> = [
   'queue',
   'paymentMethods',
   'feedbackDone',
+  'activeTrip',
+  'offlineTrip',
+  'smartDrivePrefs',
+  'completedTrips',
 ];
 
 // Bump when the persisted shape changes; old blobs are then ignored safely.

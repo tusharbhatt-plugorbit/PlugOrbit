@@ -33,6 +33,7 @@ export default function ActiveSessionScreen(): React.JSX.Element {
   const focused = useIsFocused();
   const {session: sessionService} = useServices();
   const session = useApp(s => s.session);
+  const trip = useApp(s => s.activeTrip);
   const now = useNow(1000);
 
   const [confirming, setConfirming] = useState(false);
@@ -171,6 +172,19 @@ export default function ActiveSessionScreen(): React.JSX.Element {
       )}
 
       {error && <Notice tone="danger" title="Couldn’t stop" body={error} />}
+
+      {trip && trip.phase === 'charging' && (
+        <Notice
+          tone="lime"
+          icon="route"
+          title={`Charging for your trip to ${trip.destination}`}
+          body={`We’ll stop at ${session.targetSoc}%, enough to ${
+            trip.stopIndex + 1 >= trip.route.stops.length
+              ? 'comfortably finish your trip'
+              : 'reach your next stop'
+          }. Then you’re back on the road.`}
+        />
+      )}
 
       <Notice
         tone="info"
