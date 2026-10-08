@@ -39,3 +39,10 @@ jest.mock('@react-native-community/geolocation', () => ({
 require('./src/services/mock/runtime').setFastMocks(true);
 const storageModule = require('./src/store/storage');
 storageModule.setStorage(storageModule.createMemoryStorage());
+
+// No test may touch the network. By default every fetch fails like an
+// unreachable server, which also exercises the on-device OTP fallback; tests
+// that need a response replace `global.fetch` themselves.
+global.fetch = jest.fn(() =>
+  Promise.reject(new TypeError('Network request failed')),
+);

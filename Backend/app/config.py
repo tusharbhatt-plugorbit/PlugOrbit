@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,31 @@ class Settings(BaseSettings):
     firebase_web_api_key: str = ""
     firebase_credentials_path: str = "serviceAccountKey.json"
     cors_origins: list[str] = ["*"]
+
+    # Login/signup one-time codes. The app's code boxes expect 6 digits.
+    otp_length: int = Field(default=6, ge=4, le=10)
+    otp_ttl_seconds: int = Field(default=300, ge=1)
+    otp_resend_seconds: int = Field(default=30, ge=0)  # 0 disables the resend cooldown
+    otp_max_attempts: int = Field(default=5, ge=1)
+    # DEVELOPMENT ONLY: when a code cannot be emailed/texted, hand it back in the API
+    # response so the app can show it on screen. Turn off outside development.
+    otp_dev_fallback: bool = True
+    # Prepended to mobile numbers typed without a country code.
+    default_country_code: str = "+91"
+
+    # Email delivery of codes (SMTP + STARTTLS). Configured when smtp_host is set.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # falls back to smtp_username
+    smtp_use_tls: bool = True
+
+    # SMS delivery of codes (Twilio). Configured when sid, token and from number are all set.
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    twilio_api_base: str = "https://api.twilio.com"
 
     @property
     def credentials_file(self) -> Path:

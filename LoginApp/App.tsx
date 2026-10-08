@@ -15,6 +15,8 @@ import {
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import MainApp from './src/app/MainApp';
 import {ServicesProvider} from './src/services';
+import {OtpError, requestOtp, verifyOtp} from './src/services/otpApi';
+import type {OtpSendResult} from './src/services/otpApi';
 import {appStore, hydrateAppStore, useApp} from './src/store/appStore';
 import {startDemoPersistence} from './src/store/demoStore';
 
@@ -43,6 +45,12 @@ function detectIdentifierType(value: string): IdentifierType {
   return null;
 }
 
+function errorMessage(e: unknown): string {
+  return e instanceof OtpError
+    ? e.message
+    : 'Something went wrong. Please try again.';
+}
+
 const lightAuthTheme = {
   bg: '#F6F8FB',
   cardBg: '#FFFFFF',
@@ -56,6 +64,10 @@ const lightAuthTheme = {
   inputBorder: '#D5DDE8',
   divider: '#E2E8F0',
   buttonText: '#FFFFFF',
+  // DEV code banner (amber, so it never reads as a success state).
+  devBg: '#FFF7E6',
+  devBorder: '#F59E0B',
+  devText: '#92400E',
 };
 
 const darkAuthTheme: typeof lightAuthTheme = {
@@ -71,6 +83,9 @@ const darkAuthTheme: typeof lightAuthTheme = {
   inputBorder: '#374151',
   divider: '#1F2937',
   buttonText: '#000000',
+  devBg: '#2A1F0A',
+  devBorder: '#F59E0B',
+  devText: '#FCD34D',
 };
 
 const LOGO_MARK = require('./assets/brand/logo-mark.png');
@@ -274,19 +289,19 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  // How the current code was delivered ("Sent by" line or DEV banner).
+  const [sendResult, setSendResult] = useState<OtpSendResult | null>(null);
   const otpInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
-  // The in-flight "request", so it can be dropped if the user navigates away.
-  const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The in-flight request, so it can be dropped if the user navigates away.
+  const pendingRef = useRef<AbortController | null>(null);
 
   const t = darkMode ? darkAuthTheme : lightAuthTheme;
   const isSignup = mode === 'signup';
   const identifierType = detectIdentifierType(identifier);
 
   const cancelPending = useCallback(() => {
-    if (pendingRef.current !== null) {
-      clearTimeout(pendingRef.current);
-      pendingRef.current = null;
-    }
+    pendingRef.current?.abort();
+    pendingRef.current = null;
   }, []);
 
   // Reset the flow whenever the user switches between Sign In and Sign Up, and
@@ -295,6 +310,7 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
     setStep('identify');
     setOtp('');
     setResendIn(0);
+    setSendResult(null);
     setLoading(false);
     return cancelPending;
   }, [mode, cancelPending]);
@@ -308,8 +324,31 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
     return () => clearTimeout(timer);
   }, [resendIn]);
 
-  // TODO: replace the simulated delays below with calls to the backend OTP endpoints.
-  const sendCode = () => {
+  // Starts a request and returns its abort signal plus a check for "still the
+  // current request". A dropped request (Back, Change, mode switch) must never
+  // touch state or raise an Alert, even if its response arrives later.
+  const beginRequest = () => {
+    cancelPending();
+    const controller = new AbortController();
+    pendingRef.current = controller;
+    setLoading(true);
+    return {
+      signal: controller.signal,
+      isCurrent: () => pendingRef.current === controller,
+      finish: () => {
+        if (pendingRef.current === controller) {
+          pendingRef.current = null;
+          setLoading(false);
+        }
+      },
+    };
+  };
+
+  const sendCode = async () => {
+    // The keyboard's send key is not disabled while a request is in flight.
+    if (loading) {
+      return;
+    }
     if (!identifierType) {
       Alert.alert(
         'Validation',
@@ -318,32 +357,73 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
       return;
     }
 
-    setLoading(true);
-    pendingRef.current = setTimeout(() => {
-      pendingRef.current = null;
-      setLoading(false);
+    const target = identifier.trim();
+    const request = beginRequest();
+    try {
+      const result = await requestOtp(target, request.signal);
+      if (!request.isCurrent()) {
+        return;
+      }
       setOtp('');
       setStep('verify');
-      setResendIn(RESEND_SECONDS);
-      Alert.alert(
-        'Code Sent',
-        `A ${OTP_LENGTH}-digit verification code has been sent to ${identifier.trim()}.`,
+      setSendResult(result);
+      setResendIn(
+        Number.isFinite(result.resendIn) ? result.resendIn : RESEND_SECONDS,
       );
-    }, 1000);
+      if (result.channel === 'screen' && result.devCode) {
+        Alert.alert(
+          'Dev Code',
+          `Your code is ${result.devCode}. It was not sent by email or SMS (development mode).`,
+        );
+      } else {
+        Alert.alert(
+          'Code Sent',
+          `A ${OTP_LENGTH}-digit verification code has been sent to ${target}.`,
+        );
+      }
+    } catch (e) {
+      if (!request.isCurrent()) {
+        return;
+      }
+      if (e instanceof OtpError && e.retryAfter && step === 'verify') {
+        setResendIn(e.retryAfter);
+      }
+      Alert.alert('Could not send code', errorMessage(e));
+    } finally {
+      request.finish();
+    }
   };
 
-  const verifyCode = () => {
+  const verifyCode = async () => {
     if (otp.length !== OTP_LENGTH) {
       Alert.alert('Validation', `Please enter the ${OTP_LENGTH}-digit code.`);
       return;
     }
 
-    setLoading(true);
-    pendingRef.current = setTimeout(() => {
-      pendingRef.current = null;
-      setLoading(false);
+    const request = beginRequest();
+    try {
+      await verifyOtp(identifier.trim(), otp, request.signal);
+      if (!request.isCurrent()) {
+        return;
+      }
       onAuthenticated();
-    }, 1000);
+    } catch (e) {
+      if (!request.isCurrent()) {
+        return;
+      }
+      const rejected =
+        e instanceof OtpError &&
+        (e.code === 'OTP_INVALID' ||
+          e.code === 'OTP_EXPIRED' ||
+          e.code === 'OTP_TOO_MANY_ATTEMPTS');
+      Alert.alert(
+        rejected ? 'Invalid Code' : 'Verification Failed',
+        errorMessage(e),
+      );
+      setOtp('');
+    } finally {
+      request.finish();
+    }
   };
 
   const editIdentifier = () => {
@@ -352,7 +432,12 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
     setStep('identify');
     setOtp('');
     setResendIn(0);
+    setSendResult(null);
   };
+
+  // Shown on screen when the code could not be emailed or texted (dev only).
+  const devCode =
+    sendResult?.channel === 'screen' ? sendResult.devCode : null;
 
   const inputLabelBadge =
     identifierType === 'email'
@@ -490,6 +575,9 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                     autoCorrect={false}
                     returnKeyType="send"
                     onSubmitEditing={sendCode}
+                    // Locked while a code is being sent, so the verify step can
+                    // never show a different identifier than the one it went to.
+                    editable={!loading}
                   />
                 </View>
 
@@ -519,6 +607,49 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                     </Text>
                   </Pressable>
                 </View>
+
+                {/* How the code was delivered */}
+                {sendResult && sendResult.channel !== 'screen' ? (
+                  <Text style={[styles.sentViaText, {color: t.textMuted}]}>
+                    {sendResult.channel === 'sms'
+                      ? 'Sent by SMS'
+                      : 'Sent by email'}
+                  </Text>
+                ) : null}
+                {devCode ? (
+                  <View
+                    style={[
+                      styles.devBanner,
+                      {backgroundColor: t.devBg, borderColor: t.devBorder},
+                    ]}>
+                    <Text style={[styles.devBannerLabel, {color: t.devText}]}>
+                      DEV MODE
+                    </Text>
+                    <Text
+                      selectable
+                      style={[styles.devBannerCode, {color: t.text}]}>
+                      {`Your code is ${devCode}`}
+                    </Text>
+                    {sendResult?.viaLocalFallback ? (
+                      <Text
+                        style={[styles.devBannerNote, {color: t.textMuted}]}>
+                        Backend unreachable, code generated on this device
+                      </Text>
+                    ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({pressed}) => [
+                        styles.devFillBtn,
+                        {borderColor: t.devBorder},
+                        pressed && {opacity: 0.85},
+                      ]}
+                      onPress={() => setOtp(devCode)}>
+                      <Text style={[styles.devFillBtnText, {color: t.devText}]}>
+                        Tap to fill
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
 
                 {/* OTP Boxes (backed by a single hidden input) */}
                 <Pressable
@@ -959,6 +1090,55 @@ const styles = StyleSheet.create({
   sentToText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  sentViaText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: -14,
+    marginBottom: 20,
+  },
+
+  devBanner: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+
+  devBannerLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  devBannerCode: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+
+  devBannerNote: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  devFillBtn: {
+    minHeight: 44,
+    minWidth: 120,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  devFillBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
 
   otpRow: {
