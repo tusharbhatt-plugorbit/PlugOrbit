@@ -20,6 +20,7 @@ import {useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
 import {
   AsyncView,
+  CONNECTOR_INFO,
   ConnectorSelectionCard,
   ConnectorTag,
   EmptyState,
@@ -184,7 +185,13 @@ export default function VehicleSetupScreen(): React.JSX.Element {
       title={editing ? 'Edit vehicle' : 'Vehicle setup'}
       footer={
         <>
-          {chosenConnectors.length > 0 ? (
+          {chosenConnectors.length > 2 ? (
+            <Text style={styles.hint} numberOfLines={2}>
+              {`Chargers with ${chosenConnectors
+                .map(c => CONNECTOR_INFO[c].name)
+                .join(', ')}`}
+            </Text>
+          ) : chosenConnectors.length > 0 ? (
             <View style={styles.footerPlugs}>
               <Text style={styles.hint}>Chargers with</Text>
               {chosenConnectors.map(c => (

@@ -7,8 +7,8 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **49 routes, all with real screens** (`src/navigation/registry.ts`; adding a
   route without a screen is a compile error). Screens 01–40 plus the five tab
   roots, Notifications, Alerts, Presenter tools and the support/ticket screens.
-- **Login and Home are the visual source of truth.** Welcome/Login are
-  untouched; Home was rebuilt on the shared station data with the approved look.
+- **Login and Home are the visual source of truth.** Welcome/Login kept that
+  look (restyled in the Dev_Phase1 pass below); Home was rebuilt on the shared station data with the approved look.
   Every new screen uses the tokens in `src/theme.ts` and the kit in `src/ui`.
 - **Navigation:** typed stack + 5 tabs (Home, Trips, Charge, Activity, Profile),
   hardware back, keep-alive tab hosts, owning-tab highlight on stack screens.
@@ -47,7 +47,7 @@ Still open from this pass:
 ## Verification
 
 - `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
-  (336 tests).
+  (374 tests after the Dev_Phase1 pass).
 - `__tests__/crawl.test.tsx` mounts every route, presses every button, requires
   an accessible label on each, checks each press navigates somewhere valid, and
   checks every route is reachable from Home. Payment and PaymentFailure need a

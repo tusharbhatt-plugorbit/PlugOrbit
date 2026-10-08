@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { Alert, StyleSheet, Text, TextInput } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import App from '../App';
 import { seedSignedIn } from '../src/dev/testHarness';
 import { STORE_VERSION, appStore, resetAppStore } from '../src/store/appStore';
@@ -209,6 +209,15 @@ test('the welcome screen leads with the brand, one promise and two actions', asy
   expect(texts).toContain('I already have an account');
   // No second "Welcome to ..." title repeating the brand name.
   expect(texts).not.toContain('Welcome to PlugOrbit');
+});
+
+test('the welcome screen scrolls, so large system text never hides a button', async () => {
+  const renderer = await renderApp();
+  expect(renderer.root.findAllByType(ScrollView)).toHaveLength(1);
+  const buttons = renderer.root.findAll(
+    n => n.props.accessibilityRole === 'button' && n.props.onPress,
+  );
+  expect(buttons.length).toBeGreaterThanOrEqual(2);
 });
 
 test('the sign-in screen has exactly one back control, an icon arrow', async () => {

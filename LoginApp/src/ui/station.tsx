@@ -85,12 +85,27 @@ export function PriceLine({
   );
 }
 
-/** "2 of 3 free", or nothing when the source can't say which plugs exist. */
+/** False when we cannot honestly say how many bays are free. */
+function knowsAvailability(
+  station: StationWithDistance,
+  vehicle: Vehicle | null,
+): boolean {
+  return (
+    !hasUnconfirmedConnectors(station) &&
+    stationHealth(station, vehicle) !== 'unknown'
+  );
+}
+
+/**
+ * "2 of 3 free", or nothing when the source cannot say (no plug list, every
+ * bay of unknown status, or no plug this car can use): an unknown must never
+ * read as "0 free".
+ */
 function availabilityText(
   station: StationWithDistance,
   vehicle: Vehicle | null,
 ): string {
-  if (hasUnconfirmedConnectors(station)) {
+  if (!knowsAvailability(station, vehicle)) {
     return '';
   }
   const total = compatibleConnectors(station, vehicle).length;
@@ -200,7 +215,11 @@ export const ChargerCard = React.memo(function ChargerCardInner({
       accessibilityLabel={`${station.name}, ${station.distanceKm.toFixed(
         1,
       )} kilometres, ${
-        unconfirmed ? 'connector type unconfirmed' : `${free} bays free`
+        unconfirmed
+          ? 'connector type unconfirmed'
+          : knowsAvailability(station, vehicle)
+          ? `${free} bays free`
+          : 'availability unknown'
       }`}
       testID={testID}
       style={selected ? styles.selected : undefined}>

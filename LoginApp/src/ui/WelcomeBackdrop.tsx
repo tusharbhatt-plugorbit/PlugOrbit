@@ -37,8 +37,11 @@ const DASHES = Array.from({length: DASHES_SHOWN}, (_, i) => {
  * the buttons on top stay readable.
  */
 export function WelcomeBackdrop({
+  showRoad = true,
   showCharger = true,
 }: {
+  /** Off on very short phones, where the horizon would cut through the copy. */
+  showRoad?: boolean;
   /** Off on short phones, where the roadside charger would sit under the copy. */
   showCharger?: boolean;
 }) {
@@ -80,28 +83,32 @@ export function WelcomeBackdrop({
       <Rect x="-200" y="0" width="800" height="800" fill="url(#sky)" />
       <Rect x="-200" y="0" width="800" height="800" fill="url(#glow)" />
 
-      {/* Road in perspective, with its edge lines and centre dashes. */}
-      <Path
-        d={`M188 ${HORIZON} L212 ${HORIZON} L520 ${BOTTOM} L-120 ${BOTTOM} Z`}
-        fill="url(#road)"
-      />
-      <Path
-        d={`M188 ${HORIZON} L-120 ${BOTTOM} M212 ${HORIZON} L520 ${BOTTOM}`}
-        stroke="#A2F067"
-        strokeOpacity="0.28"
-        strokeWidth="1.5"
-      />
-      <Path d={DASHES} fill="#A2F067" fillOpacity="0.7" />
-      <Rect
-        x="-200"
-        y={HORIZON}
-        width="800"
-        height="1"
-        fill="#A2F067"
-        fillOpacity="0.3"
-      />
+      {showRoad && (
+        <>
+          {/* Road in perspective, with its edge lines and centre dashes. */}
+          <Path
+            d={`M188 ${HORIZON} L212 ${HORIZON} L520 ${BOTTOM} L-120 ${BOTTOM} Z`}
+            fill="url(#road)"
+          />
+          <Path
+            d={`M188 ${HORIZON} L-120 ${BOTTOM} M212 ${HORIZON} L520 ${BOTTOM}`}
+            stroke="#A2F067"
+            strokeOpacity="0.28"
+            strokeWidth="1.5"
+          />
+          <Path d={DASHES} fill="#A2F067" fillOpacity="0.7" />
+          <Rect
+            x="-200"
+            y={HORIZON}
+            width="800"
+            height="1"
+            fill="#A2F067"
+            fillOpacity="0.3"
+          />
+        </>
+      )}
 
-      {showCharger && (
+      {showRoad && showCharger && (
         <>
           {/* A charger beside the road. */}
           <Rect

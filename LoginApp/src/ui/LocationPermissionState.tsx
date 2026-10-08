@@ -5,12 +5,20 @@ import {PrimaryButton, SecondaryButton} from './Buttons';
 import {Icon} from './Icon';
 
 type Props = {
-  /** `denied`: the user said no. `unavailable`: location services are off. */
-  kind: 'denied' | 'unavailable';
+  /**
+   * `denied`: the user said no. `unavailable`: location services are off.
+   * `no-fix`: everything is on but no position arrived (indoors, weak signal).
+   */
+  kind: 'denied' | 'unavailable' | 'no-fix';
   /** Ask again (re-prompts when the OS still allows it). */
   onRetry: () => void;
-  /** Where permission can always be changed. */
-  onOpenSettings: () => void;
+  /** Where permission can always be changed. Not offered for `no-fix`. */
+  onOpenSettings?: () => void;
+  /**
+   * Make Settings the main action. True where asking again cannot work: iOS
+   * never prompts twice, and Android stops after "Don't ask again".
+   */
+  settingsFirst?: boolean;
   /** Carry on around the default area without this card. */
   onDismiss?: () => void;
 };
@@ -26,6 +34,11 @@ const COPY = {
     body: 'Turn on location services to find EV chargers near you.',
     retry: 'Try again',
   },
+  'no-fix': {
+    title: 'Couldn’t find your location',
+    body: 'Move to a spot with a clearer signal, then try again.',
+    retry: 'Try again',
+  },
 } as const;
 
 /**
@@ -37,9 +50,11 @@ export function LocationPermissionState({
   kind,
   onRetry,
   onOpenSettings,
+  settingsFirst = false,
   onDismiss,
 }: Props) {
   const copy = COPY[kind];
+  const first = settingsFirst && onOpenSettings;
   return (
     <View
       style={[styles.card, elevation(2)]}
@@ -65,14 +80,35 @@ export function LocationPermissionState({
         )}
       </View>
       <View style={styles.actions}>
-        <PrimaryButton
-          compact
-          label={copy.retry}
-          icon="locate-fixed"
-          onPress={onRetry}
-          style={styles.primary}
-        />
-        <SecondaryButton compact label="Settings" onPress={onOpenSettings} />
+        {first ? (
+          <>
+            <PrimaryButton
+              compact
+              label="Open settings"
+              icon="settings"
+              onPress={onOpenSettings}
+              style={styles.primary}
+            />
+            <SecondaryButton compact label={copy.retry} onPress={onRetry} />
+          </>
+        ) : (
+          <>
+            <PrimaryButton
+              compact
+              label={copy.retry}
+              icon="locate-fixed"
+              onPress={onRetry}
+              style={styles.primary}
+            />
+            {onOpenSettings && (
+              <SecondaryButton
+                compact
+                label="Settings"
+                onPress={onOpenSettings}
+              />
+            )}
+          </>
+        )}
       </View>
     </View>
   );

@@ -122,6 +122,57 @@ describe('charger card shows what a driver scans', () => {
     expect(t.some(x => /free$/.test(x))).toBe(false);
   });
 
+  test('unknown availability is never printed as "0 free"', async () => {
+    const station = await aStation();
+    const unknown = {
+      ...station,
+      connectors: station.connectors.map(c => ({
+        ...c,
+        status: 'unknown' as const,
+      })),
+    };
+    for (const node of [
+      <ChargerCard station={unknown} vehicle={NEXON} now={NOW} />,
+      <MapChargerCard
+        station={unknown}
+        vehicle={NEXON}
+        now={NOW}
+        bottom={16}
+        onClose={() => {}}
+        onDetails={() => {}}
+        onDirections={() => {}}
+      />,
+    ]) {
+      const r = await render(node);
+      expect(texts(r).some(x => /\bfree$/.test(x))).toBe(false);
+      expect(texts(r)).toContain('UNKNOWN');
+    }
+    const label = (
+      await render(<ChargerCard station={unknown} vehicle={NEXON} now={NOW} />)
+    ).root.find(
+      n =>
+        typeof n.props.accessibilityLabel === 'string' &&
+        /kilometres/.test(n.props.accessibilityLabel),
+    ).props.accessibilityLabel;
+    expect(label).toContain('availability unknown');
+    expect(label).not.toMatch(/0 bays free/);
+  });
+
+  test('a charger with no plug this car can use says nothing about free bays', async () => {
+    const station = await aStation();
+    const incompatible = {
+      ...station,
+      connectors: station.connectors.map(c => ({
+        ...c,
+        type: 'CHAdeMO' as const,
+      })),
+    };
+    const r = await render(
+      <ChargerCard station={incompatible} vehicle={NEXON} now={NOW} />,
+    );
+    expect(texts(r).some(x => /free$/.test(x))).toBe(false);
+  });
+
   test('data quality is spelled out, never passed off as live', async () => {
     const station = await aStation();
     const estimated = {
@@ -158,18 +209,40 @@ describe('PrimaryButton sizes', () => {
     );
   });
 
-  test('disabled looks disabled and ignores taps', async () => {
-    const onPress = jest.fn();
-    const r = await render(
-      <PrimaryButton label="Go" disabled onPress={onPress} />,
+  const composite = (r: Renderer) =>
+    r.root.find(
+      n =>
+        n.props.accessibilityRole === 'button' &&
+        typeof n.props.onPress === 'function',
     );
-    const node = r.root.findAll(
+
+  test('an enabled button fires, a disabled or loading one does not', async () => {
+    const onPress = jest.fn();
+    const enabled = await render(
+      <PrimaryButton label="Go" onPress={onPress} />,
+    );
+    await act(async () => composite(enabled).props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(1);
+
+    for (const props of [{disabled: true}, {loading: true}]) {
+      onPress.mockClear();
+      const r = await render(
+        <PrimaryButton label="Go" onPress={onPress} {...props} />,
+      );
+      const node = r.root.find(n => n.props.accessibilityRole === 'button');
+      expect(node.props.onPress).toBeUndefined();
+      expect(onPress).not.toHaveBeenCalled();
+    }
+  });
+
+  test('disabled looks disabled', async () => {
+    const r = await render(<PrimaryButton label="Go" disabled />);
+    const host = r.root.findAll(
       n =>
         n.props.accessibilityRole === 'button' && n.type === ('View' as never),
     )[0];
-    expect(StyleSheet.flatten(node.props.style).opacity).toBeLessThan(0.6);
-    expect(node.props.accessibilityState).toMatchObject({disabled: true});
-    expect(node.props.onPress).toBeUndefined();
+    expect(StyleSheet.flatten(host.props.style).opacity).toBeLessThan(0.6);
+    expect(host.props.accessibilityState).toMatchObject({disabled: true});
   });
 });
 

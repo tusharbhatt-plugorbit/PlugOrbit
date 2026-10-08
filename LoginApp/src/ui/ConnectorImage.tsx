@@ -1,6 +1,7 @@
 import React from 'react';
 import Svg, {Circle, Path, Rect} from 'react-native-svg';
 import type {ConnectorType} from '../domain/types';
+import {colors} from '../theme';
 
 type Props = {
   type: ConnectorType;
@@ -9,8 +10,9 @@ type Props = {
   pin?: string;
 };
 
+// Dark plug body: the app's slate, a step lighter than the header navy.
 const HOUSING = '#1E293B';
-const PIN = '#E2E8F0';
+const PIN = colors.divider;
 
 type Dot = readonly [x: number, y: number, r: number];
 

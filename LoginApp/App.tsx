@@ -164,18 +164,23 @@ type WelcomeProps = {
 
 // First screen: PlugOrbit -> what it does -> one obvious action.
 function Welcome({onGetStarted, onSignIn}: WelcomeProps): React.JSX.Element {
-  const {height} = useWindowDimensions();
-  // Short phones get a smaller mark so the copy and both buttons always fit.
-  const compact = height < 700;
+  const {height, fontScale} = useWindowDimensions();
+  // Short phones, or large system text, get a smaller mark so the copy and both
+  // buttons fit; the road scene only draws where it clears the copy.
+  const compact = height < 700 || fontScale > 1.3;
   const logoSize = compact ? 56 : 72;
   const ring = logoSize * 1.5;
 
   return (
     <View style={styles.welcomeRoot}>
       <StatusBar barStyle="light-content" />
-      <WelcomeBackdrop showCharger={!compact} />
+      <WelcomeBackdrop showRoad={height >= 640} showCharger={!compact} />
       <SafeAreaView style={styles.flex}>
-        <View style={styles.welcomeContainer}>
+        {/* Scrolls only when text is scaled up past what fits. */}
+        <ScrollView
+          contentContainerStyle={styles.welcomeContainer}
+          bounces={false}
+          showsVerticalScrollIndicator={false}>
           <View style={styles.welcomeTop}>
             {/* Orbit rings round the mark: the brand idea, kept faint. */}
             <View
@@ -225,7 +230,7 @@ function Welcome({onGetStarted, onSignIn}: WelcomeProps): React.JSX.Element {
               </Text>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -505,7 +510,7 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
                     <Text style={[styles.label, {color: t.text}]}>
-                      Mobile Number or Email ID
+                      Mobile number or email
                     </Text>
                     {detectedLabel && (
                       <View
@@ -739,7 +744,7 @@ const styles = StyleSheet.create({
   },
 
   welcomeContainer: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 16,
@@ -975,11 +980,14 @@ const styles = StyleSheet.create({
   },
 
   label: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
   },
 
   detectBadge: {
+    flexShrink: 0,
+    marginLeft: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

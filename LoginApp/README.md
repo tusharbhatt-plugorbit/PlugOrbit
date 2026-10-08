@@ -54,6 +54,8 @@ The map needs a **Maps SDK key per platform**, supplied through `LoginApp/.env` 
 | Google map on **iOS** | `GOOGLE_MAPS_IOS_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Maps SDK for iOS*; bundle ID `org.reactjs.native.example.LoginApp` |
 | Real nearby chargers | `GOOGLE_PLACES_API_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Places API (New)* |
 
+Write `.env` lines as plain `NAME=value`, with no `export`, no spaces around `=` and no trailing `# comment`: the JS side tolerates more, but the Gradle and CocoaPods steps only read that exact form, and a mismatch would leave the native map without a key even though the app believes it has one.
+
 After editing `.env`: `npm start -- --reset-cache`, `cd ios && bundle exec pod install` (iOS), and rebuild the app (the native build reads the key, not Metro).
 
 ## Behaviour without a key / location
@@ -62,8 +64,9 @@ After editing `.env`: `npm start -- --reset-cache`, `cd ios && bundle exec pod i
 - **iOS, no Maps key**: the app falls back to Apple Maps, which works without configuration. Places results only appear when a Places key is set; otherwise the built-in demo chargers around New Delhi are used.
 - **Grey/blank map on Android with a key set**: the key's application restriction (package name + SHA-1) doesn't match the keystore that signed the installed build, or "Maps SDK for Android" isn't enabled for it. Google reports this only in the log: `adb logcat | grep -i "Google Maps"`. The app cannot detect it.
 - **Map never starts** (Google Play services missing or out of date on the device or emulator): after 15 seconds the Home screen says the map is taking too long, with a **Reload** button. Use an emulator image with *Google Play*.
-- **Location permission denied**: a *Location access needed* card explains it and offers **Allow location** (asks again where the OS still allows it), **Settings** (opens the app's settings, the only way back after "Don't ask again") and a dismiss button. The map keeps working around New Delhi in the meantime.
-- **Location services off / no fix**: the card says *Location is turned off* with **Try again** and **Settings**.
+- **Location permission denied**: a *Location access needed* card explains it. On Android the first refusal offers **Allow location** (asks again); after one more refusal, and always on iOS (which never asks twice), **Open settings** leads. A dismiss button hides the card. Coming back from Settings re-checks location by itself. The map keeps working around New Delhi in the meantime.
+- **Location services off**: *Location is turned off*, with **Open settings** (Android opens the device's location switch; iOS opens the app's settings page) and **Try again**.
+- **Services on but no position in time** (indoors, weak signal): *Couldn't find your location* with **Try again** only; Settings cannot help here.
 - **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
 
 ## Notes

@@ -1,7 +1,9 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Linking,
+  Platform,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -82,6 +84,11 @@ function HomeScreen(): React.JSX.Element {
   // Bumped to remount the map when the person taps Retry.
   const [mapAttempt, setMapAttempt] = useState(0);
   const [permissionDismissed, setPermissionDismissed] = useState(false);
+  // Times the person asked again after a refusal; one failed retry means the
+  // OS will not ask any more, so Settings becomes the main action.
+  const [retries, setRetries] = useState(0);
+  // Set when we sent them to Settings, so coming back re-checks location.
+  const wentToSettings = useRef(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -177,11 +184,9 @@ function HomeScreen(): React.JSX.Element {
 
   const retryLocation = useCallback(() => {
     setPermissionDismissed(false);
+    setRetries(n => n + 1);
     refresh();
   }, [refresh]);
-  const openSettings = useCallback(() => {
-    Promise.resolve(Linking.openSettings()).catch(() => undefined);
-  }, []);
 
   const busy = phase !== 'ready';
   const showSearchHere =
@@ -189,6 +194,7 @@ function HomeScreen(): React.JSX.Element {
   const canRetry =
     notice?.kind === 'location-denied' ||
     notice?.kind === 'location-unavailable' ||
+    notice?.kind === 'location-no-fix' ||
     notice?.kind === 'search-failed' ||
     notice?.kind === 'offline';
   const permissionIssue =
@@ -196,7 +202,40 @@ function HomeScreen(): React.JSX.Element {
       ? 'denied'
       : notice?.kind === 'location-unavailable'
       ? 'unavailable'
+      : notice?.kind === 'location-no-fix'
+      ? 'no-fix'
       : null;
+  // Services off needs the device's location switch; a denial needs the app's
+  // permission page (iOS never asks twice, Android stops after "don't ask").
+  const settingsFirst =
+    permissionIssue === 'unavailable' ||
+    (permissionIssue === 'denied' && (Platform.OS === 'ios' || retries > 0));
+  const openSettings = useCallback(() => {
+    wentToSettings.current = true;
+    const toLocationSwitch =
+      permissionIssue === 'unavailable' && Platform.OS === 'android';
+    Promise.resolve(
+      toLocationSwitch
+        ? Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS')
+        : Linking.openSettings(),
+    ).catch(() =>
+      Promise.resolve(Linking.openSettings()).catch(() => undefined),
+    );
+  }, [permissionIssue]);
+
+  // Back from Settings: look again, so the map follows without another tap.
+  useEffect(() => {
+    if (!permissionIssue) {
+      return;
+    }
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active' && wentToSettings.current) {
+        wentToSettings.current = false;
+        refresh();
+      }
+    });
+    return () => sub.remove();
+  }, [permissionIssue, refresh]);
   const showPermissionCard =
     !busy && permissionIssue !== null && !permissionDismissed;
   const activeFilters = countActiveFilters(filters);
@@ -321,26 +360,18 @@ function HomeScreen(): React.JSX.Element {
               </Pressable>
             )}
 
-            {showPermissionCard && permissionIssue && (
-              <LocationPermissionState
-                kind={permissionIssue}
-                onRetry={retryLocation}
-                onOpenSettings={openSettings}
-                onDismiss={() => setPermissionDismissed(true)}
-              />
-            )}
-
             {mapStatus === 'failed' && !mapsKeyMissing && (
               <View
                 style={[styles.notice, elevation(1)]}
                 accessibilityRole="alert">
                 <Text style={styles.noticeText}>
-                  The map is taking too long to load. Check your connection and
-                  Google Play services.
+                  {Platform.OS === 'android'
+                    ? 'The map is taking too long to load. Check your connection and Google Play services.'
+                    : 'The map is taking too long to load. Check your connection.'}
                 </Text>
                 <Pressable
                   onPress={retryMap}
-                  hitSlop={10}
+                  hitSlop={14}
                   accessibilityRole="button"
                   accessibilityLabel="Reload map">
                   <Text style={styles.noticeAction}>Reload</Text>
@@ -412,6 +443,20 @@ function HomeScreen(): React.JSX.Element {
             </Pressable>
           </View>
 
+          {showPermissionCard && permissionIssue && (
+            <View style={[styles.permissionDock, {bottom: cardBottom}]}>
+              <LocationPermissionState
+                kind={permissionIssue}
+                onRetry={retryLocation}
+                onOpenSettings={
+                  permissionIssue === 'no-fix' ? undefined : openSettings
+                }
+                settingsFirst={settingsFirst}
+                onDismiss={() => setPermissionDismissed(true)}
+              />
+            </View>
+          )}
+
           {selected && !showPermissionCard && !mapsKeyMissing ? (
             <MapChargerCard
               station={selected}
@@ -429,7 +474,8 @@ function HomeScreen(): React.JSX.Element {
             />
           ) : (
             visible.length > 0 &&
-            !mapsKeyMissing && (
+            !mapsKeyMissing &&
+            !showPermissionCard && (
               <Pressable
                 onPress={() => nav.navigate('StationList')}
                 accessibilityRole="button"
@@ -579,6 +625,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterBadgeText: {...type.micro, color: colors.ink},
+  // Same slot as the charger card, which steps aside while this is showing.
+  permissionDock: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+  },
   listPill: {
     position: 'absolute',
     alignSelf: 'center',
