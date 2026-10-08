@@ -85,6 +85,100 @@ export function PriceLine({
   );
 }
 
+/** False when we cannot honestly say how many bays are free. */
+function knowsAvailability(
+  station: StationWithDistance,
+  vehicle: Vehicle | null,
+): boolean {
+  return (
+    !hasUnconfirmedConnectors(station) &&
+    stationHealth(station, vehicle) !== 'unknown'
+  );
+}
+
+/**
+ * "2 of 3 free", or nothing when the source cannot say (no plug list, every
+ * bay of unknown status, or no plug this car can use): an unknown must never
+ * read as "0 free".
+ */
+function availabilityText(
+  station: StationWithDistance,
+  vehicle: Vehicle | null,
+): string {
+  if (!knowsAvailability(station, vehicle)) {
+    return '';
+  }
+  const total = compatibleConnectors(station, vehicle).length;
+  return `${availableCount(station, vehicle)} of ${total} free`;
+}
+
+function Fact({
+  value,
+  unit,
+  label,
+}: {
+  value: string;
+  unit?: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.fact}>
+      <Text style={styles.factValue} numberOfLines={1}>
+        {value}
+        {unit ? <Text style={styles.factUnit}>{unit}</Text> : null}
+      </Text>
+      <Text style={styles.factLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The numbers a driver scans: speed (with the plug it is on), price and how
+ * reliable the charger is. Reliability is left out when nobody has measured it
+ * rather than shown as 0%.
+ */
+export function StationFacts({
+  station,
+  vehicle,
+}: {
+  station: StationWithDistance;
+  vehicle: Vehicle | null;
+}) {
+  if (hasUnconfirmedConnectors(station)) {
+    return <UnconfirmedConnectorsPill />;
+  }
+  const usable = compatibleConnectors(station, vehicle);
+  const types = [
+    ...new Set(
+      (usable.length > 0 ? usable : station.connectors).map(c => c.type),
+    ),
+  ].join(' / ');
+  const price = lowestPrice(station, vehicle);
+  const range = hasPriceRange(station, vehicle);
+  return (
+    <View style={styles.facts}>
+      <Fact
+        value={String(maxPowerKw(station, vehicle))}
+        unit=" kW"
+        label={types}
+      />
+      <Fact
+        value={price === null ? '—' : formatInr(price, price % 1 !== 0)}
+        unit={price === null ? undefined : '/kWh'}
+        label={range ? 'Price from' : 'Price'}
+      />
+      {station.reliabilityPct > 0 && (
+        <Fact
+          value={`${Math.round(station.reliabilityPct)}%`}
+          label="Reliable"
+        />
+      )}
+    </View>
+  );
+}
+
 type CardProps = {
   station: StationWithDistance;
   vehicle: Vehicle | null;
@@ -121,7 +215,11 @@ export const ChargerCard = React.memo(function ChargerCardInner({
       accessibilityLabel={`${station.name}, ${station.distanceKm.toFixed(
         1,
       )} kilometres, ${
-        unconfirmed ? 'connector type unconfirmed' : `${free} bays free`
+        unconfirmed
+          ? 'connector type unconfirmed'
+          : knowsAvailability(station, vehicle)
+          ? `${free} bays free`
+          : 'availability unknown'
       }`}
       testID={testID}
       style={selected ? styles.selected : undefined}>
@@ -132,22 +230,27 @@ export const ChargerCard = React.memo(function ChargerCardInner({
             {station.name}
           </Text>
         </View>
-        {healthBadge(health)}
+        <Icon name="chevron-right" size={20} color={colors.placeholder} />
       </View>
-      <Text style={styles.line}>{connectorSummary(station, vehicle)}</Text>
-      <Text style={styles.line}>
-        {formatDistance(station.distanceKm)} • {station.detourMin} min detour
+      <View style={styles.statusRow}>
+        {healthBadge(health)}
+        <Text style={styles.availability} numberOfLines={1}>
+          {availabilityText(station, vehicle)}
+        </Text>
+        <Text style={styles.distance}>
+          {formatDistance(station.distanceKm)}
+        </Text>
+      </View>
+      <StationFacts station={station} vehicle={vehicle} />
+      <Text style={[styles.line, styles.detour]}>
+        {station.detourMin} min detour
         {hasRating(station) ? ` • ★ ${station.rating.toFixed(1)}` : ''}
       </Text>
       <View style={styles.trustRow}>
         <ConfidenceBadge feed={station.statusFeed} now={now} subject="Status" />
         {station.sponsored && <Pill label="Sponsored" tone="slate" />}
-        {unconfirmed ? (
-          <UnconfirmedConnectorsPill />
-        ) : (
-          !compatible && (
-            <Pill label="Not compatible" tone="danger" icon="triangle-alert" />
-          )
+        {!unconfirmed && !compatible && (
+          <Pill label="Not compatible" tone="danger" icon="triangle-alert" />
         )}
         {station.integration === 'external' && (
           <Pill label="Operator app" tone="slate" icon="smartphone" />
@@ -200,55 +303,35 @@ export function MapChargerCard({
   best,
 }: MapCardProps) {
   const health = stationHealth(station, vehicle);
-  const free = availableCount(station, vehicle);
-  const total = compatibleConnectors(station, vehicle).length;
-  const price = lowestPrice(station, vehicle);
-  const bays = hasUnconfirmedConnectors(station)
-    ? UNCONFIRMED_CONNECTORS
-    : `${maxPowerKw(station, vehicle)} kW • ${free}/${total} available`;
   return (
     <View style={[styles.mapCard, elevation(3), {bottom}]} testID="map-card">
-      <View style={styles.mapTop}>
-        <Pressable
-          onPress={onDetails}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${station.name}`}
-          style={styles.mapTapArea}>
-          <View style={styles.thumb}>
-            <Icon name="zap" size={26} color={colors.limeDark} filled />
-          </View>
-          <View style={styles.mapInfo}>
-            {best && <Text style={styles.recommended}>Best nearby</Text>}
-            <Text style={styles.mapTitle} numberOfLines={1}>
-              {station.name}
-            </Text>
-            <Text style={styles.line} numberOfLines={1}>
-              {formatDistance(station.distanceKm)} • {station.hours}
-            </Text>
-            <Text style={styles.line} numberOfLines={1}>
-              {bays}
-            </Text>
-          </View>
-        </Pressable>
-        <Pressable
-          onPress={onClose}
-          hitSlop={14}
-          accessibilityRole="button"
-          accessibilityLabel="Close details"
-          style={styles.close}>
-          <Icon name="x" size={14} color={colors.ink} />
-        </Pressable>
-      </View>
-      <View style={styles.mapMeta}>
-        {healthBadge(health)}
-        {price !== null && (
-          <Text style={styles.price}>
-            {hasPriceRange(station, vehicle) ? 'from ' : ''}
-            {formatInr(price, price % 1 !== 0)}
-            <Text style={styles.priceUnit}>/kWh</Text>
+      <Pressable
+        onPress={onDetails}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${station.name}`}>
+        {best && <Text style={styles.recommended}>Best nearby</Text>}
+        <Text style={styles.mapTitle} numberOfLines={2}>
+          {station.name}
+        </Text>
+        <View style={styles.statusRow}>
+          {healthBadge(health)}
+          <Text style={styles.availability} numberOfLines={1}>
+            {availabilityText(station, vehicle)}
           </Text>
-        )}
-      </View>
+          <Text style={styles.distance}>
+            {formatDistance(station.distanceKm)}
+          </Text>
+        </View>
+        <StationFacts station={station} vehicle={vehicle} />
+      </Pressable>
+      <Pressable
+        onPress={onClose}
+        hitSlop={14}
+        accessibilityRole="button"
+        accessibilityLabel="Close details"
+        style={styles.close}>
+        <Icon name="x" size={14} color={colors.ink} />
+      </Pressable>
       <View style={styles.mapTrust}>
         <ConfidenceBadge feed={station.statusFeed} now={now} subject="Status" />
       </View>
@@ -363,6 +446,7 @@ const styles = StyleSheet.create({
   },
   name: {...type.heading, color: colors.ink},
   line: {...type.caption, color: colors.inkSoft, marginTop: 4},
+  detour: {marginTop: spacing.md},
   caption: {...type.caption, color: colors.muted, fontSize: 12},
   trustRow: {
     flexDirection: 'row',
@@ -379,6 +463,30 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   selected: {borderWidth: 2, borderColor: colors.bg},
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  availability: {...type.label, color: colors.inkSoft, flex: 1},
+  distance: {...type.heading, color: colors.ink},
+  facts: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
+  fact: {flex: 1},
+  factValue: {...type.heading, color: colors.ink},
+  factUnit: {...type.caption, color: colors.muted, fontWeight: '600'},
+  factLabel: {
+    ...type.caption,
+    color: colors.muted,
+    fontSize: 11.5,
+    marginTop: 2,
+  },
   mapCard: {
     position: 'absolute',
     left: spacing.lg,
@@ -387,19 +495,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.lg,
   },
-  mapTop: {flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm},
-  mapTapArea: {flex: 1, flexDirection: 'row', alignItems: 'flex-start'},
-  thumb: {
-    width: 62,
-    height: 62,
-    borderRadius: radii.md,
-    backgroundColor: colors.limeSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapInfo: {flex: 1, marginHorizontal: spacing.md},
-  mapTitle: {...type.heading, color: colors.ink, marginBottom: 2},
+  mapTitle: {...type.heading, color: colors.ink, paddingRight: 36},
   close: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -407,15 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mapMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    gap: spacing.md,
-  },
-  mapTrust: {marginTop: spacing.sm, marginBottom: 2},
-  price: {...type.heading, color: colors.ink},
-  priceUnit: {color: colors.muted, fontSize: 12, fontWeight: '600'},
+  mapTrust: {marginTop: spacing.md, marginBottom: 2},
   cta: {marginTop: spacing.md},
   rel: {gap: 6},
   relHead: {flexDirection: 'row', alignItems: 'baseline', gap: 6},

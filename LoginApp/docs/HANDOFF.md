@@ -4,11 +4,11 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 
 ## What exists
 
-- **49 routes, all with real screens** (`src/navigation/registry.ts`; adding a
+- **50 routes, all with real screens** (`src/navigation/registry.ts`; adding a
   route without a screen is a compile error). Screens 01–40 plus the five tab
   roots, Notifications, Alerts, Presenter tools and the support/ticket screens.
-- **Login and Home are the visual source of truth.** Welcome/Login are
-  untouched; Home was rebuilt on the shared station data with the approved look.
+- **Login and Home are the visual source of truth.** Welcome/Login kept that
+  look (restyled in the Dev_Phase1 pass below); Home was rebuilt on the shared station data with the approved look.
   Every new screen uses the tokens in `src/theme.ts` and the kit in `src/ui`.
 - **Navigation:** typed stack + 5 tabs (Home, Trips, Charge, Activity, Profile),
   hardware back, keep-alive tab hosts, owning-tab highlight on stack screens.
@@ -26,10 +26,30 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **Google location + Maps + Places (nearby chargers)** with separate keys, see
   the README.
 
+## Dev_Phase1 UI pass
+
+Simplification and polish on top of the showcase build; no service, store or
+domain contract changed.
+
+- **Logo and icons** redrawn (`assets/brand/logo-mark.svg`), launcher and iOS icons regenerated; one shared `BrandLogo`.
+- **Welcome** is a local vector scene (road, roadside charger, lime horizon; no remote image), one headline, one supporting line, two actions. Login has a single icon back arrow.
+- **Vehicle setup** shows each plug as a picture card (`ConnectorSelectionCard`, `ConnectorImage`), with the chosen plugs summarised above Save and on car cards (`ConnectorTag`).
+- **Maps**: a missing Android key is detected and explained instead of a blank map; permission-denied and services-off have their own card (`LocationPermissionState`); a map that never starts gets a Reload notice; `ChargerMap` accepts a `route`.
+- **Charger cards** lead with name, availability and distance, then speed, price and reliability; trust and age sit underneath. The primary Energy Plan action is a 64 px `PrimaryButton large`.
+
+Still open from this pass:
+
+- The Google keys themselves (see README "What you must configure"). Nothing was verified on a device or emulator: no Android SDK or Xcode here, only Jest and a browser preview.
+- Connector pictures are simplified drawings of the plug faces; have product/design confirm them (especially GB/T and LECCS) before release.
+- `reliabilityPct` has no real source yet (demo data only), so "Reliable" appears only for demo chargers.
+- An invalid or restricted Android key still shows grey tiles: Google exposes that only in the log.
+
 ## Verification
 
-- `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
-  (336 tests).
+- `npx tsc --noEmit` and `npx jest` clean, `npx eslint src __tests__` 0 errors
+  (5 pre-existing `no-bitwise` warnings in the contrast test): **25 suites, 536
+  tests** after the co-driver pass. `react-native bundle` succeeds for Android
+  and iOS.
 - `__tests__/crawl.test.tsx` mounts every route, presses every button, requires
   an accessible label on each, checks each press navigates somewhere valid, and
   checks every route is reachable from Home. Payment and PaymentFailure need a
@@ -39,6 +59,54 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - Visual QA was done by rendering the real screens with react-native-web in
   headless Chromium (see ARCHITECTURE.md §8). It is a layout check, not a
   substitute for a device pass.
+
+## Co-driver pass (Dev_Phase1)
+
+PlugOrbit evolved from a charger finder into a proactive EV charging co-driver
+("You drive. We handle the charge."). The existing visual language, navigation
+and service contracts were kept; the new behaviour was added around them. Full
+description: **`docs/FEATURES.md`**.
+
+**New or rebuilt screens**: `Home` (intent first: car + battery, one calm status,
+"Where are we going?", Plan a trip / Charge nearby / Battery critical), `Map`
+(the old map home, now one tap away), `SmartDrive` (the trip in progress),
+`TripSummary` (route confidence, total impact, total cost, Start trip),
+`ChargePick` (one recommended charger and a backup for Charge nearby / Battery
+critical). Reworked: `RoutePlanner`, `BackupAlert` ("Switch route"),
+`Navigation`, `OfflineMode`, `Alerts`, `StationDetail`, `ActiveSession`,
+`Receipt`, `Notifications`, `Trips`, `PresenterTools`.
+
+**New domain engine** (`src/domain`, pure and tested): `recommendation`
+(PlugOrbitScore, hard gates, intent weights, backup choice), `vehicleCharging`
+(charger kW vs car kW), `chargeConfidence`, `routeConfidence`, `arrivalOutlook`
+(no predictor ships), `tripImpact`, `costBreakdown`, `chargingPlan`, `battery`,
+`activeTrip` + `tripEngine` + `tripStatus` (the trip state machine), `coDriver`
+(wording, four notification levels, delivery policy), `offlineTrip`.
+
+**New services/store**: `recommendationService`, `tripService`,
+`offlineTripService` (mock, behind typed interfaces); `store/tripCoordinator`,
+`tripDelivery`, `tripEvents`; `app/TripMonitorHost` (watches the planned stop
+every 8 s from anywhere in the app).
+
+**Behaviour worth knowing before you demo or extend it**
+
+- Switching is decided from where the car is *now*; a wait under 8 min never
+  justifies switching; a declined switch is remembered. Auto-switch is opt-in.
+- Offline never shows LIVE; cached statuses are *Estimated* with their age.
+- Price is not a factor in Battery critical.
+- Charge Confidence is High / Medium / Low with reasons; the percentage stays
+  null until 30 real sessions exist.
+- The trip's battery along the road is an estimate (`source: 'estimate'`) until
+  the driver corrects it or a vehicle API reports it.
+- Trip progress is simulated (`trip.advance(km)`); a GPS feed would call the
+  same method.
+
+**Branch note.** Work is on `Dev_Phase1` (the remote branch with that exact
+spelling). It was not merged into, or pushed to, `main`.
+
+Still open from this pass: see "Integrations still mocked" below, plus push
+notifications for a closed app, real GPS, native-build verification, and the
+product decisions listed under "Decisions needed".
 
 ## Independent review
 
@@ -60,7 +128,7 @@ regression test. The ones that mattered most:
 - On Android the Play Services location request could hang or collide.
 - With the phone far from the demo data (Delhi/NCR) there were no chargers at
   all. It now falls back to demo chargers around New Delhi and says so.
-- WCAG AA text contrast and 44 px touch targets across all 49 screens.
+- WCAG AA text contrast and 44 px touch targets across all 50 screens.
 
 Known limits left on purpose:
 
@@ -90,6 +158,10 @@ Known limits left on purpose:
 | Roadside dispatch | `RoadsideScreen`, `config/support.ts` | Partner API and real support contacts |
 | Plus billing | `PlusScreen` | Billing backend (nothing is charged) |
 | Privacy switches | `PrivacyScreen` | Backend enforcement |
+| Trip position (GPS) | `services/mock/tripService.ts`, `TripMonitorHost` | A location/navigation feed that calls `trip.advance(km)` |
+| Push notifications (app closed) | `store/tripDelivery.ts`, `AlertsScreen` | APNs / FCM, with the same `deliveryFor` policy |
+| Predicted availability at arrival | `domain/arrivalOutlook.ts` | An `AvailabilityPredictor` trained on operator occupancy history |
+| Real road distance, traffic | `services/mock/routeService.ts` | Google Routes / Directions |
 | Login OTP | `App.tsx`, `services/otpApi.ts` | Wired to the Backend's `/auth/otp/*` for development: the code is emailed or texted, or shown on screen when that is not possible (README "Login OTP (development)"). Still needed: a production email/SMS provider, a shared OTP store, and a real session (verifying only sets a local signed-in flag) |
 | Problem-report photos | `ReportProblemScreen` | Image picker + upload |
 
@@ -114,5 +186,9 @@ Known limits left on purpose:
    non-showcase build.
 5. **Presenter tools** ship in the Profile tab. Hide them behind a build flag
    for anything beyond the showcase.
-6. **Places key handling:** Places (New) is called straight from the app. Proxy
+6. **Notification tone and levels:** the four levels, the Calm default, the
+   8-minute "short wait" rule and the 5-minute critical cooldown
+   (`domain/coDriver.ts`, `domain/tripEngine.ts`) are product calls; confirm.
+7. **Auto-switch default:** off. Confirm that opt-in is right for launch.
+8. **Places key handling:** Places (New) is called straight from the app. Proxy
    it through the backend before release so the key stays server-side.

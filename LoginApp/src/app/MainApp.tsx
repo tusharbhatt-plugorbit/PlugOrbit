@@ -8,6 +8,7 @@ import {appStore, flushAppStore, useApp} from '../store/appStore';
 import {TabBar, ToastHost, showToast} from '../ui';
 import {BootPlan, planBoot} from './initialStack';
 import {SessionBanner} from './SessionBanner';
+import {TripMonitorHost} from './TripMonitorHost';
 
 type Props = {
   /** Test/preview hook to start somewhere specific. */
@@ -61,6 +62,7 @@ export default function MainApp({bootOverride}: Props): React.JSX.Element {
       overlay={
         <>
           <SessionBanner />
+          <TripMonitorHost />
           <ToastHost />
         </>
       }

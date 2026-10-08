@@ -1,8 +1,10 @@
 import React, {createContext, useContext, useMemo} from 'react';
+import {createRecommendationService} from './mock/recommendationService';
 import {createRouteService} from './mock/routeService';
 import {createSessionService} from './mock/sessionService';
 import {createPaymentService} from './mock/paymentService';
 import {createStationService} from './mock/stationService';
+import {createOfflineTripService, createTripService} from './mock/tripService';
 import {
   createNotificationService,
   createPreferencesService,
@@ -24,6 +26,9 @@ export function createMockServices(): Services {
     support: createSupportService(),
     notification: createNotificationService(),
     preferences: createPreferencesService(),
+    recommendation: createRecommendationService(),
+    trip: createTripService(),
+    offline: createOfflineTripService(),
   };
 }
 

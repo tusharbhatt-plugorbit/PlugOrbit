@@ -4,13 +4,15 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { Alert, StyleSheet, Text, TextInput } from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text, TextInput} from 'react-native';
 import App from '../App';
-import { seedSignedIn } from '../src/dev/testHarness';
-import { STORE_VERSION, appStore, resetAppStore } from '../src/store/appStore';
-import { resetDemo } from '../src/store/demoStore';
-import { createMemoryStorage, setStorage } from '../src/store/storage';
-import { resetLocalOtp } from '../src/services/otpApi';
+import {seedSignedIn} from '../src/dev/testHarness';
+import {STORE_VERSION, appStore, resetAppStore} from '../src/store/appStore';
+import {resetDemo} from '../src/store/demoStore';
+import {createMemoryStorage, setStorage} from '../src/store/storage';
+import {resetLocalOtp} from '../src/services/otpApi';
+
+const WELCOME_HEADLINE = 'Charge Smarter.\nTravel Further.';
 
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
@@ -48,6 +50,12 @@ const findPressable = (renderer: Renderer, label: string) => {
 // Presses and waits for the handler (and so the whole OTP request) to finish.
 const pressByText = async (renderer: Renderer, label: string) => {
   const target = findPressable(renderer, label);
+  await ReactTestRenderer.act(() => target.props.onPress());
+};
+
+// The one back control on the auth screens is an icon arrow with a label.
+const pressBack = async (renderer: Renderer) => {
+  const target = renderer.root.findByProps({accessibilityLabel: 'Back'});
   await ReactTestRenderer.act(() => target.props.onPress());
 };
 
@@ -123,14 +131,14 @@ const sendBody = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const apiError = (status: number, detail: Record<string, unknown>) =>
-  jsonResponse(status, { detail });
+  jsonResponse(status, {detail});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(r => {
     resolve = r;
   });
-  return { promise, resolve };
+  return {promise, resolve};
 }
 
 // Answers the two OTP endpoints. A handler may return a promise left pending.
@@ -143,15 +151,19 @@ const mockBackend = (routes: {
       ? routes.send
       : routes.verify;
     return Promise.resolve(
-      handler ? handler() : jsonResponse(404, { detail: 'Not Found' }),
+      handler ? handler() : jsonResponse(404, {detail: 'Not Found'}),
     );
   });
 };
 
-const bodyOfCall = (index: number) => JSON.parse(fetchMock.mock.calls[index][1].body);
+const bodyOfCall = (index: number) =>
+  JSON.parse(fetchMock.mock.calls[index][1].body);
 
 // Signs up through the identify step so the verify step is showing.
-const startVerify = async (renderer: Renderer, identifier = 'name@example.com') => {
+const startVerify = async (
+  renderer: Renderer,
+  identifier = 'name@example.com',
+) => {
   await pressByText(renderer, 'Get Started');
   await typeIdentifier(renderer, identifier);
   await pressByText(renderer, 'Send Verification Code  →');
@@ -189,7 +201,51 @@ afterAll(() => {
 
 test('renders correctly', async () => {
   const renderer = await renderApp();
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
+});
+
+test('the welcome screen leads with the brand, one promise and two actions', async () => {
+  const renderer = await renderApp();
+  const texts = textsOf(renderer);
+  expect(texts).toContain('PlugOrbit');
+  expect(texts).toContain(WELCOME_HEADLINE);
+  expect(texts).toContain('Get Started');
+  expect(texts).toContain('I already have an account');
+  // No second "Welcome to ..." title repeating the brand name.
+  expect(texts).not.toContain('Welcome to PlugOrbit');
+});
+
+test('the welcome screen scrolls, so large system text never hides a button', async () => {
+  const renderer = await renderApp();
+  expect(renderer.root.findAllByType(ScrollView)).toHaveLength(1);
+  const buttons = renderer.root.findAll(
+    n => n.props.accessibilityRole === 'button' && n.props.onPress,
+  );
+  expect(buttons.length).toBeGreaterThanOrEqual(2);
+});
+
+test('the sign-in screen has exactly one back control, an icon arrow', async () => {
+  const renderer = await renderApp();
+  await pressByText(renderer, 'I already have an account');
+
+  const backs = renderer.root.findAll(
+    n => n.props.accessibilityLabel === 'Back' && n.props.onPress,
+  );
+  expect(backs).toHaveLength(1);
+  expect(textsOf(renderer)).not.toContain('← Back');
+
+  await pressBack(renderer);
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
+});
+
+test('the mobile/email badge only appears once the input is recognised', async () => {
+  const renderer = await renderApp();
+  await pressByText(renderer, 'Get Started');
+  expect(textsOf(renderer)).not.toContain('Auto-Detect');
+  expect(textsOf(renderer)).not.toContain('Email');
+
+  await typeIdentifier(renderer, 'name@example.com');
+  expect(textsOf(renderer)).toContain('Email');
 });
 
 test('sign up uses a single mobile/email field followed by an OTP step', async () => {
@@ -211,7 +267,7 @@ test('sign up uses a single mobile/email field followed by an OTP step', async (
 
 test('switching Sign Up / Sign In while a code is being sent drops the request', async () => {
   const send = deferred<unknown>();
-  mockBackend({ send: () => send.promise });
+  mockBackend({send: () => send.promise});
   const renderer = await renderApp();
 
   await pressByText(renderer, 'Get Started');
@@ -233,7 +289,7 @@ test('switching Sign Up / Sign In while a code is being sent drops the request',
 
 test('the identifier field is locked while a code is being sent', async () => {
   const send = deferred<unknown>();
-  mockBackend({ send: () => send.promise });
+  mockBackend({send: () => send.promise});
   const renderer = await renderApp();
 
   await pressByText(renderer, 'Get Started');
@@ -249,23 +305,23 @@ test('the identifier field is locked while a code is being sent', async () => {
 
 test('going Back while a code is being sent does not alert over the welcome screen', async () => {
   const send = deferred<unknown>();
-  mockBackend({ send: () => send.promise });
+  mockBackend({send: () => send.promise});
   const renderer = await renderApp();
 
   await pressByText(renderer, 'Get Started');
   await typeIdentifier(renderer, 'name@example.com');
   await pressWithoutWaiting(renderer, 'Send Verification Code  →');
-  await pressByText(renderer, '← Back');
+  await pressBack(renderer);
   send.resolve(jsonResponse(200, sendBody()));
   await flush();
 
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
   expect(alertSpy).not.toHaveBeenCalled();
 });
 
 test('submitting from the keyboard while a code is being sent does not send twice', async () => {
   const send = deferred<unknown>();
-  mockBackend({ send: () => send.promise });
+  mockBackend({send: () => send.promise});
   const renderer = await renderApp();
 
   await pressByText(renderer, 'Get Started');
@@ -291,7 +347,7 @@ test('a failing request that outlives the screen does not alert either', async (
   await pressByText(renderer, 'Get Started');
   await typeIdentifier(renderer, 'name@example.com');
   await pressWithoutWaiting(renderer, 'Send Verification Code  →');
-  await pressByText(renderer, '← Back');
+  await pressBack(renderer);
   send.resolve(
     apiError(429, {
       code: 'OTP_RATE_LIMITED',
@@ -301,7 +357,7 @@ test('a failing request that outlives the screen does not alert either', async (
   );
   await flush();
 
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
   expect(alertSpy).not.toHaveBeenCalled();
 });
 
@@ -322,7 +378,7 @@ test('tapping Change while verifying drops the pending verification', async () =
   await pressByText(renderer, '  Change');
 
   // A late "verified" must neither sign in nor alert.
-  verify.resolve(jsonResponse(200, { verified: true, message: 'Verified.' }));
+  verify.resolve(jsonResponse(200, {verified: true, message: 'Verified.'}));
   await flush();
 
   expect(textsOf(renderer)).toContain('Send Verification Code  →');
@@ -349,7 +405,7 @@ test('a plain mobile number is still detected as a mobile number', async () => {
   await pressByText(renderer, 'Get Started');
 
   await typeIdentifier(renderer, '+91 98765 43210');
-  expect(textsOf(renderer)).toContain('📱 Mobile');
+  expect(textsOf(renderer)).toContain('Mobile');
 });
 
 test('a verified code lands on vehicle setup for a new account', async () => {
@@ -372,7 +428,7 @@ test('a verified code lands on vehicle setup for a new account', async () => {
 });
 
 test('a code sent by email shows no DEV banner, only how it was sent', async () => {
-  mockBackend({ send: () => jsonResponse(200, sendBody({ resend_in: 45 })) });
+  mockBackend({send: () => jsonResponse(200, sendBody({resend_in: 45}))});
   const renderer = await renderApp();
 
   await startVerify(renderer);
@@ -390,13 +446,13 @@ test('a code sent by email shows no DEV banner, only how it was sent', async () 
   const [url, init] = fetchMock.mock.calls[0];
   expect(url).toMatch(/\/auth\/otp\/send$/);
   expect(init.method).toBe('POST');
-  expect(bodyOfCall(0)).toEqual({ identifier: 'name@example.com' });
+  expect(bodyOfCall(0)).toEqual({identifier: 'name@example.com'});
 });
 
 test('a code sent by SMS says so', async () => {
   mockBackend({
     send: () =>
-      jsonResponse(200, sendBody({ channel: 'sms', identifier_type: 'phone' })),
+      jsonResponse(200, sendBody({channel: 'sms', identifier_type: 'phone'})),
   });
   const renderer = await renderApp();
 
@@ -405,7 +461,7 @@ test('a code sent by SMS says so', async () => {
   const texts = textsOf(renderer);
   expect(texts).toContain('Sent by SMS');
   expect(texts).not.toContain('DEV MODE');
-  expect(bodyOfCall(0)).toEqual({ identifier: '+91 98765 43210' });
+  expect(bodyOfCall(0)).toEqual({identifier: '+91 98765 43210'});
 });
 
 test('when the Backend cannot deliver, the code is shown on screen and can be filled in', async () => {
@@ -413,7 +469,7 @@ test('when the Backend cannot deliver, the code is shown on screen and can be fi
     send: () =>
       jsonResponse(
         200,
-        sendBody({ channel: 'screen', delivered: false, dev_code: '654321' }),
+        sendBody({channel: 'screen', delivered: false, dev_code: '654321'}),
       ),
   });
   const renderer = await renderApp();
@@ -427,7 +483,10 @@ test('when the Backend cannot deliver, the code is shown on screen and can be fi
   expect(texts).not.toContain(
     'Backend unreachable, code generated on this device',
   );
-  expect(alertSpy).toHaveBeenCalledWith('Dev Code', expect.stringContaining('654321'));
+  expect(alertSpy).toHaveBeenCalledWith(
+    'Dev Code',
+    expect.stringContaining('654321'),
+  );
 
   expect(otpValueOf(renderer)).toBe('');
   await pressByText(renderer, 'Tap to fill');
@@ -448,7 +507,9 @@ test('the DEV banner stays readable in the light and the dark theme', async () =
       'Tap to fill',
     ];
     for (const line of lines) {
-      const color = StyleSheet.flatten(findText(renderer, line).props.style).color;
+      const color = StyleSheet.flatten(
+        findText(renderer, line).props.style,
+      ).color;
       expect(contrastRatio(color, background)).toBeGreaterThanOrEqual(4.5);
     }
     return background;
@@ -457,7 +518,7 @@ test('the DEV banner stays readable in the light and the dark theme', async () =
   const lightBackground = readableBackground();
   await ReactTestRenderer.act(() =>
     renderer.root
-      .findByProps({ accessibilityLabel: 'Toggle dark mode' })
+      .findByProps({accessibilityLabel: 'Toggle dark mode'})
       .props.onPress(),
   );
   expect(readableBackground()).not.toBe(lightBackground);
@@ -474,7 +535,10 @@ test('with no Backend the code is generated on the device and shown', async () =
   expect(texts).toContain('Backend unreachable, code generated on this device');
   const code = devCodeOf(renderer);
   expect(code).toMatch(/^\d{6}$/);
-  expect(alertSpy).toHaveBeenCalledWith('Dev Code', expect.stringContaining(code!));
+  expect(alertSpy).toHaveBeenCalledWith(
+    'Dev Code',
+    expect.stringContaining(code!),
+  );
 
   await pressByText(renderer, 'Tap to fill');
   expect(otpValueOf(renderer)).toBe(code);
@@ -566,7 +630,7 @@ test('a verification the server cannot answer says Verification Failed', async (
 test('the Backend confirms the typed code and the user is signed in', async () => {
   mockBackend({
     send: () => jsonResponse(200, sendBody()),
-    verify: () => jsonResponse(200, { verified: true, message: 'Verified.' }),
+    verify: () => jsonResponse(200, {verified: true, message: 'Verified.'}),
   });
   const renderer = await renderApp();
   await startVerify(renderer);
@@ -639,7 +703,7 @@ test('Resend becomes available after the countdown and sends a fresh code', asyn
         200,
         call++ === 0
           ? sendBody()
-          : sendBody({ channel: 'screen', delivered: false, dev_code: '111111' }),
+          : sendBody({channel: 'screen', delivered: false, dev_code: '111111'}),
       ),
   });
   const renderer = await renderApp();
@@ -665,23 +729,27 @@ test('Resend becomes available after the countdown and sends a fresh code', asyn
   expect(texts).not.toContain('Sent by email');
   expect(texts).toContain(' Resend in 30s');
   expect(otpValueOf(renderer)).toBe('');
-  expect(alertSpy).toHaveBeenCalledWith('Dev Code', expect.stringContaining('111111'));
+  expect(alertSpy).toHaveBeenCalledWith(
+    'Dev Code',
+    expect.stringContaining('111111'),
+  );
 });
 
 test('a signed-in user with a vehicle goes straight to Home on launch', async () => {
   seedSignedIn();
-  const { signedIn, vehicles, activeVehicleId, battery } = appStore.get();
+  const {signedIn, vehicles, activeVehicleId, battery} = appStore.get();
   setStorage(
     createMemoryStorage({
       'plugorbit/app': JSON.stringify({
         v: STORE_VERSION,
-        d: { signedIn, vehicles, activeVehicleId, battery },
+        d: {signedIn, vehicles, activeVehicleId, battery},
       }),
     }),
   );
   resetAppStore();
 
   const renderer = await renderApp();
-  expect(textsOf(renderer)).toContain('Find a Charger');
-  expect(textsOf(renderer)).not.toContain('Welcome to PlugOrbit');
+  // Home leads with the driver: the car, the battery and one calm line.
+  expect(textsOf(renderer)).toContain('You’re good to drive.');
+  expect(textsOf(renderer)).not.toContain(WELCOME_HEADLINE);
 });

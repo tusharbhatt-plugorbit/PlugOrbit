@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import MainApp from './src/app/MainApp';
@@ -19,6 +19,9 @@ import {OtpError, requestOtp, verifyOtp} from './src/services/otpApi';
 import type {OtpSendResult} from './src/services/otpApi';
 import {appStore, hydrateAppStore, useApp} from './src/store/appStore';
 import {startDemoPersistence} from './src/store/demoStore';
+import {BrandLogo} from './src/ui/BrandLogo';
+import {Icon} from './src/ui/Icon';
+import {WelcomeBackdrop} from './src/ui/WelcomeBackdrop';
 
 type Screen = 'welcome' | 'login' | 'signup' | 'app';
 type AuthStep = 'identify' | 'verify';
@@ -88,61 +91,6 @@ const darkAuthTheme: typeof lightAuthTheme = {
   devText: '#FCD34D',
 };
 
-const LOGO_MARK = require('./assets/brand/logo-mark.png');
-
-type BrandLogoProps = {
-  size?: number;
-  // Soft lime "orbit" halo around the tile, for hero placements on dark screens.
-  glow?: boolean;
-  borderColor?: string;
-};
-
-// PlugOrbit "P" mark on a white rounded tile, matching the launcher icon.
-// The white tile keeps the logo's dark-navy stroke visible on dark backgrounds.
-function BrandLogo({
-  size = 40,
-  glow = false,
-  borderColor = 'rgba(255,255,255,0.9)',
-}: BrandLogoProps): React.JSX.Element {
-  const tile = (
-    <View
-      style={[
-        styles.brandTile,
-        {
-          width: size,
-          height: size,
-          borderRadius: size * 0.28,
-          padding: size * 0.14,
-          borderColor,
-        },
-        glow && styles.brandTileGlow,
-      ]}>
-      <Image
-        source={LOGO_MARK}
-        style={styles.brandMark}
-        resizeMode="contain"
-        accessibilityRole="image"
-        accessibilityLabel="PlugOrbit logo"
-      />
-    </View>
-  );
-
-  if (!glow) {
-    return tile;
-  }
-
-  const haloSize = size * 1.5;
-  return (
-    <View
-      style={[
-        styles.brandHalo,
-        {width: haloSize, height: haloSize, borderRadius: haloSize / 2},
-      ]}>
-      {tile}
-    </View>
-  );
-}
-
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
@@ -172,23 +120,9 @@ function AppContent(): React.JSX.Element {
     setScreen(prev => (signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev));
   }, [hydrated, signedIn]);
 
-  // High-Contrast Theme Palette (WCAG AAA Compliant)
-  const theme = {
-    bg: '#060A12',           // Deep Obsidian Dark Background
-    cardBg: '#111827',       // High Contrast Card Container
-    accentLime: '#A2F067',   // Electric Lime Green Accent
-    textWhite: '#FFFFFF',    // Pure White Primary Text
-    textMuted: '#CBD5E1',    // Slate 200 High Contrast Subtext
-    textPlaceholder: '#9CA3AF',
-    inputBg: '#1F2937',      // Distinct Dark Input Field Background
-    inputBorder: '#374151',  // Sharp High Contrast Borders
-    secondaryBtnBg: '#111827',
-    secondaryBtnBorder: '#374151',
-  };
-
   if (screen === null) {
     return (
-      <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" />
         <View style={styles.splash}>
           <BrandLogo size={64} glow />
@@ -205,62 +139,10 @@ function AppContent(): React.JSX.Element {
   // --- WELCOME / LANDING SCREEN ---
   if (screen === 'welcome') {
     return (
-      <SafeAreaView style={[styles.safeArea, {backgroundColor: theme.bg}]}>
-        <StatusBar barStyle="light-content" />
-
-        <View style={styles.welcomeContainer}>
-          {/* Header & Logo Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.logoBadge}>
-              <BrandLogo size={64} glow />
-            </View>
-            <Text style={styles.brandTitle}>PlugOrbit</Text>
-            <Text style={styles.mainHeading}>Welcome to PlugOrbit</Text>
-            <Text style={styles.tagline}>Charge Smarter. Travel Further.</Text>
-          </View>
-
-          {/* Clean EV Hero Image (without brand text / names) */}
-          <View style={styles.illustrationCard}>
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=1000&auto=format&fit=crop',
-              }}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-          </View>
-
-          {/* Carousel Pagination Dots */}
-          <View style={styles.dotsRow}>
-            <View style={[styles.dot, styles.activeDot]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.buttonGroup}>
-            <Pressable
-              style={({pressed}) => [
-                styles.primaryBtn,
-                pressed && {opacity: 0.88},
-              ]}
-              onPress={() => setScreen('signup')}>
-              <Text style={styles.primaryBtnText}>Get Started</Text>
-            </Pressable>
-
-            <Pressable
-              style={({pressed}) => [
-                styles.secondaryBtn,
-                pressed && {backgroundColor: '#1E293B'},
-              ]}
-              onPress={() => setScreen('login')}>
-              <Text style={styles.secondaryBtnText}>
-                I already have an account
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
+      <Welcome
+        onGetStarted={() => setScreen('signup')}
+        onSignIn={() => setScreen('login')}
+      />
     );
   }
 
@@ -272,6 +154,85 @@ function AppContent(): React.JSX.Element {
       onBack={() => setScreen('welcome')}
       onAuthenticated={() => appStore.set({signedIn: true})}
     />
+  );
+}
+
+type WelcomeProps = {
+  onGetStarted: () => void;
+  onSignIn: () => void;
+};
+
+// First screen: PlugOrbit -> what it does -> one obvious action.
+function Welcome({onGetStarted, onSignIn}: WelcomeProps): React.JSX.Element {
+  const {height, fontScale} = useWindowDimensions();
+  // Short phones, or large system text, get a smaller mark so the copy and both
+  // buttons fit; the road scene only draws where it clears the copy.
+  const compact = height < 700 || fontScale > 1.3;
+  const logoSize = compact ? 56 : 72;
+  const ring = logoSize * 1.5;
+
+  return (
+    <View style={styles.welcomeRoot}>
+      <StatusBar barStyle="light-content" />
+      <WelcomeBackdrop showRoad={height >= 640} showCharger={!compact} />
+      <SafeAreaView style={styles.flex}>
+        {/* Scrolls only when text is scaled up past what fits. */}
+        <ScrollView
+          contentContainerStyle={styles.welcomeContainer}
+          bounces={false}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.welcomeTop}>
+            {/* Orbit rings round the mark: the brand idea, kept faint. */}
+            <View
+              style={[
+                styles.orbitRing,
+                {width: ring * 1.9, height: ring * 1.9, borderRadius: ring},
+              ]}>
+              <View
+                style={[
+                  styles.orbitRingInner,
+                  {width: ring * 1.35, height: ring * 1.35, borderRadius: ring},
+                ]}>
+                <BrandLogo size={logoSize} glow />
+              </View>
+            </View>
+            <Text style={styles.brandTitle}>PlugOrbit</Text>
+            <Text
+              style={[styles.headline, compact && styles.headlineCompact]}
+              accessibilityRole="header">
+              {'Charge Smarter.\nTravel Further.'}
+            </Text>
+            <Text style={styles.support}>
+              Find a charger that fits your car, get there, and start charging.
+            </Text>
+          </View>
+
+          <View style={styles.buttonGroup}>
+            <Pressable
+              accessibilityRole="button"
+              style={({pressed}) => [
+                styles.primaryBtn,
+                pressed && {opacity: 0.88},
+              ]}
+              onPress={onGetStarted}>
+              <Text style={styles.primaryBtnText}>Get Started</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              style={({pressed}) => [
+                styles.secondaryBtn,
+                pressed && {backgroundColor: 'rgba(255,255,255,0.08)'},
+              ]}
+              onPress={onSignIn}>
+              <Text style={styles.secondaryBtnText}>
+                I already have an account
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -439,16 +400,28 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
   const devCode =
     sendResult?.channel === 'screen' ? sendResult.devCode : null;
 
-  const inputLabelBadge =
+  const detectedLabel =
     identifierType === 'email'
-      ? '✉️ Email'
+      ? 'Email'
       : identifierType === 'phone'
-      ? '📱 Mobile'
-      : '⚡ Auto-Detect';
+      ? 'Mobile'
+      : null;
 
   return (
     <SafeAreaView style={[styles.safeArea, {backgroundColor: t.bg}]}>
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+
+      {/* Sign in / sign up are reached from Welcome, so one arrow goes back. */}
+      <View style={styles.authTopBar}>
+        <Pressable
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={({pressed}) => [styles.backArrow, pressed && {opacity: 0.6}]}>
+          <Icon name="arrow-left" size={24} color={t.text} />
+        </Pressable>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -456,12 +429,6 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
         <ScrollView
           contentContainerStyle={styles.authScroll}
           keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={[styles.backButtonText, {color: t.primary}]}>
-              ← Back
-            </Text>
-          </Pressable>
-
           <View
             style={[
               styles.authCard,
@@ -543,17 +510,29 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
                     <Text style={[styles.label, {color: t.text}]}>
-                      Mobile Number or Email ID
+                      Mobile number or email
                     </Text>
-                    <View
-                      style={[
-                        styles.detectBadge,
-                        {backgroundColor: t.primarySoft, borderColor: t.cardBorder},
-                      ]}>
-                      <Text style={[styles.detectBadgeText, {color: t.primary}]}>
-                        {inputLabelBadge}
-                      </Text>
-                    </View>
+                    {detectedLabel && (
+                      <View
+                        style={[
+                          styles.detectBadge,
+                          {
+                            backgroundColor: t.primarySoft,
+                            borderColor: t.cardBorder,
+                          },
+                        ]}>
+                        <Icon
+                          name={identifierType === 'email' ? 'mail' : 'smartphone'}
+                          size={12}
+                          color={t.primary}
+                          strokeWidth={2.4}
+                        />
+                        <Text
+                          style={[styles.detectBadgeText, {color: t.primary}]}>
+                          {detectedLabel}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <TextInput
                     style={[
@@ -758,56 +737,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  welcomeContainer: {
+  // Welcome
+  welcomeRoot: {
     flex: 1,
+    backgroundColor: '#060A12',
+  },
+
+  welcomeContainer: {
+    flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? 20 : 10,
-    paddingBottom: 24,
-  },
-
-  headerSection: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-
-  logoBadge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-
-  brandTile: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: {width: 0, height: 3},
-    elevation: 3,
-  },
-
-  brandTileGlow: {
-    shadowColor: '#A2F067',
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    shadowOffset: {width: 0, height: 0},
-    elevation: 10,
-  },
-
-  brandMark: {
+    // Wide tablets: keep the column phone-sized and centred.
     width: '100%',
-    height: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
 
-  brandHalo: {
+  welcomeTop: {
+    alignItems: 'center',
+  },
+
+  orbitRing: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(162, 240, 103, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(162, 240, 103, 0.28)',
+    borderColor: 'rgba(162, 240, 103, 0.10)',
+    marginBottom: 4,
+  },
+
+  orbitRingInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(162, 240, 103, 0.18)',
   },
 
   brandTitle: {
@@ -815,58 +779,30 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    marginBottom: 16,
   },
 
-  mainHeading: {
-    fontSize: 26,
-    fontWeight: '700',
+  headline: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
+    marginTop: 20,
   },
 
-  tagline: {
-    fontSize: 15,
+  headlineCompact: {
+    fontSize: 26,
+    lineHeight: 32,
+    marginTop: 12,
+  },
+
+  support: {
+    fontSize: 16,
+    lineHeight: 23,
     color: '#CBD5E1',
     textAlign: 'center',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-
-  illustrationCard: {
-    flex: 1,
-    maxHeight: 320,
-    marginVertical: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#111827',
-    borderWidth: 1.5,
-    borderColor: '#374151',
-  },
-
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#475569',
-    marginHorizontal: 4,
-  },
-
-  activeDot: {
-    width: 24,
-    backgroundColor: '#A2F067',
+    marginTop: 10,
+    paddingHorizontal: 8,
   },
 
   buttonGroup: {
@@ -874,7 +810,7 @@ const styles = StyleSheet.create({
   },
 
   primaryBtn: {
-    height: 54,
+    minHeight: 56,
     borderRadius: 14,
     backgroundColor: '#A2F067',
     alignItems: 'center',
@@ -883,16 +819,16 @@ const styles = StyleSheet.create({
 
   primaryBtnText: {
     color: '#000000',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
   },
 
   secondaryBtn: {
-    height: 54,
+    minHeight: 52,
     borderRadius: 14,
-    backgroundColor: '#111827',
     borderWidth: 1.5,
-    borderColor: '#374151',
+    borderColor: 'rgba(203, 213, 225, 0.35)',
+    backgroundColor: 'rgba(6, 10, 18, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -911,15 +847,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  backButton: {
-    marginBottom: 12,
-    paddingVertical: 8,
-    alignSelf: 'flex-start',
+  authTopBar: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
   },
 
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  // 44pt target; its icon lines up with the card's left edge.
+  backArrow: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   authCard: {
@@ -1042,11 +980,17 @@ const styles = StyleSheet.create({
   },
 
   label: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
   },
 
   detectBadge: {
+    flexShrink: 0,
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 8,

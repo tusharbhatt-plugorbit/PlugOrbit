@@ -26,7 +26,7 @@ Charging runs 20× faster than real time (`DEMO_TIME_SCALE` in
 
 | # | Do | What to point out |
 |---|----|-------------------|
-| 1 | **Home**: map and the "Best nearby" card | Only chargers that fit the Nexon are shown. LIVE appears only on PlugOrbit-integrated stations with a feed under 5 minutes old; every other station says Estimated or User-confirmed. Prices always read "(estimated), updated N ago" until an operator price feed exists. |
+| 1 | **Home → Chargers around you** (the map): the "Best nearby" card | Only chargers that fit the Nexon are shown. LIVE appears only on PlugOrbit-integrated stations with a feed under 5 minutes old; every other station says Estimated or User-confirmed. Prices always read "(estimated), updated N ago" until an operator price feed exists. |
 | 2 | Tap **Directions** | Navigate screen with "Status watch ON": we alert you and move you to the backup if the charger changes. |
 | 3 | **I've arrived — scan charger** → **Simulate scan** | The scan picks the exact connector. (No camera module in the prototype; Simulate scan stands in for the decode.) |
 | 4 | **Authorise & start** | Remote start only appears because this station is PlugOrbit-integrated and a payment method is validated; a pre-authorisation hold is shown. |
@@ -34,6 +34,37 @@ Charging runs 20× faster than real time (`DEMO_TIME_SCALE` in
 | 6 | **Stop charging → Stop & pay** | One bill: energy × rate + 18% GST. |
 | 7 | **Pay** | UPI is the default. Receipt shows the same figures. |
 | 8 | **Rate this stop** | Did it work? Rating, and "confirm for the next driver". Reliability is organic; sponsorship never changes ranking. |
+
+## The co-driver story (about 4 minutes)
+
+This is the headline demo: PlugOrbit handles the charging while you drive.
+
+1. **Home**: Tata Nexon EV at 72%. One calm line, "You're good to drive."
+   Point out that nothing else competes for attention.
+2. Tap **Where are we going?**, choose Delhi → Jaipur, then **Find best route**.
+3. **Trip summary**: route confidence with reasons, total time (driving +
+   charging), total cost, the planned stop *and its backup*. Tap **Start trip**.
+4. **Smart Drive** opens. Turn on **Auto-drive** under *Demo controls* (or tap
+   **Drive 20 km** / **Skip to the reminder**). The car moves; the screen stays
+   calm until it matters.
+5. **"Charging stop in N km."** arrives as a quiet reminder with the arrival
+   battery and charge-to level. No action needed.
+6. Tap **Make my charger occupied**. Within a few seconds PlugOrbit notices the
+   planned charger is filling up, checks the backup *from where the car is now*
+   and offers **Switch route**. Mention the rule: a short wait would not move you.
+   (Alerts → *Switch automatically* does it without asking.)
+7. **Switch route**. The trip is kept; the new stop, its status and the reason
+   are shown. Tap **Stay with ...** instead to see the choice is remembered.
+8. **Drive to the charger** → **Scan charger QR** → **Simulate scan** → start →
+   pay → the charging card. At the target: **"You're ready to continue."**
+9. Keep driving to the destination: the arrival summary shows stops, energy,
+   time charging and cost. **Finish trip**.
+10. Optional, any time: **Go offline**. The screen becomes **OFFLINE TRIP MODE**,
+    statuses read *Estimated* with "last seen", and the saved plan (stop, backup,
+    how to start, who to ask) is one tap away. **Back online** restores it.
+
+Also try **Battery critical** on Home with the battery at 8%: one charger, the
+reason, a backup, and price nowhere in the reasoning.
 
 ## Trips
 
@@ -60,7 +91,7 @@ Charging runs 20× faster than real time (`DEMO_TIME_SCALE` in
 | Scenarios → Make my chosen charger occupied | Backup alert and re-route |
 
 Presenter tools also has **Show all screens**, to jump straight to any of the
-49 routes.
+50 routes.
 
 **Restart recovery:** start a session, kill the app, reopen it. You land back on
 the live session. Same for a stopped session awaiting payment and for a failed

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,22 +16,13 @@ import {
   useNavigationState,
 } from '../navigation/NavigationContext';
 import {colors, radii, sizes, spacing, type} from '../theme';
+import {BrandLogo} from './BrandLogo';
 import {Icon} from './Icon';
 import {OfflineBanner} from './States';
 
-const LOGO_MARK = require('../../assets/brand/logo-mark.png');
-
+/** The header's logo slot. */
 export function LogoTile() {
-  return (
-    <View style={styles.logoTile}>
-      <Image
-        source={LOGO_MARK}
-        style={styles.logo}
-        resizeMode="contain"
-        accessibilityLabel="PlugOrbit"
-      />
-    </View>
-  );
+  return <BrandLogo size={32} />;
 }
 
 type Props = {
@@ -177,14 +167,6 @@ const styles = StyleSheet.create({
   sideRight: {alignItems: 'flex-end'},
   backBtn: {height: 36, justifyContent: 'center'},
   title: {flex: 1, textAlign: 'center', color: '#FFFFFF', ...type.title},
-  logoTile: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    padding: 5,
-    backgroundColor: '#FFFFFF',
-  },
-  logo: {width: '100%', height: '100%'},
   body: {
     flex: 1,
     backgroundColor: colors.body,

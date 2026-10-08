@@ -1,3 +1,4 @@
+import type {SmartDrivePrefs} from '../../domain/coDriver';
 import type {
   AlertPreferences,
   PrivacyPreferences,
@@ -6,6 +7,7 @@ import type {
   Vehicle,
 } from '../../domain/types';
 import {appStore} from '../../store/appStore';
+import {onBatteryEdited} from '../../store/tripCoordinator';
 import type {
   NotificationService,
   PreferencesService,
@@ -65,6 +67,8 @@ export function createVehicleService(): VehicleService {
         updatedAt: Date.now(),
       };
       appStore.set({battery: reading});
+      // A trip under way re-plans from the corrected level.
+      onBatteryEdited(reading.percent);
       return reading;
     },
 
@@ -158,6 +162,10 @@ export function createPreferencesService(): PreferencesService {
     async setAlerts(prefs: AlertPreferences) {
       await guard(100);
       appStore.set({alertPrefs: prefs});
+    },
+    async setSmartDrive(prefs: SmartDrivePrefs) {
+      await guard(100);
+      appStore.set({smartDrivePrefs: prefs});
     },
     async setPrivacy(prefs: PrivacyPreferences) {
       await guard(100);

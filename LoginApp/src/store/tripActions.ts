@@ -24,6 +24,21 @@ export function chooseStop(route: Route, stopIndex: number): void {
   cacheRoute(route, stopIndex);
 }
 
+/**
+ * Remember a charger chosen from the recommendation screens (no route behind
+ * it) together with the backup the engine picked, so Navigation and the backup
+ * alert show the same backup the driver was promised.
+ */
+export function chooseCharger(
+  stationId: string,
+  connectorId: string | null,
+  backupStationId: string | null,
+): void {
+  appStore.set({
+    chosen: {stationId, connectorId, backupStationId, at: Date.now()},
+  });
+}
+
 export function clearRoute(): void {
   appStore.set({activeRoute: null, chosen: null});
 }

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>PlugOrbit</title>
+  <defs>
+    <linearGradient id="po-bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#1A2A45"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="po-lime" gradientUnits="userSpaceOnUse" x1="200" y1="760" x2="840" y2="280">
+      <stop offset="0" stop-color="#7BD64A"/>
+      <stop offset="1" stop-color="#C6F894"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#po-bg)"/>
+  <!-- orbit: the route that circles the P, ending on a node -->
+  <ellipse cx="512" cy="520" rx="384" ry="160" transform="rotate(-30 512 520)"
+           fill="none" stroke="url(#po-lime)" stroke-width="36"/>
+  <circle cx="816" cy="300" r="50" fill="#C6F894"/>
+  <!-- P, with softened corners -->
+  <path fill="#FFFFFF" stroke="#FFFFFF" stroke-width="24" stroke-linejoin="round"
+        d="M 342 796 V 248 H 536 A 200 200 0 0 1 536 648 H 452 V 796 Z"/>
+  <!-- counter holding the bolt -->
+  <path fill="url(#po-bg)" d="M 452 330 H 536 A 118 118 0 0 1 536 566 H 452 Z"/>
+  <path fill="#A2F067" stroke="#A2F067" stroke-width="8" stroke-linejoin="round"
+        d="M 560 352 L 468 474 H 536 L 512 546 L 618 418 H 548 Z"/>
+</svg>

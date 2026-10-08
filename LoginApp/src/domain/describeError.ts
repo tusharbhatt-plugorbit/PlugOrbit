@@ -9,6 +9,7 @@ export type ErrorKind =
   | 'payment'
   | 'connector'
   | 'session'
+  | 'trip'
   | 'unknown';
 
 export type ErrorCopy = {
@@ -24,6 +25,7 @@ const KIND_BY_NAME: Record<string, ErrorKind> = {
   PaymentRequiredError: 'payment',
   ConnectorUnavailableError: 'connector',
   SessionInProgressError: 'session',
+  TripInProgressError: 'trip',
 };
 
 /**
@@ -60,6 +62,12 @@ export function describeError(e: unknown, fallback: string): ErrorCopy {
       return {
         kind,
         title: 'A session is already open',
+        body: message || fallback,
+      };
+    case 'trip':
+      return {
+        kind,
+        title: 'A trip is already running',
         body: message || fallback,
       };
     default:

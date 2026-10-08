@@ -20,7 +20,9 @@ import {useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
 import {
   AsyncView,
-  Chip,
+  CONNECTOR_INFO,
+  ConnectorSelectionCard,
+  ConnectorTag,
   EmptyState,
   ListSkeleton,
   Notice,
@@ -176,25 +178,33 @@ export default function VehicleSetupScreen(): React.JSX.Element {
   };
 
   const canSave = mode === 'custom' || selectedModel !== null;
-  const shortNames = (list: readonly ConnectorType[]) =>
-    list
-      .map(c => CUSTOM_CONNECTORS.find(o => o.value === c)?.label ?? c)
-      .join(' and ');
   const chosenConnectors =
     mode === 'pick' ? selectedModel?.connectors ?? [] : form.connectors;
-  const footerHint =
-    chosenConnectors.length > 0
-      ? `Showing ${shortNames(chosenConnectors)} chargers only.`
-      : mode === 'pick'
-      ? 'Choose your car to continue.'
-      : 'Pick the connectors your car can use.';
-
   return (
     <Screen
       title={editing ? 'Edit vehicle' : 'Vehicle setup'}
       footer={
         <>
-          <Text style={styles.hint}>{footerHint}</Text>
+          {chosenConnectors.length > 2 ? (
+            <Text style={styles.hint} numberOfLines={2}>
+              {`Chargers with ${chosenConnectors
+                .map(c => CONNECTOR_INFO[c].name)
+                .join(', ')}`}
+            </Text>
+          ) : chosenConnectors.length > 0 ? (
+            <View style={styles.footerPlugs}>
+              <Text style={styles.hint}>Chargers with</Text>
+              {chosenConnectors.map(c => (
+                <ConnectorTag key={c} type={c} />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.hint}>
+              {mode === 'pick'
+                ? 'Choose your car to continue.'
+                : 'Pick the plugs your car can use.'}
+            </Text>
+          )}
           <PrimaryButton
             label={editing ? 'Save changes' : 'Save vehicle'}
             icon="check"
@@ -217,8 +227,8 @@ export default function VehicleSetupScreen(): React.JSX.Element {
         <Notice
           tone="lime"
           icon="plug-zap"
-          title="We’ll only show chargers that fit your car"
-          body="Connectors your car can’t use are hidden, so you never drive to a plug that doesn’t fit."
+          title="We’ll only show chargers that fit"
+          body="Plugs your car can’t use stay hidden, so you never drive to the wrong one."
         />
       </View>
 
@@ -342,13 +352,12 @@ export default function VehicleSetupScreen(): React.JSX.Element {
           />
 
           <View style={styles.group}>
-            <Text style={styles.groupLabel}>Connectors your car can use</Text>
-            <View style={styles.chips}>
+            <Text style={styles.groupLabel}>Which plug does your car use?</Text>
+            <View style={styles.connectorGrid}>
               {CUSTOM_CONNECTORS.map(c => (
-                <Chip
+                <ConnectorSelectionCard
                   key={c.value}
-                  label={c.label}
-                  icon="plug"
+                  type={c.value}
                   selected={form.connectors.includes(c.value)}
                   onPress={() => toggleConnector(c.value)}
                 />
@@ -358,8 +367,8 @@ export default function VehicleSetupScreen(): React.JSX.Element {
               <Text style={styles.error}>{errors.connectors}</Text>
             ) : (
               <Text style={styles.helper}>
-                Most CCS2 cars also charge on Type 2 AC chargers. Pick both if
-                yours does.
+                Tap every plug your car can use. Most CCS2 cars also charge on
+                Type 2 AC.
               </Text>
             )}
           </View>
@@ -417,10 +426,17 @@ const styles = StyleSheet.create({
   form: {gap: spacing.lg},
   group: {gap: spacing.md},
   groupLabel: {...type.label, color: colors.ink},
-  chips: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  connectorGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md},
   pair: {flexDirection: 'row', gap: spacing.md},
   half: {flex: 1},
   helper: {...type.caption, color: colors.muted},
   error: {...type.caption, color: colors.danger, fontWeight: '700'},
   hint: {...type.caption, color: colors.muted, textAlign: 'center'},
+  footerPlugs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
 });

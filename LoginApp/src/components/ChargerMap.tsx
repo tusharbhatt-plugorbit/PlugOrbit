@@ -5,9 +5,10 @@ import React, {
   useRef,
 } from 'react';
 import {Platform, StyleSheet} from 'react-native';
-import MapView, {PROVIDER_GOOGLE, Region} from 'react-native-maps';
+import MapView, {PROVIDER_GOOGLE, Polyline, Region} from 'react-native-maps';
 import {hasIosMapsKey} from '../config/google';
 import type {StationWithDistance, Vehicle} from '../domain/types';
+import {colors} from '../theme';
 import type {Coords} from '../utils/geo';
 import ChargerMarker from './ChargerMarker';
 
@@ -24,6 +25,15 @@ type Props = {
   onSelect: (id: string) => void;
   onDeselect: () => void;
   onCenterChange: (center: Coords) => void;
+  /** The native map finished initialising (it can still be loading tiles). */
+  onReady?: () => void;
+  /**
+   * A route to draw under the markers (decoded from Directions later). Nothing
+   * is drawn for fewer than two points, so callers can pass it unconditionally.
+   */
+  route?: readonly Coords[];
+  /** Station id -> role, so the driver's stop and its backup stand out. */
+  roles?: Readonly<Record<string, 'primary' | 'backup'>>;
 };
 
 // Android's default provider is already Google. On iOS the Google SDK throws
@@ -45,6 +55,9 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
     onSelect,
     onDeselect,
     onCenterChange,
+    onReady,
+    route,
+    roles,
   },
   ref,
 ) {
@@ -94,7 +107,18 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
       rotateEnabled={false}
       pitchEnabled={false}
       onPress={onDeselect}
+      onMapReady={onReady}
       onRegionChangeComplete={handleRegionChange}>
+      {route && route.length > 1 && (
+        <Polyline
+          coordinates={route.map(p => ({
+            latitude: p.latitude,
+            longitude: p.longitude,
+          }))}
+          strokeColor={colors.limeDark}
+          strokeWidth={5}
+        />
+      )}
       {chargers.map(ch => (
         <ChargerMarker
           key={ch.id}
@@ -102,6 +126,7 @@ const ChargerMap = forwardRef<ChargerMapHandle, Props>(function ChargerMapInner(
           vehicle={vehicle}
           selected={ch.id === selectedId}
           onSelect={onSelect}
+          role={roles?.[ch.id]}
         />
       ))}
     </MapView>

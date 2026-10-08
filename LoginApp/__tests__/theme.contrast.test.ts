@@ -30,6 +30,26 @@ const PAIRS: ReadonlyArray<[string, string, string]> = [
   ['lime on the dark header', colors.lime, colors.bg],
   ['placeholder grey on the dark header', colors.placeholder, colors.bg],
   ['ink on lime buttons', colors.ink, colors.lime],
+  // The co-driver screens: text on the raised dark cards, and the accents that
+  // stand in for amber / red there.
+  ['white on the raised dark card', '#FFFFFF', colors.bgRaised],
+  ['chip text on the raised dark card', colors.chipText, colors.bgRaised],
+  ['lime on the raised dark card', colors.lime, colors.bgRaised],
+  ['warn accent on the dark shell', colors.warnOnDark, colors.bg],
+  ['warn accent on the raised dark card', colors.warnOnDark, colors.bgRaised],
+  ['danger accent on the dark shell', colors.dangerOnDark, colors.bg],
+  [
+    'danger accent on the raised dark card',
+    colors.dangerOnDark,
+    colors.bgRaised,
+  ],
+  ['ink-soft on a lime card', colors.inkSoft, colors.limeSoft],
+  ['ink-soft on a warning card', colors.inkSoft, colors.amberSoft],
+  ['ink-soft on the backup panel', colors.inkSoft, colors.infoSoft],
+  ['info on white', colors.info, colors.surface],
+  ['amber on white', colors.amber, colors.surface],
+  ['danger on a danger card', colors.danger, colors.dangerSoft],
+  ['limeDark on white pills', colors.limeDark, colors.surface],
 ];
 
 describe('theme contrast', () => {

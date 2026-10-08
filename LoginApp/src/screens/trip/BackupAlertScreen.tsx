@@ -1,6 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {nearestAlternative} from '../../domain/alternative';
+import {switchWhy} from '../../domain/coDriver';
 import {describeError} from '../../domain/describeError';
 import {CONFIDENCE_LABEL, waitBasisLabel, waitLabel} from '../../domain/rules';
 import type {
@@ -55,6 +56,7 @@ export default function BackupAlertScreen(): React.JSX.Element {
   const vehicle = useApp(selectActiveVehicle);
   const route = useApp(s => s.activeRoute);
   const chosen = useApp(s => s.chosen);
+  const trip = useApp(s => s.activeTrip);
   const now = useNow(15_000);
   const stationId = params?.stationId;
   const stopIndex = useMemo(() => {
@@ -96,6 +98,24 @@ export default function BackupAlertScreen(): React.JSX.Element {
       const backup = await stationService.get(stop.backup.id);
       return {failed, backup, extraMin: stop.backupExtraMin, stopIndex, wait};
     }
+    // A charger picked from Charge nearby / Battery critical: the backup the
+    // engine promised with it, not a different one.
+    const promised =
+      chosen && chosen.stationId === failedId ? chosen.backupStationId : null;
+    if (promised) {
+      try {
+        const backup = await stationService.get(promised);
+        return {
+          failed,
+          backup,
+          extraMin: Math.max(3, backup.detourMin),
+          stopIndex: null,
+          wait,
+        };
+      } catch {
+        // Fall through to the nearest alternative.
+      }
+    }
     // Not on the plan (or the plan has no backup for it): the nearest usable
     // alternative to *this* charger.
     const near = await stationService.nearby({origin: failed, vehicle});
@@ -122,6 +142,11 @@ export default function BackupAlertScreen(): React.JSX.Element {
         vehicle={vehicle}
         now={now}
         route={route}
+        tripSwitch={
+          trip !== null &&
+          trip.phase !== 'ended' &&
+          trip.primaryStop?.stationId === res.data.failed.id
+        }
       />
     );
   }
@@ -154,15 +179,18 @@ function AlertBody({
   vehicle,
   now,
   route,
+  tripSwitch,
 }: {
   data: Loaded;
   reason: 'occupied' | 'offline';
   vehicle: Vehicle | null;
   now: number;
   route: Route | null;
+  /** The charger is the stop of a trip PlugOrbit is co-driving. */
+  tripSwitch: boolean;
 }) {
   const nav = useNavigation();
-  const {route: routeService} = useServices();
+  const {route: routeService, trip: tripService} = useServices();
   const active = useIsActiveRef();
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +199,18 @@ function AlertBody({
     setSwitching(true);
     setError(null);
     try {
-      if (route && data.stopIndex !== null) {
+      if (tripSwitch && data.stopIndex !== null) {
+        // The trip itself changes (and says so), so Smart Drive stays correct.
+        const next = await tripService.acceptSwitch();
+        if (!active.current) {
+          return;
+        }
+        const target = next.primaryStop;
+        nav.replace('Navigation', {
+          stationId: target?.stationId ?? data.backup.id,
+          stopIndex: data.stopIndex,
+        });
+      } else if (route && data.stopIndex !== null) {
         // The plan swaps in exactly the backup shown above.
         const next = await routeService.switchToBackup(route, data.stopIndex);
         if (!active.current) {
@@ -204,7 +243,7 @@ function AlertBody({
       stack
       footer={
         <PrimaryButton
-          label="Switch to backup"
+          label={tripSwitch ? 'Switch route' : 'Switch to backup'}
           icon="repeat"
           loading={switching}
           onPress={switchNow}
@@ -219,17 +258,33 @@ function AlertBody({
         height={170}
       />
       <Card tone="danger">
-        <Text style={styles.kicker}>Chosen stop</Text>
-        <Text style={styles.title}>
-          Your charger is {reason === 'offline' ? 'unavailable' : 'occupied'}
-        </Text>
-        <Text style={styles.sub}>
-          {data.failed.name}{' '}
-          {reason === 'offline'
-            ? 'is offline right now'
-            : 'has no free bay right now'}
-          . We found the next best option automatically.
-        </Text>
+        {tripSwitch ? (
+          <>
+            <Text style={styles.kicker}>Your trip</Text>
+            <Text style={styles.title}>
+              We’ve found a better charging stop.
+            </Text>
+            <Text style={styles.sub}>
+              {switchWhy(reason, data.failed.name)} {data.backup.name} is a
+              better option, and you’re still on track.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.kicker}>Chosen stop</Text>
+            <Text style={styles.title}>
+              Your charger is{' '}
+              {reason === 'offline' ? 'unavailable' : 'occupied'}
+            </Text>
+            <Text style={styles.sub}>
+              {data.failed.name}{' '}
+              {reason === 'offline'
+                ? 'is offline right now'
+                : 'has no free bay right now'}
+              . We found the next best option automatically.
+            </Text>
+          </>
+        )}
       </Card>
 
       <BackupChargerCard

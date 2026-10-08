@@ -1,3 +1,6 @@
+import type {ActiveTrip, OfflineTripSnapshot} from '../domain/activeTrip';
+import type {SmartDrivePrefs} from '../domain/coDriver';
+import type {DriverIntent, Recommendation} from '../domain/recommendation';
 import type {
   AlertPreferences,
   AppNotification,
@@ -198,10 +201,70 @@ export interface NotificationService {
 export interface PreferencesService {
   setTripPreferences(prefs: TripPreferences): Promise<void>;
   setAlerts(prefs: AlertPreferences): Promise<void>;
+  /** How Smart Drive behaves and how much it speaks. */
+  setSmartDrive(prefs: SmartDrivePrefs): Promise<void>;
   setPrivacy(prefs: PrivacyPreferences): Promise<void>;
   /** TODO(integration): billing for PlugOrbit Plus. */
   setPlus(active: boolean): Promise<void>;
   eraseHistory(): Promise<void>;
+}
+
+/**
+ * The decision engine as a service: "which charger should THIS driver use?"
+ * Reads the active vehicle, battery and reserve itself, so a screen only says
+ * what the driver wants (nearby, or battery critical) and from where.
+ * Planned trips get their stops from the route service; the engine then
+ * explains and monitors them (see TripService).
+ */
+export interface RecommendationService {
+  recommend(input: {
+    intent: Exclude<DriverIntent, 'plan_trip'>;
+    origin: Coords;
+    /** Charge target to price and time the stop for; default depends on intent. */
+    targetSoc?: number;
+  }): Promise<Recommendation>;
+}
+
+/**
+ * The journey PlugOrbit is co-driving. Smart Drive in code: start a trip, keep
+ * watching its charging stop, move to the backup when it can't be relied on,
+ * and stay correct through charging and across restarts.
+ *
+ * Mocked: positions come from `advance` (a simulated drive; a GPS feed calls the
+ * same method) and station statuses from the mock station service.
+ */
+export interface TripService {
+  /** Begin co-driving `route`. Throws TripInProgressError unless `replace`. */
+  start(input: {
+    route: Route;
+    smartDrive: boolean;
+    replace?: boolean;
+  }): Promise<ActiveTrip>;
+  /**
+   * Look at the planned stop and its backup again. Never throws for network
+   * trouble: with no signal the trip flips to offline mode and keeps its plan.
+   */
+  refresh(): Promise<ActiveTrip | null>;
+  /** The car moved to `km` along the route (monotonic). */
+  advance(km: number): Promise<ActiveTrip | null>;
+  /**
+   * Take the suggested switch, or switch to the planned backup when none was
+   * suggested. Throws if it can't be done right now (for example offline).
+   */
+  acceptSwitch(): Promise<ActiveTrip>;
+  /** "I'll stay with my charger": don't offer the same move again. */
+  dismissSwitch(): Promise<ActiveTrip | null>;
+  setSmartDrive(enabled: boolean): Promise<ActiveTrip | null>;
+  /** The driver corrected the battery reading. */
+  updateBattery(percent: number): Promise<ActiveTrip | null>;
+  /** Arrived, or ending early: archive the trip and clear the plan. */
+  finish(): Promise<void>;
+}
+
+/** The charging plan kept on the phone for dead zones (no network needed). */
+export interface OfflineTripService {
+  load(): OfflineTripSnapshot | null;
+  clear(): void;
 }
 
 export type Services = {
@@ -213,6 +276,9 @@ export type Services = {
   support: SupportService;
   notification: NotificationService;
   preferences: PreferencesService;
+  recommendation: RecommendationService;
+  trip: TripService;
+  offline: OfflineTripService;
 };
 
 export type {AppNotification, SessionSummary, Station};

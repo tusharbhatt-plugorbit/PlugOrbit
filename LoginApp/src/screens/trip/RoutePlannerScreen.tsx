@@ -91,7 +91,7 @@ export default function RoutePlannerScreen(): React.JSX.Element {
       // The user may have left while we planned: keep their saved trip as is.
       if (active.current) {
         cacheRoute(route);
-        nav.navigate('RouteResult');
+        nav.navigate('TripSummary');
       }
     } catch (e) {
       const copy = describeError(e, 'We couldn’t plan this trip.');

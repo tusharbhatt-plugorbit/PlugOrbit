@@ -157,7 +157,19 @@ function Body({
       ? 'never updated'
       : `updated ${timeAgo(station.statusFeed.updatedAt, now)}`;
   const planned = stop?.backup ?? null;
-  // Off the plan (Home, Compare, Station detail) there is no planned backup:
+  // A charger picked from Charge nearby / Battery critical comes with the
+  // backup the engine promised: show that one, not a different guess.
+  const chosen = useApp(s => s.chosen);
+  const promisedId =
+    planned === null && chosen && chosen.stationId === station.id
+      ? chosen.backupStationId
+      : null;
+  const promised = useResource(
+    () => stationService.get(promisedId as string, origin),
+    [promisedId, origin.latitude, origin.longitude],
+    {enabled: promisedId !== null},
+  );
+  // Otherwise (Home map, Compare, Station detail) there is no planned backup:
   // offer the nearest compatible alternative to this charger instead.
   const alt = useResource(
     async () => {
@@ -165,9 +177,13 @@ function Body({
       return {backup: nearestAlternative(near, station.id, vehicle)};
     },
     [station.id, vehicle?.id ?? null],
-    {enabled: planned === null},
+    {
+      enabled:
+        planned === null &&
+        (promisedId === null || promised.status === 'error'),
+    },
   );
-  const backup = planned ?? alt.data?.backup ?? null;
+  const backup = planned ?? promised.data ?? alt.data?.backup ?? null;
   const backupExtra = planned
     ? stop?.backupExtraMin ?? 0
     : Math.max(3, backup?.detourMin ?? 0);

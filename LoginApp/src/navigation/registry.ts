@@ -10,6 +10,7 @@ import SessionDetailScreen from '../screens/activity/SessionDetailScreen';
 import SupportScreen from '../screens/activity/SupportScreen';
 import TicketDetailScreen from '../screens/activity/TicketDetailScreen';
 import ActiveSessionScreen from '../screens/charge/ActiveSessionScreen';
+import ChargePickScreen from '../screens/charge/ChargePickScreen';
 import ChargeScreen from '../screens/charge/ChargeScreen';
 import PaymentFailureScreen from '../screens/charge/PaymentFailureScreen';
 import PaymentScreen from '../screens/charge/PaymentScreen';
@@ -27,6 +28,7 @@ import SavedScreen from '../screens/discover/SavedScreen';
 import StationDetailScreen from '../screens/discover/StationDetailScreen';
 import StationListScreen from '../screens/discover/StationListScreen';
 import HomeScreen from '../screens/home/HomeScreen';
+import MapScreen from '../screens/home/MapScreen';
 import LanguageScreen from '../screens/profile/LanguageScreen';
 import PaymentMethodsScreen from '../screens/profile/PaymentMethodsScreen';
 import PlusScreen from '../screens/profile/PlusScreen';
@@ -40,7 +42,9 @@ import NavigationScreen from '../screens/trip/NavigationScreen';
 import OfflineModeScreen from '../screens/trip/OfflineModeScreen';
 import RoutePlannerScreen from '../screens/trip/RoutePlannerScreen';
 import RouteResultScreen from '../screens/trip/RouteResultScreen';
+import SmartDriveScreen from '../screens/trip/SmartDriveScreen';
 import TripPreferencesScreen from '../screens/trip/TripPreferencesScreen';
+import TripSummaryScreen from '../screens/trip/TripSummaryScreen';
 import TripsScreen from '../screens/trip/TripsScreen';
 import AutoSocScreen from '../screens/vehicle/AutoSocScreen';
 import ManualSocScreen from '../screens/vehicle/ManualSocScreen';
@@ -59,6 +63,12 @@ export const REGISTRY: Registry = {
   Charge: {component: ChargeScreen, tabBar: true},
   Activity: {component: ActivityScreen, tabBar: true},
   Profile: {component: ProfileScreen, tabBar: true},
+
+  // Co-driver
+  Map: {component: MapScreen, tabBar: true, tab: 'Home'},
+  SmartDrive: {component: SmartDriveScreen},
+  TripSummary: {component: TripSummaryScreen},
+  ChargePick: {component: ChargePickScreen},
 
   // Vehicle
   VehicleSetup: {component: VehicleSetupScreen},

@@ -11,6 +11,12 @@ export type RouteParams = {
   Activity: {segment?: 'sessions' | 'tickets'} | undefined;
   Profile: undefined;
 
+  // Co-driver: PlugOrbit manages the charging decisions
+  Map: undefined; // Find a Charger (the map of chargers around you)
+  SmartDrive: undefined; // the live trip: next decision, backup, what we did
+  TripSummary: undefined; // the plan before you go (reads the cached route)
+  ChargePick: {mode?: 'nearby' | 'critical'} | undefined; // Charge nearby / Battery critical
+
   // MVP
   VehicleSetup: {onboarding?: boolean; vehicleId?: string} | undefined; // 01
   ManualSoc: {onboarding?: boolean} | undefined; // 02
