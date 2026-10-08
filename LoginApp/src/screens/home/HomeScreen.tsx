@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -10,6 +11,8 @@ import {
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import ChargerMap, {ChargerMapHandle} from '../../components/ChargerMap';
+import {MapUnavailable} from '../../components/MapUnavailable';
+import {mapsKeyMissing} from '../../config/google';
 import {
   applyFilters,
   availableCount,
@@ -24,6 +27,7 @@ import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
 import {
   Icon,
+  LocationPermissionState,
   LogoTile,
   MapChargerCard,
   OfflineBanner,
@@ -46,6 +50,11 @@ const NEAR_KM = 3;
 // point the current results were centred on.
 const RESEARCH_KM = 2;
 
+// A native map normally reports ready within a second or two. If it has not
+// after this long (Play Services missing or out of date, a broken provider),
+// say so instead of leaving a blank rectangle.
+const MAP_READY_TIMEOUT_MS = 15_000;
+
 /**
  * Home / Map (03). The approved layout: dark header with title, white search
  * field, filter chips, then the map with a bottom station card. Extended with
@@ -67,6 +76,12 @@ function HomeScreen(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<Coords | null>(null);
   const autoSelected = useRef(false);
+  const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'failed'>(
+    'loading',
+  );
+  // Bumped to remount the map when the person taps Retry.
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const [permissionDismissed, setPermissionDismissed] = useState(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -115,6 +130,8 @@ function HomeScreen(): React.JSX.Element {
 
   const select = useCallback(
     (id: string) => {
+      // Picking a charger means getting on with it: stop asking about location.
+      setPermissionDismissed(true);
       setSelectedId(id);
       const s = visible.find(x => x.id === id);
       if (s) {
@@ -140,6 +157,32 @@ function HomeScreen(): React.JSX.Element {
     }
   }, [mapCenter, searchAt]);
 
+  // Report a map that never finishes initialising (not when it is not drawn).
+  useEffect(() => {
+    if (mapsKeyMissing) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setMapStatus(s => (s === 'ready' ? s : 'failed')),
+      MAP_READY_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [mapAttempt]);
+
+  const retryMap = useCallback(() => {
+    setMapStatus('loading');
+    setMapAttempt(n => n + 1);
+  }, []);
+  const onMapReady = useCallback(() => setMapStatus('ready'), []);
+
+  const retryLocation = useCallback(() => {
+    setPermissionDismissed(false);
+    refresh();
+  }, [refresh]);
+  const openSettings = useCallback(() => {
+    Promise.resolve(Linking.openSettings()).catch(() => undefined);
+  }, []);
+
   const busy = phase !== 'ready';
   const showSearchHere =
     !busy && mapCenter !== null && distanceKm(mapCenter, origin) > RESEARCH_KM;
@@ -148,6 +191,14 @@ function HomeScreen(): React.JSX.Element {
     notice?.kind === 'location-unavailable' ||
     notice?.kind === 'search-failed' ||
     notice?.kind === 'offline';
+  const permissionIssue =
+    notice?.kind === 'location-denied'
+      ? 'denied'
+      : notice?.kind === 'location-unavailable'
+      ? 'unavailable'
+      : null;
+  const showPermissionCard =
+    !busy && permissionIssue !== null && !permissionDismissed;
   const activeFilters = countActiveFilters(filters);
   const cardBottom = spacing.xl + insets.bottom * 0;
 
@@ -222,17 +273,23 @@ function HomeScreen(): React.JSX.Element {
       <View style={styles.map}>
         <OfflineBanner />
         <View style={styles.flex}>
-          <ChargerMap
-            ref={mapRef}
-            initialCenter={origin}
-            chargers={visible}
-            vehicle={vehicle}
-            selectedId={selected?.id ?? null}
-            showUserLocation={userLocation !== null}
-            onSelect={select}
-            onDeselect={deselect}
-            onCenterChange={setMapCenter}
-          />
+          {mapsKeyMissing ? (
+            <MapUnavailable onViewList={() => nav.navigate('StationList')} />
+          ) : (
+            <ChargerMap
+              key={mapAttempt}
+              ref={mapRef}
+              initialCenter={origin}
+              chargers={visible}
+              vehicle={vehicle}
+              selectedId={selected?.id ?? null}
+              showUserLocation={userLocation !== null}
+              onSelect={select}
+              onDeselect={deselect}
+              onCenterChange={setMapCenter}
+              onReady={onMapReady}
+            />
+          )}
 
           <View style={styles.overlayTop} pointerEvents="box-none">
             <VehicleSelector tone="light" />
@@ -264,14 +321,41 @@ function HomeScreen(): React.JSX.Element {
               </Pressable>
             )}
 
-            {!busy && notice && (
+            {showPermissionCard && permissionIssue && (
+              <LocationPermissionState
+                kind={permissionIssue}
+                onRetry={retryLocation}
+                onOpenSettings={openSettings}
+                onDismiss={() => setPermissionDismissed(true)}
+              />
+            )}
+
+            {mapStatus === 'failed' && !mapsKeyMissing && (
+              <View
+                style={[styles.notice, elevation(1)]}
+                accessibilityRole="alert">
+                <Text style={styles.noticeText}>
+                  The map is taking too long to load. Check your connection and
+                  Google Play services.
+                </Text>
+                <Pressable
+                  onPress={retryMap}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reload map">
+                  <Text style={styles.noticeAction}>Reload</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {!busy && notice && !showPermissionCard && (
               <View
                 style={[styles.notice, elevation(1)]}
                 accessibilityRole="alert">
                 <Text style={styles.noticeText}>{notice.message}</Text>
                 {canRetry && (
                   <Pressable
-                    onPress={refresh}
+                    onPress={retryLocation}
                     hitSlop={10}
                     accessibilityRole="button"
                     accessibilityLabel="Try again">
@@ -293,17 +377,19 @@ function HomeScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.mapButtons} pointerEvents="box-none">
-            <Pressable
-              onPress={recenter}
-              accessibilityRole="button"
-              accessibilityLabel="Go to my location"
-              style={({pressed}) => [
-                styles.mapBtn,
-                elevation(2),
-                pressed && styles.pillPressed,
-              ]}>
-              <Icon name="locate-fixed" size={20} color={colors.ink} />
-            </Pressable>
+            {!mapsKeyMissing && (
+              <Pressable
+                onPress={recenter}
+                accessibilityRole="button"
+                accessibilityLabel="Go to my location"
+                style={({pressed}) => [
+                  styles.mapBtn,
+                  elevation(2),
+                  pressed && styles.pillPressed,
+                ]}>
+                <Icon name="locate-fixed" size={20} color={colors.ink} />
+              </Pressable>
+            )}
             <Pressable
               onPress={() => nav.navigate('Filters')}
               accessibilityRole="button"
@@ -326,7 +412,7 @@ function HomeScreen(): React.JSX.Element {
             </Pressable>
           </View>
 
-          {selected ? (
+          {selected && !showPermissionCard && !mapsKeyMissing ? (
             <MapChargerCard
               station={selected}
               vehicle={vehicle}
@@ -342,7 +428,8 @@ function HomeScreen(): React.JSX.Element {
               }
             />
           ) : (
-            visible.length > 0 && (
+            visible.length > 0 &&
+            !mapsKeyMissing && (
               <Pressable
                 onPress={() => nav.navigate('StationList')}
                 accessibilityRole="button"

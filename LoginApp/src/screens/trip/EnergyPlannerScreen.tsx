@@ -91,9 +91,11 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
       stack
       footer={
         <PrimaryButton
+          large
           label="Use this plan"
           icon="check"
           onPress={() => nav.replace('RouteResult')}
+          style={styles.cta}
         />
       }>
       <Text style={styles.lead}>
@@ -163,8 +165,8 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
       </Card>
       <Text style={styles.fine}>
         Estimates use your car’s typical highway consumption. Speed, load and
-        weather change it, which is why we keep a reserve. Costs use each stop’s
-        last published price, with its age shown above.
+        weather change it, so we keep a reserve. Costs use each stop’s last
+        published price.
       </Text>
     </Screen>
   );
@@ -223,4 +225,5 @@ const styles = StyleSheet.create({
   swatchReserve: {backgroundColor: colors.danger, width: 3},
   swatch: {width: 12, height: 12, borderRadius: radii.sm / 2},
   fine: {...type.caption, color: colors.muted},
+  cta: {marginVertical: spacing.xs},
 });

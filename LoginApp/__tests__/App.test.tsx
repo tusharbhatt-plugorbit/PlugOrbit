@@ -12,6 +12,8 @@ import { resetDemo } from '../src/store/demoStore';
 import { createMemoryStorage, setStorage } from '../src/store/storage';
 import { resetLocalOtp } from '../src/services/otpApi';
 
+const WELCOME_HEADLINE = 'Charge Smarter.\nTravel Further.';
+
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 type Renderer = ReactTestRenderer.ReactTestRenderer;
@@ -48,6 +50,12 @@ const findPressable = (renderer: Renderer, label: string) => {
 // Presses and waits for the handler (and so the whole OTP request) to finish.
 const pressByText = async (renderer: Renderer, label: string) => {
   const target = findPressable(renderer, label);
+  await ReactTestRenderer.act(() => target.props.onPress());
+};
+
+// The one back control on the auth screens is an icon arrow with a label.
+const pressBack = async (renderer: Renderer) => {
+  const target = renderer.root.findByProps({accessibilityLabel: 'Back'});
   await ReactTestRenderer.act(() => target.props.onPress());
 };
 
@@ -189,7 +197,42 @@ afterAll(() => {
 
 test('renders correctly', async () => {
   const renderer = await renderApp();
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
+});
+
+test('the welcome screen leads with the brand, one promise and two actions', async () => {
+  const renderer = await renderApp();
+  const texts = textsOf(renderer);
+  expect(texts).toContain('PlugOrbit');
+  expect(texts).toContain(WELCOME_HEADLINE);
+  expect(texts).toContain('Get Started');
+  expect(texts).toContain('I already have an account');
+  // No second "Welcome to ..." title repeating the brand name.
+  expect(texts).not.toContain('Welcome to PlugOrbit');
+});
+
+test('the sign-in screen has exactly one back control, an icon arrow', async () => {
+  const renderer = await renderApp();
+  await pressByText(renderer, 'I already have an account');
+
+  const backs = renderer.root.findAll(
+    n => n.props.accessibilityLabel === 'Back' && n.props.onPress,
+  );
+  expect(backs).toHaveLength(1);
+  expect(textsOf(renderer)).not.toContain('← Back');
+
+  await pressBack(renderer);
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
+});
+
+test('the mobile/email badge only appears once the input is recognised', async () => {
+  const renderer = await renderApp();
+  await pressByText(renderer, 'Get Started');
+  expect(textsOf(renderer)).not.toContain('Auto-Detect');
+  expect(textsOf(renderer)).not.toContain('Email');
+
+  await typeIdentifier(renderer, 'name@example.com');
+  expect(textsOf(renderer)).toContain('Email');
 });
 
 test('sign up uses a single mobile/email field followed by an OTP step', async () => {
@@ -255,11 +298,11 @@ test('going Back while a code is being sent does not alert over the welcome scre
   await pressByText(renderer, 'Get Started');
   await typeIdentifier(renderer, 'name@example.com');
   await pressWithoutWaiting(renderer, 'Send Verification Code  →');
-  await pressByText(renderer, '← Back');
+  await pressBack(renderer);
   send.resolve(jsonResponse(200, sendBody()));
   await flush();
 
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
   expect(alertSpy).not.toHaveBeenCalled();
 });
 
@@ -291,7 +334,7 @@ test('a failing request that outlives the screen does not alert either', async (
   await pressByText(renderer, 'Get Started');
   await typeIdentifier(renderer, 'name@example.com');
   await pressWithoutWaiting(renderer, 'Send Verification Code  →');
-  await pressByText(renderer, '← Back');
+  await pressBack(renderer);
   send.resolve(
     apiError(429, {
       code: 'OTP_RATE_LIMITED',
@@ -301,7 +344,7 @@ test('a failing request that outlives the screen does not alert either', async (
   );
   await flush();
 
-  expect(textsOf(renderer)).toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
   expect(alertSpy).not.toHaveBeenCalled();
 });
 
@@ -349,7 +392,7 @@ test('a plain mobile number is still detected as a mobile number', async () => {
   await pressByText(renderer, 'Get Started');
 
   await typeIdentifier(renderer, '+91 98765 43210');
-  expect(textsOf(renderer)).toContain('📱 Mobile');
+  expect(textsOf(renderer)).toContain('Mobile');
 });
 
 test('a verified code lands on vehicle setup for a new account', async () => {
@@ -683,5 +726,5 @@ test('a signed-in user with a vehicle goes straight to Home on launch', async ()
 
   const renderer = await renderApp();
   expect(textsOf(renderer)).toContain('Find a Charger');
-  expect(textsOf(renderer)).not.toContain('Welcome to PlugOrbit');
+  expect(textsOf(renderer)).not.toContain(WELCOME_HEADLINE);
 });

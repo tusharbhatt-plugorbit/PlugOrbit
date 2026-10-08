@@ -13,6 +13,14 @@ jest.mock('react-native-maps', () => {
   const {View} = require('react-native');
   const MapView = React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({animateToRegion: jest.fn()}));
+    // A healthy native map reports ready right after it mounts.
+    React.useEffect(() => {
+      // Tests set global.__MAP_NEVER_READY to simulate a map that cannot start.
+      if (props.onMapReady && !global.__MAP_NEVER_READY) {
+        props.onMapReady();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     return React.createElement(
       View,
       {testID: 'map', ...props},
@@ -20,7 +28,7 @@ jest.mock('react-native-maps', () => {
     );
   });
   const Marker = props => React.createElement(View, props, props.children);
-  const Polyline = () => null;
+  const Polyline = props => React.createElement(View, {testID: 'route', ...props});
   return {__esModule: true, default: MapView, Marker, Polyline, PROVIDER_GOOGLE: 'google'};
 });
 

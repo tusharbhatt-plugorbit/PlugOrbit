@@ -19,6 +19,8 @@ type ButtonProps = {
   disabled?: boolean;
   /** Smaller (44) button for inline actions. */
   compact?: boolean;
+  /** Taller (64) button with bigger text, for the one action a screen is about. */
+  large?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   accessibilityHint?: string;
@@ -41,6 +43,7 @@ export function PrimaryButton({
   loading = false,
   disabled = false,
   compact = false,
+  large = false,
   variant = 'dark',
   style,
   testID,
@@ -60,6 +63,7 @@ export function PrimaryButton({
       style={({pressed}) => [
         styles.base,
         compact && styles.compact,
+        large && styles.large,
         {backgroundColor: v.bg},
         disabled && styles.disabled,
         pressed && !inactive && styles.pressed,
@@ -69,11 +73,18 @@ export function PrimaryButton({
         <ActivityIndicator color={v.spinner} />
       ) : (
         <View style={styles.row}>
-          {icon && <Icon name={icon} size={compact ? 16 : 18} color={v.fg} />}
+          {icon && (
+            <Icon
+              name={icon}
+              size={compact ? 16 : large ? 22 : 18}
+              color={v.fg}
+            />
+          )}
           <Text
             style={[
               styles.label,
               compact && styles.labelCompact,
+              large && styles.labelLarge,
               {color: v.fg},
             ]}>
             {label}
@@ -220,6 +231,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   compact: {height: sizes.buttonCompact, paddingHorizontal: spacing.lg},
+  large: {height: sizes.buttonLarge, borderRadius: radii.lg},
   secondary: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
@@ -228,6 +240,7 @@ const styles = StyleSheet.create({
   row: {flexDirection: 'row', alignItems: 'center', gap: 10},
   label: {...type.button},
   labelCompact: {fontSize: 14, fontWeight: '800'},
+  labelLarge: {fontSize: 18, fontWeight: '800'},
   disabled: {opacity: 0.45},
   pressed: {opacity: 0.85, transform: [{scale: 0.99}]},
   textBtn: {

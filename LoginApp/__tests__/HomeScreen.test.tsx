@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Text, TextInput} from 'react-native';
+import {Linking, Text, TextInput} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import {DEFAULT_CENTER} from '../src/config/google';
 import {NEXON, TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
@@ -20,6 +20,8 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const getCurrentPosition = Geolocation.getCurrentPosition as jest.Mock;
 const USER = {latitude: 28.6139, longitude: 77.209};
+const LOCATION_BODY =
+  'Enable location permission to find EV chargers near you.';
 
 const flush = async () => {
   for (let i = 0; i < 5; i++) {
@@ -111,6 +113,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  (globalThis as unknown as {__MAP_NEVER_READY?: boolean}).__MAP_NEVER_READY =
+    false;
   await act(async () => {
     mounted.splice(0).forEach(r => r.unmount());
   });
@@ -247,22 +251,74 @@ describe('location and search', () => {
     const nearby = jest.fn(stationService.nearby);
     const r = await renderHome({station: {...stationService, nearby}});
     expect(nearby.mock.calls[0][0].origin).toEqual(DEFAULT_CENTER);
-    expect(textsOf(r)).toContain(
-      'Location is off. Showing chargers near New Delhi.',
-    );
+    expect(textsOf(r)).toContain('Location access needed');
+    expect(textsOf(r)).toContain(LOCATION_BODY);
 
-    await press(r, 'Try again');
-    expect(textsOf(r)).not.toContain(
-      'Location is off. Showing chargers near New Delhi.',
-    );
+    await press(r, 'Allow location');
+    expect(textsOf(r)).not.toContain('Location access needed');
+    expect(nearby.mock.calls.at(-1)?.[0].origin).toEqual(USER);
   });
 
   test('presenter location-denied switch behaves the same', async () => {
     demoStore.set({locationDenied: true});
     const r = await renderHome();
+    expect(textsOf(r)).toContain('Location access needed');
+    // Still usable: chargers around the default centre are on the map.
+    expect(markerLabels(r).length).toBeGreaterThan(0);
+  });
+
+  test('denied location offers Settings, and the card can be set aside', async () => {
+    demoStore.set({locationDenied: true});
+    const openSettings = jest.spyOn(Linking, 'openSettings');
+    openSettings.mockResolvedValue(undefined);
+    const r = await renderHome();
+
+    await press(r, 'Settings');
+    expect(openSettings).toHaveBeenCalledTimes(1);
+
+    await press(r, 'Dismiss');
+    expect(textsOf(r)).not.toContain('Location access needed');
+    // The short notice stays, with its own retry.
     expect(textsOf(r)).toContain(
       'Location is off. Showing chargers near New Delhi.',
     );
+    expect(textsOf(r)).toContain('Retry');
+    openSettings.mockRestore();
+  });
+
+  test('location services being off gets its own wording', async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) =>
+      fail({code: 2, message: 'unavailable'}),
+    );
+    const r = await renderHome();
+    expect(textsOf(r)).toContain('Location is turned off');
+    expect(textsOf(r)).toContain('Try again');
+    expect(textsOf(r)).not.toContain('Allow location');
+  });
+
+  test('a map that never starts is reported, and Reload brings it back', async () => {
+    (globalThis as unknown as {__MAP_NEVER_READY?: boolean}).__MAP_NEVER_READY =
+      true;
+    const r = await renderHome();
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
+
+    await act(async () => {
+      jest.advanceTimersByTime(15_000);
+    });
+    expect(textsOf(r).join(' ')).toContain('The map is taking too long');
+
+    (globalThis as unknown as {__MAP_NEVER_READY?: boolean}).__MAP_NEVER_READY =
+      false;
+    await press(r, 'Reload map');
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
+  });
+
+  test('a healthy map never shows the load warning', async () => {
+    const r = await renderHome();
+    await act(async () => {
+      jest.advanceTimersByTime(20_000);
+    });
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
   });
 
   test('a failed search keeps the screen usable and Retry recovers', async () => {

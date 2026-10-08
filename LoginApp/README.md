@@ -44,11 +44,26 @@ cp .env.example .env     # then fill in the keys above
 - **Android**: `android/app/build.gradle` reads `.env` into the `com.google.android.geo.API_KEY` manifest entry. Rebuild the app.
 - **iOS**: `ios/Podfile` copies the iOS key into the generated `Pods/.../*.xcconfig` as `GOOGLE_MAPS_API_KEY`; `Info.plist` (`GMSApiKey`) and `AppDelegate.swift` pick it up. Run `cd ios && bundle exec pod install` after changing it, then rebuild.
 
+## What you must configure (nothing Google-related is committed)
+
+The map needs a **Maps SDK key per platform**, supplied through `LoginApp/.env` (git-ignored). Without one the app does not pretend: see the table below.
+
+| You want | Set in `.env` | Google Cloud |
+|---|---|---|
+| Map on **Android** | `GOOGLE_MAPS_ANDROID_KEY` (or the dev-only `GOOGLE_MAPS_API_KEY`) | Enable *Maps SDK for Android*. If you restrict the key: package `com.loginapp` and the SHA-1 of the keystore that signed the build. The committed `android/app/debug.keystore` (also used for release builds for now) has SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`; re-read it with `keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android` |
+| Google map on **iOS** | `GOOGLE_MAPS_IOS_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Maps SDK for iOS*; bundle ID `org.reactjs.native.example.LoginApp` |
+| Real nearby chargers | `GOOGLE_PLACES_API_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Places API (New)* |
+
+After editing `.env`: `npm start -- --reset-cache`, `cd ios && bundle exec pod install` (iOS), and rebuild the app (the native build reads the key, not Metro).
+
 ## Behaviour without a key / location
 
-- **No keys**: the app still runs on its built-in demo chargers around New Delhi and iOS uses Apple Maps instead of Google; Places results only appear when a Places key is set.
-- **Grey/blank map on Android** (key set): the key's application restriction (package name + SHA-1 of the keystore that signed the installed build) doesn't match, or "Maps SDK for Android" isn't enabled for the key. Check `adb logcat | grep -i "Google Maps"` for the authorisation message. There is no JS-side fallback for this.
-- **Location denied or unavailable**: the app explains why, searches around New Delhi instead, and the notice has a **Retry** button (the locate button also retries).
+- **Android, no Maps key**: the Home screen shows **"Map isn't available"** with a *View chargers as a list* button instead of a blank grey rectangle (the Google SDK gives the app no error when the key is missing, so the app checks `GOOGLE_MAPS_ANDROID_KEY` / `GOOGLE_MAPS_API_KEY` itself, see `mapsKeyMissing` in `src/config/google.ts`). In a development build the panel also names the variable to set.
+- **iOS, no Maps key**: the app falls back to Apple Maps, which works without configuration. Places results only appear when a Places key is set; otherwise the built-in demo chargers around New Delhi are used.
+- **Grey/blank map on Android with a key set**: the key's application restriction (package name + SHA-1) doesn't match the keystore that signed the installed build, or "Maps SDK for Android" isn't enabled for it. Google reports this only in the log: `adb logcat | grep -i "Google Maps"`. The app cannot detect it.
+- **Map never starts** (Google Play services missing or out of date on the device or emulator): after 15 seconds the Home screen says the map is taking too long, with a **Reload** button. Use an emulator image with *Google Play*.
+- **Location permission denied**: a *Location access needed* card explains it and offers **Allow location** (asks again where the OS still allows it), **Settings** (opens the app's settings, the only way back after "Don't ask again") and a dismiss button. The map keeps working around New Delhi in the meantime.
+- **Location services off / no fix**: the card says *Location is turned off* with **Try again** and **Settings**.
 - **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
 
 ## Notes
@@ -56,7 +71,20 @@ cp .env.example .env     # then fill in the keys above
 - Places returns up to 20 stations within 10 km, nearest first. Panning more than 2 km away offers **Search this area**. Tune `SEARCH_RADIUS_M` / `MAX_RESULTS` in `src/config/google.ts`.
 - Google doesn't publish tariffs, so price per kWh is only shown for demo data. Availability shows "Status unknown" when Google doesn't report it.
 - Requesting `places.evChargeOptions` makes each Nearby Search bill at the Places *Enterprise + Atmosphere* SKU (the opening-hours fields alone would be Enterprise); see the [data-fields page](https://developers.google.com/maps/documentation/places/web-service/data-fields) and current pricing before enabling it for many users.
+- `ChargerMap` takes an optional `route` (a list of coordinates) and draws it as a polyline under the markers, so turn-by-turn style routes can be added without touching the map again. Directions still open in the Google Maps app.
 - Native changes (Podfile, manifest, Gradle, AppDelegate) were written without access to Xcode/Android SDK. Please build both platforms once and report anything that doesn't compile.
+
+# Brand assets
+
+The logo is a P with a charge bolt, circled by an orbit route, in the app palette (navy, lime, white). `assets/brand/logo-mark.svg` is the source; everything else is exported from it:
+
+| File | Use |
+|---|---|
+| `assets/brand/logo-mark.png`, `@2x`, `@3x` (96/192/288 px) | In-app mark (`src/ui/BrandLogo.tsx`): rounded tile, transparent corners |
+| `assets/icon/app-icon-1024.png`, `ios/.../AppIcon.appiconset/*` | Store and iOS icons: full-bleed square, no alpha (the OS rounds it) |
+| `android/app/src/main/res/mipmap-*/ic_launcher*.png` | Android launcher: rounded square and circle |
+
+To change the logo, edit the SVG and re-export those files at the same names and sizes; no imports change.
 
 # Login OTP (development)
 

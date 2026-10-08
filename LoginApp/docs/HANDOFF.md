@@ -26,6 +26,24 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **Google location + Maps + Places (nearby chargers)** with separate keys, see
   the README.
 
+## Dev_Phase1 UI pass
+
+Simplification and polish on top of the showcase build; no service, store or
+domain contract changed.
+
+- **Logo and icons** redrawn (`assets/brand/logo-mark.svg`), launcher and iOS icons regenerated; one shared `BrandLogo`.
+- **Welcome** is a local vector scene (road, roadside charger, lime horizon; no remote image), one headline, one supporting line, two actions. Login has a single icon back arrow.
+- **Vehicle setup** shows each plug as a picture card (`ConnectorSelectionCard`, `ConnectorImage`), with the chosen plugs summarised above Save and on car cards (`ConnectorTag`).
+- **Maps**: a missing Android key is detected and explained instead of a blank map; permission-denied and services-off have their own card (`LocationPermissionState`); a map that never starts gets a Reload notice; `ChargerMap` accepts a `route`.
+- **Charger cards** lead with name, availability and distance, then speed, price and reliability; trust and age sit underneath. The primary Energy Plan action is a 64 px `PrimaryButton large`.
+
+Still open from this pass:
+
+- The Google keys themselves (see README "What you must configure"). Nothing was verified on a device or emulator: no Android SDK or Xcode here, only Jest and a browser preview.
+- Connector pictures are simplified drawings of the plug faces; have product/design confirm them (especially GB/T and LECCS) before release.
+- `reliabilityPct` has no real source yet (demo data only), so "Reliable" appears only for demo chargers.
+- An invalid or restricted Android key still shows grey tiles: Google exposes that only in the log.
+
 ## Verification
 
 - `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
