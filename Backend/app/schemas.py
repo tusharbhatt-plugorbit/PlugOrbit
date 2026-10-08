@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -45,4 +46,30 @@ class AuthResponse(TokenResponse):
 
 
 class MessageResponse(BaseModel):
+    message: str
+
+
+class OtpSendRequest(BaseModel):
+    # Exactly as the user typed it (email or mobile number); validated and normalised
+    # in services/otp.py so a bad value answers INVALID_IDENTIFIER instead of a bare 422.
+    identifier: str
+
+
+class OtpSendResponse(BaseModel):
+    message: str
+    identifier_type: Literal["email", "phone"]
+    channel: Literal["email", "sms", "screen"]
+    delivered: bool
+    dev_code: str | None = None  # only set on channel "screen" (dev fallback)
+    expires_in: int
+    resend_in: int
+
+
+class OtpVerifyRequest(BaseModel):
+    identifier: str
+    code: str
+
+
+class OtpVerifyResponse(BaseModel):
+    verified: bool
     message: str

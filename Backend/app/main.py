@@ -5,12 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .firebase import init_firebase
-from .routes import auth, users
+from .routes import auth, otp, users
+from .services.delivery import log_startup_notice
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_firebase()
+    log_startup_notice()
     yield
 
 
@@ -25,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(otp.router)
 app.include_router(users.router)
 
 

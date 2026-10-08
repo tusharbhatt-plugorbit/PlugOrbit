@@ -58,6 +58,47 @@ cp .env.example .env     # then fill in the keys above
 - Requesting `places.evChargeOptions` makes each Nearby Search bill at the Places *Enterprise + Atmosphere* SKU (the opening-hours fields alone would be Enterprise); see the [data-fields page](https://developers.google.com/maps/documentation/places/web-service/data-fields) and current pricing before enabling it for many users.
 - Native changes (Podfile, manifest, Gradle, AppDelegate) were written without access to Xcode/Android SDK. Please build both platforms once and report anything that doesn't compile.
 
+# Login OTP (development)
+
+Sign In and Sign Up ask for an email or a mobile number and then a 6-digit code. The code comes from the `Backend` (`POST /auth/otp/send`, `POST /auth/otp/verify`), which emails it, texts it, or, when it can do neither, hands it back so the app can show it on screen. Configure email (SMTP) and SMS (Twilio) in `Backend/.env`, see `Backend/.env.example`.
+
+1. **Run the Backend so the app can reach it.** From this folder (`LoginApp`), the first time:
+
+   ```sh
+   cd ../Backend
+   python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   cp .env.example .env                           # Windows: copy .env.example .env
+   ```
+
+   then start it:
+
+   ```sh
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+   The OTP endpoints do not need a Firebase key, so the "credentials file not found" startup warnings can be ignored here. `--host 0.0.0.0` is needed for a real phone (the default `127.0.0.1` is only reachable from the computer itself); the Android emulator reaches your computer's loopback through `10.0.2.2`. If Windows Firewall asks whether to allow Python, allow it on private networks.
+
+2. **Point the app at it** with `API_BASE_URL` in `.env` (see `.env.example`), then restart Metro with `npm start -- --reset-cache`:
+
+   | Where the app runs | `API_BASE_URL` |
+   |---|---|
+   | Android emulator | not needed (default `http://10.0.2.2:8000`; `10.0.2.2` is the emulator's name for your computer) |
+   | iOS simulator | not needed (default `http://localhost:8000`) |
+   | Real phone on the same Wi-Fi | `http://<your computer's LAN IP>:8000` |
+
+   Debug builds may use plain `http` (Android debug builds set `usesCleartextTraffic` to true via the React Native Gradle plugin, and iOS allows local-network `http`). Release builds need `https`.
+
+What the user sees after tapping **Send Verification Code**:
+
+| Outcome | On the verify step |
+|---|---|
+| Delivered by email or SMS | An alert "Code Sent" and a "Sent by email" / "Sent by SMS" line. |
+| The Backend could not deliver (provider not configured or failed) and `OTP_DEV_FALLBACK=true` | A **DEV MODE** card showing "Your code is 123456" with a **Tap to fill** button, plus a "Dev Code" alert. |
+| The Backend cannot be reached at all (debug builds only) | The same DEV MODE card with "Backend unreachable, code generated on this device". That code is checked on the device and never leaves it. |
+
+The Backend's own errors (for example "wait 20 seconds before requesting another code", or a failed delivery when `OTP_DEV_FALLBACK=false`) are shown as they are and never replaced by an on-device code. In a release build an unreachable Backend is reported as an error. `OTP_DEV_FALLBACK` is for development only: anyone who can reach the API can read the code.
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started

@@ -29,7 +29,7 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 ## Verification
 
 - `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
-  (295 tests).
+  (336 tests).
 - `__tests__/crawl.test.tsx` mounts every route, presses every button, requires
   an accessible label on each, checks each press navigates somewhere valid, and
   checks every route is reachable from Home. Payment and PaymentFailure need a
@@ -90,7 +90,7 @@ Known limits left on purpose:
 | Roadside dispatch | `RoadsideScreen`, `config/support.ts` | Partner API and real support contacts |
 | Plus billing | `PlusScreen` | Billing backend (nothing is charged) |
 | Privacy switches | `PrivacyScreen` | Backend enforcement |
-| Login OTP | `App.tsx` | OTP endpoints (pre-existing, unchanged) |
+| Login OTP | `App.tsx`, `services/otpApi.ts` | Wired to the Backend's `/auth/otp/*` for development: the code is emailed or texted, or shown on screen when that is not possible (README "Login OTP (development)"). Still needed: a production email/SMS provider, a shared OTP store, and a real session (verifying only sets a local signed-in flag) |
 | Problem-report photos | `ReportProblemScreen` | Image picker + upload |
 
 ## Not verified in this environment
