@@ -72,6 +72,29 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/**
+ * Reads a value from LoginApp/.env (git-ignored; see .env.example) so the Google
+ * Maps key is never committed. Returns '' when the file or entry is missing.
+ */
+def readEnv(String name) {
+    def envFile = rootProject.file('../.env')
+    def value = ''
+    if (envFile.exists()) {
+        envFile.eachLine { line ->
+            def trimmed = line.trim()
+            if (trimmed.startsWith(name + '=')) {
+                value = trimmed.substring(name.length() + 1).trim().replaceAll(/^["']|["']$/, '')
+            }
+        }
+    }
+    return value
+}
+
+def googleMapsApiKey = readEnv('GOOGLE_MAPS_ANDROID_KEY') ?: readEnv('GOOGLE_MAPS_API_KEY')
+if (!googleMapsApiKey) {
+    logger.warn('Neither GOOGLE_MAPS_ANDROID_KEY nor GOOGLE_MAPS_API_KEY is set in LoginApp/.env: the map will be blank.')
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,6 +107,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Consumed by <meta-data com.google.android.geo.API_KEY> in AndroidManifest.xml.
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
     }
     signingConfigs {
         debug {

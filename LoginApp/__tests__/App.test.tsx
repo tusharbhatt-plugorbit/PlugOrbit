@@ -6,6 +6,10 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { Alert, Text, TextInput } from 'react-native';
 import App from '../App';
+import { seedSignedIn } from '../src/dev/testHarness';
+import { STORE_VERSION, appStore, resetAppStore } from '../src/store/appStore';
+import { resetDemo } from '../src/store/demoStore';
+import { createMemoryStorage, setStorage } from '../src/store/storage';
 
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
@@ -15,9 +19,13 @@ const mounted: Renderer[] = [];
 
 const renderApp = async (): Promise<Renderer> => {
   let renderer!: Renderer;
-  await ReactTestRenderer.act(() => {
+  await ReactTestRenderer.act(async () => {
     renderer = ReactTestRenderer.create(<App />);
   });
+  // Saved state loads asynchronously before the first screen shows.
+  for (let i = 0; i < 3; i++) {
+    await ReactTestRenderer.act(async () => {});
+  }
   mounted.push(renderer);
   return renderer;
 };
@@ -50,6 +58,9 @@ beforeAll(() => {
 
 beforeEach(() => {
   alertSpy.mockClear();
+  setStorage(createMemoryStorage());
+  resetAppStore();
+  resetDemo();
 });
 
 afterEach(async () => {
@@ -164,7 +175,7 @@ test('a plain mobile number is still detected as a mobile number', async () => {
   expect(textsOf(renderer)).toContain('📱 Mobile');
 });
 
-test('a verified code lands on the Find a Charger home screen', async () => {
+test('a verified code lands on vehicle setup for a new account', async () => {
   const renderer = await renderApp();
 
   await pressByText(renderer, 'Get Started');
@@ -177,9 +188,32 @@ test('a verified code lands on the Find a Charger home screen', async () => {
   const otpInput = renderer.root.findByType(TextInput);
   await ReactTestRenderer.act(() => otpInput.props.onChangeText('123456'));
   await pressByText(renderer, 'Verify & Create Account  →');
-  await ReactTestRenderer.act(() => {
+  // Async act, so saved-state loading settles inside it.
+  await ReactTestRenderer.act(async () => {
     jest.advanceTimersByTime(1000);
   });
+  for (let i = 0; i < 3; i++) {
+    await ReactTestRenderer.act(async () => {});
+  }
 
+  // A new account has no vehicle yet, so sign-in lands on onboarding.
+  expect(textsOf(renderer)).toContain('Vehicle setup');
+});
+
+test('a signed-in user with a vehicle goes straight to Home on launch', async () => {
+  seedSignedIn();
+  const { signedIn, vehicles, activeVehicleId, battery } = appStore.get();
+  setStorage(
+    createMemoryStorage({
+      'plugorbit/app': JSON.stringify({
+        v: STORE_VERSION,
+        d: { signedIn, vehicles, activeVehicleId, battery },
+      }),
+    }),
+  );
+  resetAppStore();
+
+  const renderer = await renderApp();
   expect(textsOf(renderer)).toContain('Find a Charger');
+  expect(textsOf(renderer)).not.toContain('Welcome to PlugOrbit');
 });
