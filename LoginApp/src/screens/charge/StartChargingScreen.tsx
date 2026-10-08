@@ -83,6 +83,7 @@ export default function StartChargingScreen(): React.JSX.Element {
       <StartForm
         station={res.data}
         connectorId={params.connectorId}
+        initialTarget={params.targetSoc}
         onRefresh={res.reload}
       />
     );
@@ -112,10 +113,13 @@ function LoadingBody() {
 function StartForm({
   station,
   connectorId,
+  initialTarget,
   onRefresh,
 }: {
   station: StationWithDistance;
   connectorId: string;
+  /** From Smart Drive: charge just enough for the trip, not the default 80. */
+  initialTarget?: number;
   onRefresh: () => void;
 }) {
   const nav = useNavigation();
@@ -144,7 +148,7 @@ function StartForm({
     validated.find(m => m.id === methodId) ?? defaultMethod;
 
   const startSoc = Math.round(battery?.percent ?? 0);
-  const [target, setTarget] = useState(80);
+  const [target, setTarget] = useState(initialTarget ?? 80);
   const minTarget = Math.min(100, Math.max(startSoc + 5, 20));
   const targetSoc = Math.max(target, minTarget);
 

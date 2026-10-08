@@ -16,6 +16,7 @@ export * from './TabBar';
 export * from './Toast';
 export * from './VehicleSelector';
 export * from './session';
+export * from './smartdrive';
 export * from './station';
 export * from './trip';
 export * from './useNow';

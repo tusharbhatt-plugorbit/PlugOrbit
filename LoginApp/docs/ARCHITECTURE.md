@@ -22,6 +22,8 @@ src/ui/                 the component kit (import everything from '../../ui')
 src/navigation/         params.ts (all routes + params), registry.ts, AppNavigator
 src/screens/<group>/    one file per route: <Route>Screen.tsx, default export
 src/domain/             pure types + rules (trust, compatibility, charging maths)
+src/intelligence/       Smart Drive engines: pure functions, no React/store/service imports
+src/utils/path.ts       route geometry shared by the route and Smart Drive services
 src/services/           interfaces (types.ts) + mock implementations (mock/)
 src/store/              appStore (persisted), demoStore (presenter switches)
 src/dev/                fixtures + test harness used by the crawl test

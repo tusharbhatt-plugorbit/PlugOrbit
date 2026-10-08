@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useMemo} from 'react';
 import {createRouteService} from './mock/routeService';
+import {createSmartDriveService} from './mock/smartDriveService';
 import {createSessionService} from './mock/sessionService';
 import {createPaymentService} from './mock/paymentService';
 import {createStationService} from './mock/stationService';
@@ -16,6 +17,7 @@ export * from './types';
 /** All services backed by the mock layer. Swap per service for a real backend. */
 export function createMockServices(): Services {
   return {
+    smartDrive: createSmartDriveService(),
     vehicle: createVehicleService(),
     station: createStationService(),
     route: createRouteService(),

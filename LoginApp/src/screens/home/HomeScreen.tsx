@@ -23,11 +23,14 @@ import {
   rankOrganic,
 } from '../../domain/rules';
 import type {StationWithDistance} from '../../domain/types';
+import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
+import {idleStatus, tripStatus} from '../../intelligence/status';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
 import {useNavigation} from '../../navigation/NavigationContext';
-import {selectActiveVehicle, useApp} from '../../store/appStore';
+import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
 import {
+  CopilotStrip,
   Icon,
   LocationPermissionState,
   LogoTile,
@@ -70,6 +73,9 @@ function HomeScreen(): React.JSX.Element {
   const vehicle = useApp(selectActiveVehicle);
   const filters = useApp(s => s.filters);
   const unread = useApp(s => s.notifications.some(n => !n.read));
+  const trip = useApp(selectTrip);
+  const battery = useApp(s => s.battery);
+  const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
   const {phase, stations, userLocation, origin, notice, refresh, searchAt} =
     useNearbyStations(vehicle);
 
@@ -239,6 +245,29 @@ function HomeScreen(): React.JSX.Element {
   const showPermissionCard =
     !busy && permissionIssue !== null && !permissionDismissed;
   const activeFilters = countActiveFilters(filters);
+
+  // The co-pilot's line: the trip's status when there is one, else the battery's.
+  const copilot = trip
+    ? tripStatus(trip)
+    : idleStatus({
+        soc: battery?.percent ?? null,
+        vehicle,
+        reservePct: reserve,
+        criticalPct: DEFAULT_SMART_DRIVE_CONFIG.batteryCriticalPct,
+      });
+  const copilotLow = !trip && copilot.tone === 'alert';
+  const openCopilot = () => {
+    if (!vehicle) {
+      nav.navigate('VehicleSetup');
+    } else if (!trip && battery === null) {
+      nav.navigate('ManualSoc');
+    } else if (copilotLow) {
+      // Running low and nowhere in particular to be: the nearest chargers.
+      nav.navigate('StationList');
+    } else {
+      nav.navigate('SmartDrive');
+    }
+  };
   const cardBottom = spacing.xl + insets.bottom * 0;
 
   return (
@@ -308,6 +337,20 @@ function HomeScreen(): React.JSX.Element {
           );
         })}
       </View>
+
+      <CopilotStrip
+        status={copilot}
+        onPress={openCopilot}
+        actionLabel={
+          trip
+            ? 'Open'
+            : !vehicle || battery === null
+            ? 'Set up'
+            : copilotLow
+            ? 'Find charger'
+            : 'Where to?'
+        }
+      />
 
       <View style={styles.map}>
         <OfflineBanner />

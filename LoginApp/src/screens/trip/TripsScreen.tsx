@@ -1,13 +1,16 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {timeAgo} from '../../domain/trust';
+import {PHRASES} from '../../intelligence/copy';
+import {tripStatus} from '../../intelligence/status';
 import {useNavigation} from '../../navigation/NavigationContext';
-import {useApp} from '../../store/appStore';
+import {selectTrip, useApp} from '../../store/appStore';
 import {clearRoute} from '../../store/tripActions';
 import {colors, elevation, radii, spacing, type} from '../../theme';
 import {formatClock} from '../../utils/format';
 import {
   Card,
+  CopilotStatusCard,
   Icon,
   ListCard,
   ListRow,
@@ -30,9 +33,37 @@ export default function TripsScreen(): React.JSX.Element {
   const saved = useApp(s => s.savedRoutes);
   const reservation = useHeldReservation();
   const queue = useApp(s => s.queue);
+  const trip = useApp(selectTrip);
 
   return (
     <Screen title="Trips" hideBack stack>
+      {trip ? (
+        <>
+          <CopilotStatusCard status={tripStatus(trip)} />
+          <PrimaryButton
+            label="Open Smart Drive"
+            icon="sparkles"
+            onPress={() => nav.navigate('SmartDrive')}
+          />
+        </>
+      ) : (
+        <Card tone="lime">
+          <Text style={styles.sdKicker}>Smart Drive</Text>
+          <Text style={styles.sdTitle}>{PHRASES.tagline}</Text>
+          <Text style={styles.sdBody}>
+            Say where you’re going. We pick your stop and a backup, and watch
+            the road so you don’t have to.
+          </Text>
+          <PrimaryButton
+            label="Start Smart Drive"
+            icon="sparkles"
+            compact
+            onPress={() => nav.navigate('SmartDrive')}
+            style={styles.sdButton}
+          />
+        </Card>
+      )}
+
       <Card tone="dark">
         <Text style={styles.kicker}>Plan a trip</Text>
         <Text style={styles.heroTitle}>Charge only when needed</Text>
@@ -187,6 +218,14 @@ export default function TripsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  sdKicker: {
+    ...type.micro,
+    color: colors.limeDark,
+    textTransform: 'uppercase',
+  },
+  sdTitle: {...type.h1, color: colors.ink, marginTop: 6},
+  sdBody: {...type.body, color: colors.inkSoft, marginTop: 6, lineHeight: 20},
+  sdButton: {marginTop: spacing.md, alignSelf: 'flex-start'},
   kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
   heroTitle: {...type.h1, color: '#FFFFFF', marginTop: 6},
   search: {

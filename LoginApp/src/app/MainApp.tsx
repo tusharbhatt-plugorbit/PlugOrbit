@@ -8,6 +8,7 @@ import {appStore, flushAppStore, useApp} from '../store/appStore';
 import {TabBar, ToastHost, showToast} from '../ui';
 import {BootPlan, planBoot} from './initialStack';
 import {SessionBanner} from './SessionBanner';
+import {useSmartDriveRuntime} from './useSmartDriveRuntime';
 
 type Props = {
   /** Test/preview hook to start somewhere specific. */
@@ -25,6 +26,7 @@ export default function MainApp({bootOverride}: Props): React.JSX.Element {
   const navRef = useRef<Navigation | null>(null);
   const hasSession = useApp(s => s.session !== null);
   const unread = useApp(s => s.notifications.some(n => !n.read));
+  useSmartDriveRuntime();
 
   useEffect(() => {
     if (boot.cancelPendingSession) {

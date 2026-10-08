@@ -30,6 +30,8 @@ export const colors = {
   info: '#1D4ED8',
   infoSoft: '#DBEAFE',
   slateSoft: '#E2E8F0',
+  // Amber for warnings on a dark surface (the light amber above is for light cards).
+  amberOnDark: '#FCD34D',
   limeHalo: 'rgba(162, 240, 103, 0.08)',
   limeHaloBorder: 'rgba(162, 240, 103, 0.28)',
   scrim: 'rgba(2, 6, 23, 0.55)',

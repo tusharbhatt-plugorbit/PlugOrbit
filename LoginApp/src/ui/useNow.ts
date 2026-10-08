@@ -18,3 +18,15 @@ export function useNow(intervalMs = 15000): number {
   }, [focused, intervalMs]);
   return now;
 }
+
+/**
+ * "Now" as a trip sees it. A simulated drive runs ahead of the wall clock, and
+ * everything on a trip (feed ages, arrival times, ETAs) is stamped in trip time,
+ * so labels like "38 sec ago" and "arrive in 5 min" must be read against it.
+ */
+export function useTripNow(
+  clockOffsetMs: number | undefined,
+  intervalMs = 15000,
+): number {
+  return useNow(intervalMs) + (clockOffsetMs ?? 0);
+}

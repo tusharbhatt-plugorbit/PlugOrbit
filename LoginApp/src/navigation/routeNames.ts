@@ -48,6 +48,8 @@ const NAMES: Record<RouteName, true> = {
   TripPreferences: true,
   MultiStop: true,
   Privacy: true,
+  SmartDrive: true,
+  SmartDriveStop: true,
   PresenterTools: true,
 };
 

@@ -172,6 +172,8 @@ export default function VehiclesScreen(): React.JSX.Element {
                             {battery.percent}% •{' '}
                             {battery.source === 'vehicle'
                               ? 'read from your car'
+                              : battery.source === 'trip_estimate'
+                              ? 'estimated on your trip'
                               : 'entered by you'}{' '}
                             • updated {timeAgo(battery.updatedAt, now)}
                           </Text>
