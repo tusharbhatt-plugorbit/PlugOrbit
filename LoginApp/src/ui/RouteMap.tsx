@@ -1,8 +1,10 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
+import OsmMap from '../components/OsmMap';
 import {hasIosMapsKey, mapsKeyMissing} from '../config/google';
 import type {Route} from '../domain/types';
+import type {MapPin} from '../maps/osmMapHtml';
 import {colors, radii} from '../theme';
 import type {Coords} from '../utils/geo';
 import {Icon} from './Icon';
@@ -46,7 +48,13 @@ export function RouteMap({
   }, [route]);
 
   if (mapsKeyMissing) {
-    return <MapPlaceholder height={height} />;
+    return (
+      <FallbackRouteMap
+        route={route}
+        height={height}
+        highlightStop={highlightStop}
+      />
+    );
   }
 
   return (
@@ -93,6 +101,70 @@ export function RouteMap({
           </Marker>
         ))}
       </MapView>
+    </View>
+  );
+}
+
+/** The same preview on OpenStreetMap tiles, for Android builds with no Google key. */
+function FallbackRouteMap({
+  route,
+  height,
+  highlightStop,
+}: {
+  route: Route;
+  height: number;
+  highlightStop?: number;
+}) {
+  const [broken, setBroken] = useState(false);
+  const first = route.polyline[0];
+  const last = route.polyline[route.polyline.length - 1];
+
+  const pins = useMemo<MapPin[]>(
+    () => [
+      {id: 'start', ...first, kind: 'start'},
+      {id: 'end', ...last, kind: 'end'},
+      ...route.stops.map(
+        (s, i): MapPin => ({
+          id: s.station.id,
+          latitude: s.station.latitude,
+          longitude: s.station.longitude,
+          kind: 'stop',
+          selected: highlightStop === i,
+          label: s.station.name,
+        }),
+      ),
+    ],
+    [route, first, last, highlightStop],
+  );
+  const line = useMemo(
+    () => ({
+      points: route.polyline.map(
+        p => [p.latitude, p.longitude] as [number, number],
+      ),
+      color: colors.bg,
+      width: 5,
+    }),
+    [route],
+  );
+
+  if (broken) {
+    return <MapPlaceholder height={height} />;
+  }
+  return (
+    <View
+      style={[styles.wrap, {height}]}
+      accessibilityLabel={`Map of ${route.fromLabel} to ${route.toLabel}`}>
+      <OsmMap
+        style={StyleSheet.absoluteFill}
+        initialCenter={bounds(route.polyline)}
+        initialZoom={11}
+        pins={pins}
+        route={line}
+        fit={route.polyline}
+        fitMaxZoom={12}
+        interactive={false}
+        onUnavailable={() => setBroken(true)}
+      />
     </View>
   );
 }

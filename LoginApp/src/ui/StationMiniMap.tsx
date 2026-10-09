@@ -1,7 +1,9 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
+import OsmMap from '../components/OsmMap';
 import {hasIosMapsKey, mapsKeyMissing} from '../config/google';
+import type {MapPin} from '../maps/osmMapHtml';
 import {colors, radii} from '../theme';
 import type {Coords} from '../utils/geo';
 import {Icon} from './Icon';
@@ -36,7 +38,7 @@ export function StationMiniMap({
   }, [from.latitude, from.longitude, to.latitude, to.longitude]);
 
   if (mapsKeyMissing) {
-    return <MapPlaceholder height={height} />;
+    return <FallbackStationMiniMap from={from} to={to} height={height} />;
   }
 
   return (
@@ -69,6 +71,60 @@ export function StationMiniMap({
           </View>
         </Marker>
       </MapView>
+    </View>
+  );
+}
+
+/** The same mini map on OpenStreetMap tiles, for Android builds with no Google key. */
+function FallbackStationMiniMap({
+  from,
+  to,
+  height,
+}: {
+  from: Coords;
+  to: Coords;
+  height: number;
+}) {
+  const [broken, setBroken] = useState(false);
+  const pins = useMemo<MapPin[]>(
+    () => [
+      {id: 'me', ...from, kind: 'me', label: 'Your location'},
+      {id: 'station', ...to, kind: 'pin', label: 'Charger'},
+    ],
+    [from, to],
+  );
+  const line = useMemo(
+    () => ({
+      points: [
+        [from.latitude, from.longitude],
+        [to.latitude, to.longitude],
+      ] as [number, number][],
+      color: colors.bg,
+      width: 4,
+    }),
+    [from, to],
+  );
+  const fit = useMemo(() => [from, to], [from, to]);
+
+  if (broken) {
+    return <MapPlaceholder height={height} />;
+  }
+  return (
+    <View style={[styles.wrap, {height}]}>
+      <OsmMap
+        style={StyleSheet.absoluteFill}
+        initialCenter={{
+          latitude: (from.latitude + to.latitude) / 2,
+          longitude: (from.longitude + to.longitude) / 2,
+        }}
+        initialZoom={13}
+        pins={pins}
+        route={line}
+        fit={fit}
+        fitMaxZoom={13}
+        interactive={false}
+        onUnavailable={() => setBroken(true)}
+      />
     </View>
   );
 }
