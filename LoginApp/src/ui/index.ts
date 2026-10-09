@@ -9,6 +9,7 @@ export * from './ConnectorSelectionCard';
 export * from './Fields';
 export * from './Icon';
 export * from './LocationPermissionState';
+export * from './MapPlaceholder';
 export * from './RouteMap';
 export * from './Screen';
 export * from './States';

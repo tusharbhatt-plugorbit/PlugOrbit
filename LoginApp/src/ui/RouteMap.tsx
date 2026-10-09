@@ -1,11 +1,12 @@
 import React, {useEffect, useRef} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
-import {hasIosMapsKey} from '../config/google';
+import {hasIosMapsKey, mapsKeyMissing} from '../config/google';
 import type {Route} from '../domain/types';
 import {colors, radii} from '../theme';
 import type {Coords} from '../utils/geo';
 import {Icon} from './Icon';
+import {MapPlaceholder} from './MapPlaceholder';
 
 const PROVIDER =
   Platform.OS === 'ios' && !hasIosMapsKey ? undefined : PROVIDER_GOOGLE;
@@ -43,6 +44,10 @@ export function RouteMap({
   useEffect(() => {
     ref.current?.animateToRegion(bounds(route.polyline), 300);
   }, [route]);
+
+  if (mapsKeyMissing) {
+    return <MapPlaceholder height={height} />;
+  }
 
   return (
     <View
