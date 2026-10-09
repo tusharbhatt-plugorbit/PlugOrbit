@@ -7,6 +7,8 @@ import ReactTestRenderer from 'react-test-renderer';
 import {Text} from 'react-native';
 import ChargerMap from '../src/components/ChargerMap';
 import {TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
+import type {Route} from '../src/domain/types';
+import {RouteMap, StationMiniMap} from '../src/ui';
 
 const {act} = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
@@ -86,6 +88,44 @@ describe('Home without a Maps key', () => {
       jest.advanceTimersByTime(30_000);
     });
     expect(texts(r).join(' ')).not.toContain('taking too long');
+  });
+});
+
+describe('Embedded maps without a Maps key', () => {
+  const from = {latitude: 28.6, longitude: 77.2};
+  const to = {latitude: 28.7, longitude: 77.3};
+  const route = {
+    fromLabel: 'Delhi',
+    toLabel: 'Jaipur',
+    polyline: [from, to],
+    stops: [],
+  } as unknown as Route;
+
+  async function render(ui: React.ReactElement) {
+    let r!: Renderer;
+    await act(async () => {
+      r = ReactTestRenderer.create(ui);
+    });
+    mounted.push(r);
+    return r;
+  }
+
+  const placeholders = (r: Renderer) =>
+    r.root.findAll(n => n.props.testID === 'map-placeholder');
+  const nativeMaps = (r: Renderer) =>
+    r.root.findAll(n => n.props.testID === 'map');
+
+  test('the route preview says so instead of drawing a grey map', async () => {
+    const r = await render(<RouteMap route={route} height={210} />);
+    expect(placeholders(r).length).toBeGreaterThan(0);
+    expect(nativeMaps(r)).toHaveLength(0);
+    expect(texts(r)).toContain('Map isn’t available');
+  });
+
+  test('the station mini map says so instead of drawing a grey map', async () => {
+    const r = await render(<StationMiniMap from={from} to={to} />);
+    expect(placeholders(r).length).toBeGreaterThan(0);
+    expect(nativeMaps(r)).toHaveLength(0);
   });
 });
 

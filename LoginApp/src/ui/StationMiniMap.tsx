@@ -1,10 +1,11 @@
 import React, {useEffect, useRef} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
-import {hasIosMapsKey} from '../config/google';
+import {hasIosMapsKey, mapsKeyMissing} from '../config/google';
 import {colors, radii} from '../theme';
 import type {Coords} from '../utils/geo';
 import {Icon} from './Icon';
+import {MapPlaceholder} from './MapPlaceholder';
 
 const PROVIDER =
   Platform.OS === 'ios' && !hasIosMapsKey ? undefined : PROVIDER_GOOGLE;
@@ -33,6 +34,10 @@ export function StationMiniMap({
     ref.current?.animateToRegion(region, 250);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from.latitude, from.longitude, to.latitude, to.longitude]);
+
+  if (mapsKeyMissing) {
+    return <MapPlaceholder height={height} />;
+  }
 
   return (
     <View style={[styles.wrap, {height}]}>
