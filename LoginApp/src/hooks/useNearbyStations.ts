@@ -19,6 +19,7 @@ export type Notice = {
   kind:
     | 'location-denied'
     | 'location-unavailable'
+    | 'location-no-fix'
     | 'demo-area'
     | 'search-failed'
     | 'offline';
@@ -49,12 +50,23 @@ const DEMO_AREA_NOTICE: Notice = {
 };
 
 function locationNotice(error: unknown): Notice {
-  const denied = error instanceof LocationError && error.code === 'denied';
+  const code = error instanceof LocationError ? error.code : null;
+  if (code === 'denied') {
+    return {
+      kind: 'location-denied',
+      message: 'Location is off. Showing chargers near New Delhi.',
+    };
+  }
+  // Services are on but no position arrived in time (indoors, weak signal).
+  if (code === 'timeout') {
+    return {
+      kind: 'location-no-fix',
+      message: 'Could not find your location. Showing chargers near New Delhi.',
+    };
+  }
   return {
-    kind: denied ? 'location-denied' : 'location-unavailable',
-    message: denied
-      ? 'Location is off. Showing chargers near New Delhi.'
-      : 'Could not get your location. Showing chargers near New Delhi.',
+    kind: 'location-unavailable',
+    message: 'Could not get your location. Showing chargers near New Delhi.',
   };
 }
 
@@ -177,6 +189,7 @@ export function useNearbyStations(vehicle: Vehicle | null) {
       const keep =
         kind === 'location-denied' ||
         kind === 'location-unavailable' ||
+        kind === 'location-no-fix' ||
         kind === 'demo-area';
       search(state.origin, begin(), keep ? state.notice : null);
     }

@@ -33,6 +33,8 @@ import PlusScreen from '../screens/profile/PlusScreen';
 import PresenterToolsScreen from '../screens/profile/PresenterToolsScreen';
 import PrivacyScreen from '../screens/profile/PrivacyScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import SmartDriveScreen from '../screens/smartdrive/SmartDriveScreen';
+import SmartDriveStopScreen from '../screens/smartdrive/SmartDriveStopScreen';
 import BackupAlertScreen from '../screens/trip/BackupAlertScreen';
 import EnergyPlannerScreen from '../screens/trip/EnergyPlannerScreen';
 import MultiStopScreen from '../screens/trip/MultiStopScreen';
@@ -105,6 +107,10 @@ export const REGISTRY: Registry = {
   Notifications: {component: NotificationsScreen, tabBar: true, tab: 'Home'},
   Alerts: {component: AlertsScreen},
   Roadside: {component: RoadsideScreen, tabBar: true, tab: 'Profile'},
+
+  // Smart Drive
+  SmartDrive: {component: SmartDriveScreen},
+  SmartDriveStop: {component: SmartDriveStopScreen},
 
   // Profile
   PaymentMethods: {component: PaymentMethodsScreen},

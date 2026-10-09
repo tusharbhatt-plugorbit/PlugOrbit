@@ -30,6 +30,8 @@ export const colors = {
   info: '#1D4ED8',
   infoSoft: '#DBEAFE',
   slateSoft: '#E2E8F0',
+  // Amber for warnings on a dark surface (the light amber above is for light cards).
+  amberOnDark: '#FCD34D',
   limeHalo: 'rgba(162, 240, 103, 0.08)',
   limeHaloBorder: 'rgba(162, 240, 103, 0.28)',
   scrim: 'rgba(2, 6, 23, 0.55)',
@@ -43,12 +45,14 @@ export const radii = {sm: 8, md: 14, lg: 20, xl: 24, pill: 999} as const;
 
 export const spacing = {xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28} as const;
 
-// Control sizes seen on the approved screens: search 52, chips 36, CTA 50-54.
+// Control sizes seen on the approved screens: search 52, chips 36, CTA 50-54;
+// 64 is the large CTA for a screen's single main action.
 export const sizes = {
   tap: 44,
   chip: 36,
   field: 52,
   button: 54,
+  buttonLarge: 64,
   buttonCompact: 44,
   header: 44,
   tabBar: 64,

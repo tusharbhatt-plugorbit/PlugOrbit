@@ -3,10 +3,11 @@ import {StyleSheet, Text, View} from 'react-native';
 import {DEFAULT_CENTER} from '../../config/google';
 import {stationHealth} from '../../domain/rules';
 import {timeAgo} from '../../domain/trust';
+import {buildOfflineView} from '../../intelligence/offline';
 import type {StationWithDistance} from '../../domain/types';
 import {useIsFocused, useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
-import {selectActiveVehicle, useApp} from '../../store/appStore';
+import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {useDemo} from '../../store/demoStore';
 import {colors, spacing, type} from '../../theme';
 import {
@@ -14,6 +15,7 @@ import {
   ConfidenceBadge,
   EmptyState,
   Notice,
+  Pill,
   PrimaryButton,
   Screen,
   SecondaryButton,
@@ -36,6 +38,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
   const now = useNow(15_000);
   const {station: stationService} = useServices();
   const route = useApp(s => s.activeRoute);
+  const trip = useApp(selectTrip);
   const vehicle = useApp(selectActiveVehicle);
   const offline = useDemo(s => s.offline);
 
@@ -71,7 +74,11 @@ export default function OfflineModeScreen(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, focused, vehicle?.id]);
 
-  if (!route) {
+  // A Smart Drive trip carries its own offline plan: the chosen stop, its
+  // backup, connector and access details, every status shown with its age.
+  const smart = buildOfflineView(trip, now + (trip?.clockOffsetMs ?? 0));
+
+  if (!route && !smart) {
     return (
       <Screen title="Offline trip mode">
         <EmptyState
@@ -88,14 +95,15 @@ export default function OfflineModeScreen(): React.JSX.Element {
     );
   }
 
-  const stations: Array<{role: string; station: StationWithDistance}> =
-    route.stops.flatMap((s, i) => [
-      {role: `Stop ${i + 1}`, station: s.station},
-      ...(s.backup
-        ? [{role: `Backup for stop ${i + 1}`, station: s.backup}]
-        : []),
-    ]);
-  const unbacked = route.stops.filter(s => !s.backup).length;
+  const stations: Array<{role: string; station: StationWithDistance}> = (
+    route?.stops ?? []
+  ).flatMap((s, i) => [
+    {role: `Stop ${i + 1}`, station: s.station},
+    ...(s.backup
+      ? [{role: `Backup for stop ${i + 1}`, station: s.backup}]
+      : []),
+  ]);
+  const unbacked = (route?.stops ?? []).filter(s => !s.backup).length;
 
   return (
     <Screen
@@ -103,9 +111,9 @@ export default function OfflineModeScreen(): React.JSX.Element {
       stack
       footer={
         <PrimaryButton
-          label="Open cached route"
-          icon="route"
-          onPress={() => nav.navigate('RouteResult')}
+          label={route ? 'Open cached route' : 'Open Smart Drive'}
+          icon={route ? 'route' : 'sparkles'}
+          onPress={() => nav.navigate(route ? 'RouteResult' : 'SmartDrive')}
         />
       }>
       <Text style={styles.lead}>
@@ -115,10 +123,42 @@ export default function OfflineModeScreen(): React.JSX.Element {
         tone={offline ? 'warn' : 'info'}
         icon="wifi-off"
         title={offline ? 'You’re offline' : 'Your trip is saved on this phone'}
-        body={`${route.fromLabel} → ${route.toLabel}: route, chosen charger and backup are cached. Statuses below are last-known, not live.`}
+        body={`${route ? route.fromLabel : trip?.origin.label} → ${
+          route ? route.toLabel : trip?.destination.label
+        }: route, chosen charger and backup are cached. Statuses below are last-known, not live.`}
       />
 
-      {unbacked > 0 && (
+      {smart && (
+        <>
+          <Text style={styles.section}>Smart Drive plan</Text>
+          <Card tone="lime">
+            <Text style={styles.name}>{smart.subline}</Text>
+            <Text style={styles.fine}>{smart.lastUpdate}</Text>
+          </Card>
+          {smart.stops.map(s => (
+            <Card key={`${s.role}-${s.stationId}`}>
+              <Text style={styles.role}>
+                {s.role === 'primary' ? 'Your stop' : 'Your backup'}
+              </Text>
+              <Text style={styles.name}>{s.name}</Text>
+              <Text style={styles.fine}>
+                {s.connectorLabel} • {s.connectorType} • {s.chargerKw} kW •{' '}
+                {s.hours}
+              </Text>
+              <View style={styles.badges}>
+                <Pill
+                  label={s.status.label}
+                  tone={s.status.trust === 'unknown' ? 'slate' : 'amber'}
+                />
+              </View>
+              <Text style={styles.fine}>{s.price}</Text>
+              <Text style={styles.fine}>{s.instructions ?? s.access}</Text>
+            </Card>
+          ))}
+        </>
+      )}
+
+      {route && unbacked > 0 && (
         <Notice
           tone="warn"
           title={`No backup for ${unbacked} of ${route.stops.length} ${
@@ -128,7 +168,9 @@ export default function OfflineModeScreen(): React.JSX.Element {
         />
       )}
 
-      <Text style={styles.section}>Cached route chargers</Text>
+      {stations.length > 0 && (
+        <Text style={styles.section}>Cached route chargers</Text>
+      )}
       {stations.map(({role, station}) => (
         <Card key={`${role}-${station.id}`}>
           <Text style={styles.role}>{role}</Text>

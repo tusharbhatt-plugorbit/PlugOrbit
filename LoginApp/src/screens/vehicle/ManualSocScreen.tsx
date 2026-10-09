@@ -115,6 +115,8 @@ export default function ManualSocScreen(): React.JSX.Element {
       ? {label: 'Not set yet', tone: 'slate' as const}
       : !dirty && battery.source === 'vehicle'
       ? {label: 'From your car', tone: 'lime' as const}
+      : !dirty && battery.source === 'trip_estimate'
+      ? {label: 'Estimated on your trip', tone: 'info' as const}
       : {
           label: dirty ? 'Manual • not saved' : 'Manual entry',
           tone: 'info' as const,

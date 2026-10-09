@@ -100,6 +100,14 @@ export function describeSocSource(
     return null;
   }
   const age = timeAgo(battery.updatedAt, now);
+  if (battery.source === 'trip_estimate') {
+    return {
+      fromCar: false,
+      label: 'Estimated on your trip',
+      tone: 'info',
+      detail: `Worked out from your drive so far, ${age}. Your car’s display has the exact figure.`,
+    };
+  }
   if (battery.source === 'vehicle' && link.connected) {
     return {
       fromCar: true,

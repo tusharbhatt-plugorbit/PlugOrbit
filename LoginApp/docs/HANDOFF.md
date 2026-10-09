@@ -4,11 +4,11 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 
 ## What exists
 
-- **49 routes, all with real screens** (`src/navigation/registry.ts`; adding a
+- **48 routes, all with real screens** (`src/navigation/registry.ts`; adding a
   route without a screen is a compile error). Screens 01–40 plus the five tab
   roots, Notifications, Alerts, Presenter tools and the support/ticket screens.
-- **Login and Home are the visual source of truth.** Welcome/Login are
-  untouched; Home was rebuilt on the shared station data with the approved look.
+- **Login and Home are the visual source of truth.** Welcome/Login kept that
+  look (restyled in the Dev_Phase1 pass below); Home was rebuilt on the shared station data with the approved look.
   Every new screen uses the tokens in `src/theme.ts` and the kit in `src/ui`.
 - **Navigation:** typed stack + 5 tabs (Home, Trips, Charge, Activity, Profile),
   hardware back, keep-alive tab hosts, owning-tab highlight on stack screens.
@@ -26,10 +26,54 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **Google location + Maps + Places (nearby chargers)** with separate keys, see
   the README.
 
+## Smart Drive (automated charging co-pilot)
+
+Added on the `Automated_App_mode` branch. Full reference:
+[`SMART_DRIVE.md`](SMART_DRIVE.md). Two routes (`SmartDrive`, `SmartDriveStop`),
+plus a calm co-pilot line on Home and Smart Drive settings in Trip preferences.
+
+- `src/intelligence/` is a pure package (no React, store or service imports):
+  safety rules, recommendation scoring with reason codes, primary + backup,
+  charge target, total stop time and cost, the trip monitor reducer, the
+  notification policy, offline honesty, explanations, preference suggestions and
+  the prediction-vs-reality record.
+- `SmartDriveService` (`src/services/types.ts`) is the seam. The mock keeps
+  the world (charger status over time) and simulates the drive; a real backend
+  would implement the same interface and run the same engines.
+- **Real and tested:** all of the above, as deterministic code.
+- **Mock:** charger status over time and queue length, vehicle position (a
+  simulated drive, no GPS), the monitor loop (runs on the device only while the
+  app is open), delivery (in-app only, no push), route/traffic, battery (the
+  model's own estimate, labelled as such), payment.
+- **Not built:** any server-side trip monitoring (the FastAPI backend is
+  unchanged), push notifications, learned availability/wait/energy models.
+- Open product decisions are listed in `SMART_DRIVE.md` §11 (reserve and
+  thresholds, auto-switch permission, quiet-mode default, where the monitor
+  runs, queue-length sources, parking data).
+
+## Dev_Phase1 UI pass
+
+Simplification and polish on top of the showcase build; no service, store or
+domain contract changed.
+
+- **Logo and icons** redrawn (`assets/brand/logo-mark.svg`), launcher and iOS icons regenerated; one shared `BrandLogo`.
+- **Welcome** is a local vector scene (road, roadside charger, lime horizon; no remote image), one headline, one supporting line, two actions. Login has a single icon back arrow.
+- **Vehicle setup** shows each plug as a picture card (`ConnectorSelectionCard`, `ConnectorImage`), with the chosen plugs summarised above Save and on car cards (`ConnectorTag`).
+- **Maps**: a missing Android key is detected and explained instead of a blank map; permission-denied and services-off have their own card (`LocationPermissionState`); a map that never starts gets a Reload notice; `ChargerMap` accepts a `route`.
+- **Charger cards** lead with name, availability and distance, then speed, price and reliability; trust and age sit underneath. The primary Energy Plan action is a 64 px `PrimaryButton large`.
+
+Still open from this pass:
+
+- The Google keys themselves (see README "What you must configure"). Nothing was verified on a device or emulator: no Android SDK or Xcode here, only Jest and a browser preview.
+- Connector pictures are simplified drawings of the plug faces; have product/design confirm them (especially GB/T and LECCS) before release.
+- `reliabilityPct` has no real source yet (demo data only), so "Reliable" appears only for demo chargers.
+- An invalid or restricted Android key still shows grey tiles: Google exposes that only in the log.
+
 ## Verification
 
 - `npx tsc --noEmit`, `npx eslint src __tests__`, `npx jest` all clean
-  (336 tests).
+  (374 tests after the Dev_Phase1 pass; 613 with Smart Drive, of which 173 are
+  engine tests and 54 cover the Smart Drive service and screens).
 - `__tests__/crawl.test.tsx` mounts every route, presses every button, requires
   an accessible label on each, checks each press navigates somewhere valid, and
   checks every route is reachable from Home. Payment and PaymentFailure need a
@@ -60,7 +104,7 @@ regression test. The ones that mattered most:
 - On Android the Play Services location request could hang or collide.
 - With the phone far from the demo data (Delhi/NCR) there were no chargers at
   all. It now falls back to demo chargers around New Delhi and says so.
-- WCAG AA text contrast and 44 px touch targets across all 49 screens.
+- WCAG AA text contrast and 44 px touch targets across all 48 routes.
 
 Known limits left on purpose:
 

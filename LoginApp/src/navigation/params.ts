@@ -30,7 +30,12 @@ export type RouteParams = {
     | undefined; // 10
   Navigation: {stationId: string; stopIndex?: number}; // 11
   ScanQr: {stationId?: string} | undefined; // 12
-  StartCharging: {stationId: string; connectorId: string}; // 13
+  StartCharging: {
+    stationId: string;
+    connectorId: string;
+    /** Smart Drive's recommended target, prefilled instead of the default 80. */
+    targetSoc?: number;
+  }; // 13
   ActiveSession: undefined; // 14
   Payment: {sessionId: string}; // 15
   PaymentFailure: {sessionId: string}; // 16
@@ -65,6 +70,10 @@ export type RouteParams = {
   TripPreferences: undefined; // 38
   MultiStop: undefined; // 39
   Privacy: undefined; // 40
+
+  // Smart Drive
+  SmartDrive: undefined; // the co-pilot: plan a trip, or watch the one in progress
+  SmartDriveStop: undefined; // why this charger, what it costs, ask the co-pilot
 
   // Demo
   PresenterTools: undefined;

@@ -8,11 +8,13 @@ import {useServices} from '../../services';
 import {useApp} from '../../store/appStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {timeAgo} from '../../domain/trust';
+import {LEVEL_LABEL} from '../../intelligence/copy';
 import {
   Card,
   EmptyState,
   Icon,
   IconButton,
+  Pill,
   PrimaryButton,
   Screen,
   SectionTitle,
@@ -65,6 +67,20 @@ export default function NotificationsScreen(): React.JSX.Element {
               style={({pressed}) => [styles.item, pressed && styles.pressed]}>
               <View style={[styles.dot, n.read && styles.dotRead]} />
               <View style={styles.flex}>
+                {n.level && n.level !== 'info' && (
+                  <View style={styles.levelRow}>
+                    <Pill
+                      label={LEVEL_LABEL[n.level]}
+                      tone={
+                        n.level === 'critical'
+                          ? 'danger'
+                          : n.level === 'important'
+                          ? 'amber'
+                          : 'info'
+                      }
+                    />
+                  </View>
+                )}
                 <Text style={styles.title}>{n.title}</Text>
                 <Text style={styles.body}>{n.body}</Text>
                 <Text style={styles.time}>{timeAgo(n.at, now)}</Text>
@@ -163,6 +179,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
   },
   pressed: {opacity: 0.88},
+  levelRow: {flexDirection: 'row', marginBottom: 4},
   dot: {
     width: 10,
     height: 10,

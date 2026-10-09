@@ -19,13 +19,14 @@ import type {
 import {getActiveVehicle} from '../../store/appStore';
 import {distanceKm, Coords} from '../../utils/geo';
 import {clamp} from '../../utils/format';
+import {ROAD_FACTOR, buildPath, lerp, project} from '../../utils/path';
+import type {Path} from '../../utils/path';
 import type {EnergyPlan, RouteService} from '../types';
 import {ApiError} from '../types';
 import {DELHI_JAIPUR_CORRIDOR, PLACES, findPlace} from './data';
 import {guard, hash} from './runtime';
 import {detourFor, loadStations, waitFor} from './stationService';
 
-const ROAD_FACTOR = 1.16; // straight-line -> road distance
 const AVG_SPEED_KMH = 66;
 const MAX_LATERAL_KM = 14;
 const MAX_CHARGE_TO = 80;
@@ -38,29 +39,12 @@ const BACKUP_MAX_EXTRA_MIN = 30;
 const BACKUP_FLOOR_PCT = 5;
 const NO_BACKUP_NOTE = `No compatible backup charger within a ${BACKUP_MAX_EXTRA_MIN} min detour that your battery could reach.`;
 
-type Path = {points: Coords[]; cum: number[]; totalKm: number};
-
-function buildPath(points: Coords[]): Path {
-  const cum = [0];
-  for (let i = 1; i < points.length; i++) {
-    cum.push(cum[i - 1] + distanceKm(points[i - 1], points[i]) * ROAD_FACTOR);
-  }
-  return {points, cum, totalKm: cum[cum.length - 1]};
-}
-
-function lerp(a: Coords, b: Coords, t: number): Coords {
-  return {
-    latitude: a.latitude + (b.latitude - a.latitude) * t,
-    longitude: a.longitude + (b.longitude - a.longitude) * t,
-  };
-}
-
 function straight(a: Coords, b: Coords, n = 10): Coords[] {
   return Array.from({length: n + 1}, (_, i) => lerp(a, b, i / n));
 }
 
 /** Delhi<->Jaipur follows the real highway; other pairs are interpolated. */
-function pathBetween(from: Coords, to: Coords): Coords[] {
+export function pathBetween(from: Coords, to: Coords): Coords[] {
   const corridor = DELHI_JAIPUR_CORRIDOR;
   const delhi = corridor[0];
   const jaipur = corridor[corridor.length - 1];
@@ -72,34 +56,6 @@ function pathBetween(from: Coords, to: Coords): Coords[] {
     return [from, ...[...corridor].reverse().slice(1, -1), to];
   }
   return straight(from, to);
-}
-
-type Projection = {along: number; lateral: number};
-
-/** Where a station sits relative to the path: km along it and km off to the side. */
-function project(path: Path, p: Coords): Projection {
-  let best: Projection = {along: 0, lateral: Infinity};
-  for (let i = 0; i < path.points.length - 1; i++) {
-    const a = path.points[i];
-    const b = path.points[i + 1];
-    const ax =
-      (b.longitude - a.longitude) * Math.cos((a.latitude * Math.PI) / 180);
-    const ay = b.latitude - a.latitude;
-    const px =
-      (p.longitude - a.longitude) * Math.cos((a.latitude * Math.PI) / 180);
-    const py = p.latitude - a.latitude;
-    const len2 = ax * ax + ay * ay;
-    const t = len2 === 0 ? 0 : clamp((px * ax + py * ay) / len2, 0, 1);
-    const foot = lerp(a, b, t);
-    const lateral = distanceKm(foot, p);
-    if (lateral < best.lateral) {
-      best = {
-        along: path.cum[i] + t * (path.cum[i + 1] - path.cum[i]),
-        lateral,
-      };
-    }
-  }
-  return best;
 }
 
 type Candidate = {

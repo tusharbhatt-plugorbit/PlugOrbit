@@ -2,11 +2,14 @@
 
 React Native + TypeScript app: find a compatible EV charger, plan a route with a
 backup stop, start and pay for a charge, and recover cleanly if the app is
-interrupted. 49 screens, all navigable, on a typed mock service layer.
+interrupted. 48 routes, all navigable, on a typed mock service layer. **Smart Drive**
+is the charging co-pilot on top: it picks the stop and a backup, watches the trip
+and speaks only when something changes what you should do.
 
 - Demo script: [`docs/DEMO_WALKTHROUGH.md`](docs/DEMO_WALKTHROUGH.md)
 - What is real vs mocked, and open decisions: [`docs/HANDOFF.md`](docs/HANDOFF.md)
 - How the code is organised: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Smart Drive (the automated charging co-pilot): [`docs/SMART_DRIVE.md`](docs/SMART_DRIVE.md)
 - Product spec: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
 
 # Google Maps, location & nearby chargers
@@ -44,11 +47,29 @@ cp .env.example .env     # then fill in the keys above
 - **Android**: `android/app/build.gradle` reads `.env` into the `com.google.android.geo.API_KEY` manifest entry. Rebuild the app.
 - **iOS**: `ios/Podfile` copies the iOS key into the generated `Pods/.../*.xcconfig` as `GOOGLE_MAPS_API_KEY`; `Info.plist` (`GMSApiKey`) and `AppDelegate.swift` pick it up. Run `cd ios && bundle exec pod install` after changing it, then rebuild.
 
+## What you must configure (nothing Google-related is committed)
+
+The map needs a **Maps SDK key per platform**, supplied through `LoginApp/.env` (git-ignored). Without one the app does not pretend: see the table below.
+
+| You want | Set in `.env` | Google Cloud |
+|---|---|---|
+| Map on **Android** | `GOOGLE_MAPS_ANDROID_KEY` (or the dev-only `GOOGLE_MAPS_API_KEY`) | Enable *Maps SDK for Android*. If you restrict the key: package `com.loginapp` and the SHA-1 of the keystore that signed the build. The committed `android/app/debug.keystore` (also used for release builds for now) has SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`; re-read it with `keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android` |
+| Google map on **iOS** | `GOOGLE_MAPS_IOS_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Maps SDK for iOS*; bundle ID `org.reactjs.native.example.LoginApp` |
+| Real nearby chargers | `GOOGLE_PLACES_API_KEY` (or `GOOGLE_MAPS_API_KEY`) | Enable *Places API (New)* |
+
+Write `.env` lines as plain `NAME=value`, with no `export`, no spaces around `=` and no trailing `# comment`: the JS side tolerates more, but the Gradle and CocoaPods steps only read that exact form, and a mismatch would leave the native map without a key even though the app believes it has one.
+
+After editing `.env`: `npm start -- --reset-cache`, `cd ios && bundle exec pod install` (iOS), and rebuild the app (the native build reads the key, not Metro).
+
 ## Behaviour without a key / location
 
-- **No keys**: the app still runs on its built-in demo chargers around New Delhi and iOS uses Apple Maps instead of Google; Places results only appear when a Places key is set.
-- **Grey/blank map on Android** (key set): the key's application restriction (package name + SHA-1 of the keystore that signed the installed build) doesn't match, or "Maps SDK for Android" isn't enabled for the key. Check `adb logcat | grep -i "Google Maps"` for the authorisation message. There is no JS-side fallback for this.
-- **Location denied or unavailable**: the app explains why, searches around New Delhi instead, and the notice has a **Retry** button (the locate button also retries).
+- **Android, no Maps key**: the Home screen shows **"Map isn't available"** with a *View chargers as a list* button instead of a blank grey rectangle (the Google SDK gives the app no error when the key is missing, so the app checks `GOOGLE_MAPS_ANDROID_KEY` / `GOOGLE_MAPS_API_KEY` itself, see `mapsKeyMissing` in `src/config/google.ts`). In a development build the panel also names the variable to set.
+- **iOS, no Maps key**: the app falls back to Apple Maps, which works without configuration. Places results only appear when a Places key is set; otherwise the built-in demo chargers around New Delhi are used.
+- **Grey/blank map on Android with a key set**: the key's application restriction (package name + SHA-1) doesn't match the keystore that signed the installed build, or "Maps SDK for Android" isn't enabled for it. Google reports this only in the log: `adb logcat | grep -i "Google Maps"`. The app cannot detect it.
+- **Map never starts** (Google Play services missing or out of date on the device or emulator): after 15 seconds the Home screen says the map is taking too long, with a **Reload** button. Use an emulator image with *Google Play*.
+- **Location permission denied**: a *Location access needed* card explains it. On Android the first refusal offers **Allow location** (asks again); after one more refusal, and always on iOS (which never asks twice), **Open settings** leads. A dismiss button hides the card. Coming back from Settings re-checks location by itself. The map keeps working around New Delhi in the meantime.
+- **Location services off**: *Location is turned off*, with **Open settings** (Android opens the device's location switch; iOS opens the app's settings page) and **Try again**.
+- **Services on but no position in time** (indoors, weak signal): *Couldn't find your location* with **Try again** only; Settings cannot help here.
 - **Search failed** (quota, key restrictions, offline): the notice shows Google's message with **Retry**.
 
 ## Notes
@@ -56,7 +77,20 @@ cp .env.example .env     # then fill in the keys above
 - Places returns up to 20 stations within 10 km, nearest first. Panning more than 2 km away offers **Search this area**. Tune `SEARCH_RADIUS_M` / `MAX_RESULTS` in `src/config/google.ts`.
 - Google doesn't publish tariffs, so price per kWh is only shown for demo data. Availability shows "Status unknown" when Google doesn't report it.
 - Requesting `places.evChargeOptions` makes each Nearby Search bill at the Places *Enterprise + Atmosphere* SKU (the opening-hours fields alone would be Enterprise); see the [data-fields page](https://developers.google.com/maps/documentation/places/web-service/data-fields) and current pricing before enabling it for many users.
+- `ChargerMap` takes an optional `route` (a list of coordinates) and draws it as a polyline under the markers, so turn-by-turn style routes can be added without touching the map again. Directions still open in the Google Maps app.
 - Native changes (Podfile, manifest, Gradle, AppDelegate) were written without access to Xcode/Android SDK. Please build both platforms once and report anything that doesn't compile.
+
+# Brand assets
+
+The logo is a P with a charge bolt, circled by an orbit route, in the app palette (navy, lime, white). `assets/brand/logo-mark.svg` is the source; everything else is exported from it:
+
+| File | Use |
+|---|---|
+| `assets/brand/logo-mark.png`, `@2x`, `@3x` (96/192/288 px) | In-app mark (`src/ui/BrandLogo.tsx`): rounded tile, transparent corners |
+| `assets/icon/app-icon-1024.png`, `ios/.../AppIcon.appiconset/*` | Store and iOS icons: full-bleed square, no alpha (the OS rounds it) |
+| `android/app/src/main/res/mipmap-*/ic_launcher*.png` | Android launcher: rounded square and circle |
+
+To change the logo, edit the SVG and re-export those files at the same names and sizes; no imports change.
 
 # Login OTP (development)
 

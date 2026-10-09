@@ -49,7 +49,11 @@ const SKIP: ReadonlyArray<RouteName> = ['PresenterTools'];
  */
 export default function PresenterToolsScreen(): React.JSX.Element {
   const nav = useNavigation();
-  const {session: sessionService} = useServices();
+  const {
+    session: sessionService,
+    smartDrive,
+    vehicle: vehicleService,
+  } = useServices();
   const demo = useDemo(s => s);
   const hasSession = useApp(s => s.session !== null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +95,31 @@ export default function PresenterToolsScreen(): React.JSX.Element {
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : 'Couldn’t start the demo session.',
+        'warn',
+      );
+    }
+    setBusy(false);
+  };
+
+  // The product's first scenario: Nexon EV, 72%, Delhi to Jaipur.
+  const startSmartDriveDemo = async () => {
+    setBusy(true);
+    try {
+      if (!appStore.get().vehicles.length) {
+        showToast('Add your car first, then try again.', 'warn');
+        nav.navigate('VehicleSetup');
+      } else {
+        await vehicleService.setBattery(72);
+        await smartDrive.start({
+          fromLabel: 'Delhi',
+          toLabel: 'Jaipur',
+          startSoc: 72,
+        });
+        nav.navigate('SmartDrive');
+      }
+    } catch (e) {
+      showToast(
+        e instanceof Error ? e.message : 'Couldn’t start the Smart Drive demo.',
         'warn',
       );
     }
@@ -163,6 +192,13 @@ export default function PresenterToolsScreen(): React.JSX.Element {
 
       <SectionTitle title="Scenarios" />
       <ListCard>
+        <ListRow
+          icon="sparkles"
+          iconTone="lime"
+          title="Smart Drive: Delhi to Jaipur at 72%"
+          subtitle="Plan the trip, then drive it in the simulator"
+          onPress={startSmartDriveDemo}
+        />
         <ListRow
           icon="zap-off"
           iconTone="warn"

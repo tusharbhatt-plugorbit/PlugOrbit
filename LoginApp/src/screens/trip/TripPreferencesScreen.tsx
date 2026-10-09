@@ -3,6 +3,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
 import {reserveKm, reserveLevel} from '../../domain/socEstimate';
 import type {RouteStrategy, TripPreferences} from '../../domain/types';
+import {suggestionsFrom} from '../../intelligence/preferences';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
@@ -51,8 +52,9 @@ const STRATEGY_HELP: Record<RouteStrategy, string> = {
  */
 export default function TripPreferencesScreen(): React.JSX.Element {
   const nav = useNavigation();
-  const {preferences} = useServices();
+  const {preferences, smartDrive} = useServices();
   const saved = useApp(s => s.tripPrefs);
+  const sd = useApp(s => s.smartDrive);
   const vehicle = useApp(selectActiveVehicle);
 
   const [draft, setDraft] = useState<TripPreferences>(saved);
@@ -68,6 +70,9 @@ export default function TripPreferencesScreen(): React.JSX.Element {
   };
 
   const level = reserveLevel(draft.minArrivalSocPct);
+  // What PlugOrbit noticed about how you choose. It only ever proposes: nothing
+  // changes until you tap, and then it lands in the form below for you to review.
+  const suggestions = suggestionsFrom(sd.signals, draft, sd.dismissed);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const isDefault = JSON.stringify(draft) === JSON.stringify(DEFAULTS);
 
@@ -159,6 +164,45 @@ export default function TripPreferencesScreen(): React.JSX.Element {
         />
       </ListCard>
 
+      <SectionTitle title="Smart Drive" />
+      <ListCard>
+        <ToggleRow
+          title="Smart Drive on for new trips"
+          subtitle="PlugOrbit watches your trip and handles the charging decisions."
+          value={sd.prefs.enabled}
+          onValueChange={v => smartDrive.setEnabled(v)}
+        />
+        <ToggleRow
+          title="Only tell me what matters"
+          subtitle="Plan changes and safety alerts only. Everything else waits in your notifications."
+          value={sd.prefs.verbosity === 'minimal'}
+          onValueChange={v => smartDrive.setVerbosity(v ? 'minimal' : 'calm')}
+          last
+        />
+      </ListCard>
+      <Text style={styles.help}>These save as you change them.</Text>
+
+      {suggestions.map(s => (
+        <View key={s.id} style={styles.block}>
+          <Card tone="lime">
+            <Text style={styles.cardTitle}>{s.title}</Text>
+            <Text style={styles.suggestBody}>{s.detail}</Text>
+            <View style={styles.suggestActions}>
+              <TextButton
+                label="Not now"
+                tone="muted"
+                onPress={() => smartDrive.dismissSuggestion(s.id)}
+              />
+              <PrimaryButton
+                label="Use this"
+                compact
+                onPress={() => setDraft(d => ({...d, ...s.apply}))}
+              />
+            </View>
+          </Card>
+        </View>
+      ))}
+
       {error && (
         <View style={styles.block}>
           <Notice
@@ -210,5 +254,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   help: {...type.caption, color: colors.muted, marginTop: spacing.sm},
+  suggestBody: {
+    ...type.caption,
+    color: colors.inkSoft,
+    marginTop: spacing.xs,
+    lineHeight: 18,
+  },
+  suggestActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
   reset: {alignItems: 'center', marginTop: spacing.lg},
 });

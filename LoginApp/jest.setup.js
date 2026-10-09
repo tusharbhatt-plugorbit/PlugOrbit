@@ -13,15 +13,27 @@ jest.mock('react-native-maps', () => {
   const {View} = require('react-native');
   const MapView = React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({animateToRegion: jest.fn()}));
-    return React.createElement(
-      View,
-      {testID: 'map', ...props},
-      props.children,
-    );
+    // A healthy native map reports ready right after it mounts.
+    React.useEffect(() => {
+      global.__MAP_MOUNTS = (global.__MAP_MOUNTS || 0) + 1;
+      // Tests set global.__MAP_NEVER_READY to simulate a map that cannot start.
+      if (props.onMapReady && !global.__MAP_NEVER_READY) {
+        props.onMapReady();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return React.createElement(View, {testID: 'map', ...props}, props.children);
   });
   const Marker = props => React.createElement(View, props, props.children);
-  const Polyline = () => null;
-  return {__esModule: true, default: MapView, Marker, Polyline, PROVIDER_GOOGLE: 'google'};
+  const Polyline = props =>
+    React.createElement(View, {testID: 'route', ...props});
+  return {
+    __esModule: true,
+    default: MapView,
+    Marker,
+    Polyline,
+    PROVIDER_GOOGLE: 'google',
+  };
 });
 
 // Native geolocation: succeed at the default centre unless a test overrides it.
@@ -33,6 +45,11 @@ jest.mock('@react-native-community/geolocation', () => ({
       success({coords: {latitude: 28.6139, longitude: 77.209}}),
     ),
   },
+}));
+
+// RN's Jest mock of AppState returns no subscription; give listeners one.
+require('react-native').AppState.addEventListener = jest.fn(() => ({
+  remove: jest.fn(),
 }));
 
 // App code: no artificial latency, in-memory storage.

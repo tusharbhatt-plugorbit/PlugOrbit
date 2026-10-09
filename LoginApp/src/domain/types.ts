@@ -18,7 +18,11 @@ export type Vehicle = {
   rangeKm100: number;
 };
 
-export type SocSource = 'manual' | 'vehicle';
+/**
+ * `trip_estimate`: moved along by Smart Drive's own model while a trip is in
+ * progress. Never presented as a reading from the car or as typed in by you.
+ */
+export type SocSource = 'manual' | 'vehicle' | 'trip_estimate';
 
 export type BatteryReading = {
   /** 0-100. */
@@ -110,6 +114,11 @@ export type Station = {
   operatorInstructions: string | null;
   statusFeed: FeedInfo;
   priceFeed: FeedInfo;
+  /**
+   * Cars waiting for a bay. Only ever set from a live operator feed; undefined
+   * means "not reported", never "no queue".
+   */
+  queueLength?: number;
 };
 
 export type StationWithDistance = Station & {
@@ -345,6 +354,9 @@ export type AppNotification = {
   read: boolean;
   /** Where tapping it should go. */
   target: {route: string; params?: Record<string, unknown>} | null;
+  /** Smart Drive notifications say how much they matter. */
+  level?: 'info' | 'action' | 'important' | 'critical';
+  source?: 'smart_drive';
 };
 
 // ------------------------------------------------------------- preferences --

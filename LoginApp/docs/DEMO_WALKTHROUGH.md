@@ -35,6 +35,25 @@ Charging runs 20× faster than real time (`DEMO_TIME_SCALE` in
 | 7 | **Pay** | UPI is the default. Receipt shows the same figures. |
 | 8 | **Rate this stop** | Did it work? Rating, and "confirm for the next driver". Reliability is organic; sponsorship never changes ranking. |
 
+## Smart Drive (about 2 minutes)
+
+**Profile → Presenter tools → Smart Drive: Delhi to Jaipur at 72%** sets up the
+Tata Nexon EV at 72% and opens the trip. Then, on the dashboard:
+
+| # | Do | What to point out |
+|---|----|-------------------|
+| 1 | Read the headline | "You're good to drive." No stop is needed yet. PlugOrbit already has a stop and a backup ready. |
+| 2 | **Drive 25 km** a few times | Silence. The dashboard counts "Checked N times • told you M times". |
+| 3 | Keep driving | One "Charging stop coming up" message with arrival battery, charge target and backup. |
+| 4 | Open **Your stop** | Why this charger, time and cost breakdowns, the figure for *this* car, the backup, **Ask PlugOrbit** chips. |
+| 5 | **Busy charger** | The plan changes once, says why, and offers **Keep original**. |
+| 6 | **Dead charger** | The plan replaces it with no "keep" option (it is not safe). |
+| 7 | **Lose signal** | The plan holds; cached status is never shown as LIVE. **Restore signal** reconciles. |
+| 8 | **Go to the stop** → charge | Start charging opens with the recommended target already set. |
+| 9 | Finish and **End trip** | The trip records what was predicted next to what happened. |
+
+Full reference: [`SMART_DRIVE.md`](SMART_DRIVE.md).
+
 ## Trips
 
 - **Trips → Where to?** (Delhi → Jaipur). At 60% the planner recommends the
@@ -60,7 +79,7 @@ Charging runs 20× faster than real time (`DEMO_TIME_SCALE` in
 | Scenarios → Make my chosen charger occupied | Backup alert and re-route |
 
 Presenter tools also has **Show all screens**, to jump straight to any of the
-49 routes.
+48 routes.
 
 **Restart recovery:** start a session, kill the app, reopen it. You land back on
 the live session. Same for a stopped session awaiting payment and for a failed

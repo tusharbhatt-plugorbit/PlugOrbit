@@ -1,4 +1,6 @@
 import {heldReservation} from '../domain/reservation';
+import {INITIAL_SMART_DRIVE} from '../intelligence/types';
+import type {SmartDriveState} from '../intelligence/types';
 import {DEFAULT_FILTERS} from '../domain/rules';
 import type {
   AlertPreferences,
@@ -58,6 +60,8 @@ export type AppState = {
   paymentMethods: PaymentMethod[];
   /** Feedback already given, so the prompt isn't shown twice. */
   feedbackDone: string[];
+  /** Smart Drive: the trip being watched, what it learned, how to talk to you. */
+  smartDrive: SmartDriveState;
 };
 
 export const INITIAL_STATE: AppState = {
@@ -101,6 +105,7 @@ export const INITIAL_STATE: AppState = {
   queue: null,
   paymentMethods: [],
   feedbackDone: [],
+  smartDrive: INITIAL_SMART_DRIVE,
 };
 
 export const appStore = createStore<AppState>(INITIAL_STATE);
@@ -129,6 +134,7 @@ const PERSISTED_KEYS: ReadonlyArray<keyof AppState> = [
   'queue',
   'paymentMethods',
   'feedbackDone',
+  'smartDrive',
 ];
 
 // Bump when the persisted shape changes; old blobs are then ignored safely.
@@ -196,6 +202,8 @@ export function useApp<S>(selector: (s: AppState) => S): S {
 
 export const selectActiveVehicle = (s: AppState): Vehicle | null =>
   s.vehicles.find(v => v.id === s.activeVehicleId) ?? null;
+
+export const selectTrip = (s: AppState) => s.smartDrive.trip;
 
 export function getActiveVehicle(): Vehicle | null {
   return selectActiveVehicle(appStore.get());

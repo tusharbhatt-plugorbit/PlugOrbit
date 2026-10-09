@@ -12,7 +12,13 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import {Text} from 'react-native';
 import {ROUTE_FIXTURES} from '../src/dev/fixtures';
-import {TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
+import {noon} from '../src/dev/smartDriveFixtures';
+import {
+  TestApp,
+  probe,
+  seedSignedIn,
+  seedSmartDriveTrip,
+} from '../src/dev/testHarness';
 import {REGISTRY} from '../src/navigation/registry';
 import {RouteName, TABS, TabName, isTab} from '../src/navigation/params';
 
@@ -31,6 +37,13 @@ const SESSION_FOR: Partial<
   PaymentFailure: 'payment_failed',
 };
 
+// These only mean something while a trip is being watched. The clock is pinned
+// to midday so opening hours never depend on when the suite runs.
+const NEEDS_TRIP: ReadonlySet<RouteName> = new Set<RouteName>([
+  'SmartDrive',
+  'SmartDriveStop',
+]);
+
 const settle = async () => {
   for (let i = 0; i < 4; i++) {
     await act(async () => {
@@ -42,7 +55,13 @@ const settle = async () => {
 async function open(
   route: RouteName,
 ): Promise<ReactTestRenderer.ReactTestRenderer> {
+  if (NEEDS_TRIP.has(route)) {
+    jest.setSystemTime(noon());
+  }
   seedSignedIn({session: SESSION_FOR[route]});
+  if (NEEDS_TRIP.has(route)) {
+    seedSmartDriveTrip({started: true, km: 20});
+  }
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(

@@ -1,6 +1,9 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  AppState,
+  Linking,
+  Platform,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -10,6 +13,8 @@ import {
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import ChargerMap, {ChargerMapHandle} from '../../components/ChargerMap';
+import {MapUnavailable} from '../../components/MapUnavailable';
+import {mapsKeyMissing} from '../../config/google';
 import {
   applyFilters,
   availableCount,
@@ -18,12 +23,16 @@ import {
   rankOrganic,
 } from '../../domain/rules';
 import type {StationWithDistance} from '../../domain/types';
+import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
+import {idleStatus, tripStatus} from '../../intelligence/status';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
 import {useNavigation} from '../../navigation/NavigationContext';
-import {selectActiveVehicle, useApp} from '../../store/appStore';
+import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
 import {
+  CopilotStrip,
   Icon,
+  LocationPermissionState,
   LogoTile,
   MapChargerCard,
   OfflineBanner,
@@ -46,6 +55,11 @@ const NEAR_KM = 3;
 // point the current results were centred on.
 const RESEARCH_KM = 2;
 
+// A native map normally reports ready within a second or two. If it has not
+// after this long (Play Services missing or out of date, a broken provider),
+// say so instead of leaving a blank rectangle.
+const MAP_READY_TIMEOUT_MS = 15_000;
+
 /**
  * Home / Map (03). The approved layout: dark header with title, white search
  * field, filter chips, then the map with a bottom station card. Extended with
@@ -59,6 +73,9 @@ function HomeScreen(): React.JSX.Element {
   const vehicle = useApp(selectActiveVehicle);
   const filters = useApp(s => s.filters);
   const unread = useApp(s => s.notifications.some(n => !n.read));
+  const trip = useApp(selectTrip);
+  const battery = useApp(s => s.battery);
+  const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
   const {phase, stations, userLocation, origin, notice, refresh, searchAt} =
     useNearbyStations(vehicle);
 
@@ -67,6 +84,17 @@ function HomeScreen(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<Coords | null>(null);
   const autoSelected = useRef(false);
+  const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'failed'>(
+    'loading',
+  );
+  // Bumped to remount the map when the person taps Retry.
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const [permissionDismissed, setPermissionDismissed] = useState(false);
+  // Times the person asked again after a refusal; one failed retry means the
+  // OS will not ask any more, so Settings becomes the main action.
+  const [retries, setRetries] = useState(0);
+  // Set when we sent them to Settings, so coming back re-checks location.
+  const wentToSettings = useRef(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -115,6 +143,8 @@ function HomeScreen(): React.JSX.Element {
 
   const select = useCallback(
     (id: string) => {
+      // Picking a charger means getting on with it: stop asking about location.
+      setPermissionDismissed(true);
       setSelectedId(id);
       const s = visible.find(x => x.id === id);
       if (s) {
@@ -140,15 +170,104 @@ function HomeScreen(): React.JSX.Element {
     }
   }, [mapCenter, searchAt]);
 
+  // Report a map that never finishes initialising (not when it is not drawn).
+  useEffect(() => {
+    if (mapsKeyMissing) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setMapStatus(s => (s === 'ready' ? s : 'failed')),
+      MAP_READY_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [mapAttempt]);
+
+  const retryMap = useCallback(() => {
+    setMapStatus('loading');
+    setMapAttempt(n => n + 1);
+  }, []);
+  const onMapReady = useCallback(() => setMapStatus('ready'), []);
+
+  const retryLocation = useCallback(() => {
+    setPermissionDismissed(false);
+    setRetries(n => n + 1);
+    refresh();
+  }, [refresh]);
+
   const busy = phase !== 'ready';
   const showSearchHere =
     !busy && mapCenter !== null && distanceKm(mapCenter, origin) > RESEARCH_KM;
   const canRetry =
     notice?.kind === 'location-denied' ||
     notice?.kind === 'location-unavailable' ||
+    notice?.kind === 'location-no-fix' ||
     notice?.kind === 'search-failed' ||
     notice?.kind === 'offline';
+  const permissionIssue =
+    notice?.kind === 'location-denied'
+      ? 'denied'
+      : notice?.kind === 'location-unavailable'
+      ? 'unavailable'
+      : notice?.kind === 'location-no-fix'
+      ? 'no-fix'
+      : null;
+  // Services off needs the device's location switch; a denial needs the app's
+  // permission page (iOS never asks twice, Android stops after "don't ask").
+  const settingsFirst =
+    permissionIssue === 'unavailable' ||
+    (permissionIssue === 'denied' && (Platform.OS === 'ios' || retries > 0));
+  const openSettings = useCallback(() => {
+    wentToSettings.current = true;
+    const toLocationSwitch =
+      permissionIssue === 'unavailable' && Platform.OS === 'android';
+    Promise.resolve(
+      toLocationSwitch
+        ? Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS')
+        : Linking.openSettings(),
+    ).catch(() =>
+      Promise.resolve(Linking.openSettings()).catch(() => undefined),
+    );
+  }, [permissionIssue]);
+
+  // Back from Settings: look again, so the map follows without another tap.
+  useEffect(() => {
+    if (!permissionIssue) {
+      return;
+    }
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active' && wentToSettings.current) {
+        wentToSettings.current = false;
+        refresh();
+      }
+    });
+    return () => sub.remove();
+  }, [permissionIssue, refresh]);
+  const showPermissionCard =
+    !busy && permissionIssue !== null && !permissionDismissed;
   const activeFilters = countActiveFilters(filters);
+
+  // The co-pilot's line: the trip's status when there is one, else the battery's.
+  const copilot = trip
+    ? tripStatus(trip)
+    : idleStatus({
+        soc: battery?.percent ?? null,
+        vehicle,
+        reservePct: reserve,
+        criticalPct: DEFAULT_SMART_DRIVE_CONFIG.batteryCriticalPct,
+      });
+  const copilotLow = !trip && copilot.tone === 'alert';
+  const openCopilot = () => {
+    if (!vehicle) {
+      nav.navigate('VehicleSetup');
+    } else if (!trip && battery === null) {
+      nav.navigate('ManualSoc');
+    } else if (copilotLow) {
+      // Running low and nowhere in particular to be: the nearest chargers.
+      nav.navigate('StationList');
+    } else {
+      nav.navigate('SmartDrive');
+    }
+  };
   const cardBottom = spacing.xl + insets.bottom * 0;
 
   return (
@@ -219,20 +338,40 @@ function HomeScreen(): React.JSX.Element {
         })}
       </View>
 
+      <CopilotStrip
+        status={copilot}
+        onPress={openCopilot}
+        actionLabel={
+          trip
+            ? 'Open'
+            : !vehicle || battery === null
+            ? 'Set up'
+            : copilotLow
+            ? 'Find charger'
+            : 'Where to?'
+        }
+      />
+
       <View style={styles.map}>
         <OfflineBanner />
         <View style={styles.flex}>
-          <ChargerMap
-            ref={mapRef}
-            initialCenter={origin}
-            chargers={visible}
-            vehicle={vehicle}
-            selectedId={selected?.id ?? null}
-            showUserLocation={userLocation !== null}
-            onSelect={select}
-            onDeselect={deselect}
-            onCenterChange={setMapCenter}
-          />
+          {mapsKeyMissing ? (
+            <MapUnavailable onViewList={() => nav.navigate('StationList')} />
+          ) : (
+            <ChargerMap
+              key={mapAttempt}
+              ref={mapRef}
+              initialCenter={origin}
+              chargers={visible}
+              vehicle={vehicle}
+              selectedId={selected?.id ?? null}
+              showUserLocation={userLocation !== null}
+              onSelect={select}
+              onDeselect={deselect}
+              onCenterChange={setMapCenter}
+              onReady={onMapReady}
+            />
+          )}
 
           <View style={styles.overlayTop} pointerEvents="box-none">
             <VehicleSelector tone="light" />
@@ -264,14 +403,33 @@ function HomeScreen(): React.JSX.Element {
               </Pressable>
             )}
 
-            {!busy && notice && (
+            {mapStatus === 'failed' && !mapsKeyMissing && (
+              <View
+                style={[styles.notice, elevation(1)]}
+                accessibilityRole="alert">
+                <Text style={styles.noticeText}>
+                  {Platform.OS === 'android'
+                    ? 'The map is taking too long to load. Check your connection and Google Play services.'
+                    : 'The map is taking too long to load. Check your connection.'}
+                </Text>
+                <Pressable
+                  onPress={retryMap}
+                  hitSlop={14}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reload map">
+                  <Text style={styles.noticeAction}>Reload</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {!busy && notice && !showPermissionCard && (
               <View
                 style={[styles.notice, elevation(1)]}
                 accessibilityRole="alert">
                 <Text style={styles.noticeText}>{notice.message}</Text>
                 {canRetry && (
                   <Pressable
-                    onPress={refresh}
+                    onPress={retryLocation}
                     hitSlop={10}
                     accessibilityRole="button"
                     accessibilityLabel="Try again">
@@ -293,17 +451,19 @@ function HomeScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.mapButtons} pointerEvents="box-none">
-            <Pressable
-              onPress={recenter}
-              accessibilityRole="button"
-              accessibilityLabel="Go to my location"
-              style={({pressed}) => [
-                styles.mapBtn,
-                elevation(2),
-                pressed && styles.pillPressed,
-              ]}>
-              <Icon name="locate-fixed" size={20} color={colors.ink} />
-            </Pressable>
+            {!mapsKeyMissing && (
+              <Pressable
+                onPress={recenter}
+                accessibilityRole="button"
+                accessibilityLabel="Go to my location"
+                style={({pressed}) => [
+                  styles.mapBtn,
+                  elevation(2),
+                  pressed && styles.pillPressed,
+                ]}>
+                <Icon name="locate-fixed" size={20} color={colors.ink} />
+              </Pressable>
+            )}
             <Pressable
               onPress={() => nav.navigate('Filters')}
               accessibilityRole="button"
@@ -326,7 +486,21 @@ function HomeScreen(): React.JSX.Element {
             </Pressable>
           </View>
 
-          {selected ? (
+          {showPermissionCard && permissionIssue && (
+            <View style={[styles.permissionDock, {bottom: cardBottom}]}>
+              <LocationPermissionState
+                kind={permissionIssue}
+                onRetry={retryLocation}
+                onOpenSettings={
+                  permissionIssue === 'no-fix' ? undefined : openSettings
+                }
+                settingsFirst={settingsFirst}
+                onDismiss={() => setPermissionDismissed(true)}
+              />
+            </View>
+          )}
+
+          {selected && !showPermissionCard && !mapsKeyMissing ? (
             <MapChargerCard
               station={selected}
               vehicle={vehicle}
@@ -342,7 +516,9 @@ function HomeScreen(): React.JSX.Element {
               }
             />
           ) : (
-            visible.length > 0 && (
+            visible.length > 0 &&
+            !mapsKeyMissing &&
+            !showPermissionCard && (
               <Pressable
                 onPress={() => nav.navigate('StationList')}
                 accessibilityRole="button"
@@ -492,6 +668,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterBadgeText: {...type.micro, color: colors.ink},
+  // Same slot as the charger card, which steps aside while this is showing.
+  permissionDock: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+  },
   listPill: {
     position: 'absolute',
     alignSelf: 'center',

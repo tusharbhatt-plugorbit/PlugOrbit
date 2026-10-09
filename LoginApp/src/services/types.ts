@@ -24,6 +24,9 @@ import type {
   Vehicle,
   WaitEstimate,
 } from '../domain/types';
+import type {CopilotAnswer, QuestionId} from '../intelligence/explain';
+import type {EventInput} from '../intelligence/sessionBridge';
+import type {ActiveTrip, TripOutcome, TripUpdate} from '../intelligence/types';
 import type {Coords} from '../utils/geo';
 
 /**
@@ -204,7 +207,67 @@ export interface PreferencesService {
   eraseHistory(): Promise<void>;
 }
 
+export type StartSmartDriveInput = {
+  fromLabel: string;
+  toLabel: string;
+  /** Defaults to the battery on record. */
+  startSoc?: number;
+};
+
+/**
+ * Smart Drive: the co-pilot that watches a trip and makes the charging
+ * decisions. In production this is the SERVER's job (it keeps monitoring when
+ * the phone is asleep); the app only reports location and battery, shows the
+ * result and receives pushes. The contract is the same either way, because the
+ * engine behind it is a pure function of events and a snapshot of the world.
+ * TODO(integration): backend trip service + push notifications (FCM / APNs).
+ */
+export interface SmartDriveService {
+  /** Work out the trip, pick the stop and its backup, and begin watching. */
+  start(input: StartSmartDriveInput): Promise<ActiveTrip>;
+  /** The driver sets off. */
+  begin(): Promise<TripUpdate>;
+  /** Reassess now. Safe to call as often as you like; mostly says nothing. */
+  tick(): Promise<TripUpdate | null>;
+  /**
+   * Move the (simulated) car along the route. A real build feeds location from
+   * the phone's GPS instead. TODO(integration): device location -> progress.
+   */
+  advance(km: number): Promise<TripUpdate>;
+  /** Report something that happened elsewhere (charging started, battery...). */
+  report(event: EventInput): Promise<TripUpdate>;
+  /** Take a different charger from the safe options. */
+  switchTo(stationId: string): Promise<TripUpdate>;
+  /** Undo a plan change and keep the charger that was planned before. */
+  keepOriginal(): Promise<TripUpdate>;
+  /** Explain the plan in plain words. Never changes it. */
+  ask(question: QuestionId): Promise<CopilotAnswer>;
+  setEnabled(enabled: boolean): Promise<void>;
+  /** `minimal` lets only plan changes and safety alerts through. */
+  setVerbosity(verbosity: 'calm' | 'minimal'): Promise<void>;
+  /** Remember that the driver doesn't want this preference suggestion again. */
+  dismissSuggestion(id: string): Promise<void>;
+  /** Finish (or abandon) the trip; keeps prediction versus reality. */
+  end(): Promise<TripOutcome | null>;
+  /** Presenter controls. Mock only: a real backend has no such thing. */
+  demo: SmartDriveDemo;
+}
+
+export interface SmartDriveDemo {
+  /** Fill the chosen (default: planned) charger, with cars queueing. */
+  occupy(stationId?: string, queue?: number): Promise<TripUpdate>;
+  /** Take the chosen (default: planned) charger offline. */
+  takeOffline(stationId?: string): Promise<TripUpdate>;
+  /** Drive until the planned stop is reached. */
+  driveToStop(): Promise<TripUpdate>;
+  /** Lose, or regain, phone signal. */
+  setSignal(online: boolean): Promise<TripUpdate | null>;
+  /** Back to the real mock data. */
+  reset(): void;
+}
+
 export type Services = {
+  smartDrive: SmartDriveService;
   vehicle: VehicleService;
   station: StationService;
   route: RouteService;

@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Text, TextInput} from 'react-native';
+import {AppState, Linking, Platform, Text, TextInput} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import {DEFAULT_CENTER} from '../src/config/google';
 import {NEXON, TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
@@ -20,6 +20,8 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const getCurrentPosition = Geolocation.getCurrentPosition as jest.Mock;
 const USER = {latitude: 28.6139, longitude: 77.209};
+const LOCATION_BODY =
+  'Enable location permission to find EV chargers near you.';
 
 const flush = async () => {
   for (let i = 0; i < 5; i++) {
@@ -111,6 +113,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  (globalThis as unknown as {__MAP_NEVER_READY?: boolean}).__MAP_NEVER_READY =
+    false;
   await act(async () => {
     mounted.splice(0).forEach(r => r.unmount());
   });
@@ -247,22 +251,170 @@ describe('location and search', () => {
     const nearby = jest.fn(stationService.nearby);
     const r = await renderHome({station: {...stationService, nearby}});
     expect(nearby.mock.calls[0][0].origin).toEqual(DEFAULT_CENTER);
-    expect(textsOf(r)).toContain(
-      'Location is off. Showing chargers near New Delhi.',
-    );
+    expect(textsOf(r)).toContain('Location access needed');
+    expect(textsOf(r)).toContain(LOCATION_BODY);
 
-    await press(r, 'Try again');
-    expect(textsOf(r)).not.toContain(
-      'Location is off. Showing chargers near New Delhi.',
-    );
+    await press(r, 'Allow location');
+    expect(textsOf(r)).not.toContain('Location access needed');
+    expect(nearby.mock.calls.at(-1)?.[0].origin).toEqual(USER);
   });
 
   test('presenter location-denied switch behaves the same', async () => {
     demoStore.set({locationDenied: true});
     const r = await renderHome();
+    expect(textsOf(r)).toContain('Location access needed');
+    // Still usable: chargers around the default centre are on the map.
+    expect(markerLabels(r).length).toBeGreaterThan(0);
+  });
+
+  test('denied location offers Settings, and the card can be set aside', async () => {
+    demoStore.set({locationDenied: true});
+    const openSettings = jest.spyOn(Linking, 'openSettings');
+    openSettings.mockResolvedValue(undefined);
+    const r = await renderHome();
+
+    // Jest runs as iOS, which never asks twice: Settings leads.
+    await press(r, 'Open settings');
+    expect(openSettings).toHaveBeenCalledTimes(1);
+
+    await press(r, 'Dismiss');
+    expect(textsOf(r)).not.toContain('Location access needed');
+    // The short notice stays, with its own retry.
     expect(textsOf(r)).toContain(
       'Location is off. Showing chargers near New Delhi.',
     );
+    expect(textsOf(r)).toContain('Retry');
+    openSettings.mockRestore();
+  });
+
+  test('location services being off gets its own wording', async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) =>
+      fail({code: 2, message: 'unavailable'}),
+    );
+    const r = await renderHome();
+    expect(textsOf(r)).toContain('Location is turned off');
+    expect(textsOf(r)).toContain('Try again');
+    expect(textsOf(r)).not.toContain('Allow location');
+  });
+
+  test('no position in time is not called "turned off", and Settings is not offered', async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) =>
+      fail({code: 3, message: 'timeout'}),
+    );
+    const r = await renderHome();
+    expect(textsOf(r)).toContain('Couldn’t find your location');
+    expect(textsOf(r)).not.toContain('Location is turned off');
+    expect(
+      pressables(r).some(n => n.props.accessibilityLabel === 'Settings'),
+    ).toBe(false);
+    expect(textsOf(r)).toContain('Try again');
+  });
+
+  test('services off puts Settings first, and returning from Settings looks again', async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) =>
+      fail({code: 2, message: 'unavailable'}),
+    );
+    const openSettings = jest
+      .spyOn(Linking, 'openSettings')
+      .mockResolvedValue(undefined);
+    let appStateListener: ((s: string) => void) | undefined;
+    const sub = {remove: jest.fn()};
+    const addListener = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation(((_: string, cb: (s: string) => void) => {
+        appStateListener = cb;
+        return sub;
+      }) as never);
+    const r = await renderHome();
+    expect(textsOf(r)).toContain('Open settings');
+
+    const callsBefore = getCurrentPosition.mock.calls.length;
+    // Coming back without having gone to Settings does nothing (no prompt loop).
+    await act(async () => appStateListener?.('active'));
+    expect(getCurrentPosition.mock.calls.length).toBe(callsBefore);
+
+    await press(r, 'Open settings');
+    expect(openSettings).toHaveBeenCalledTimes(1);
+    getCurrentPosition.mockImplementation(success => success({coords: USER}));
+    await act(async () => appStateListener?.('active'));
+    await flush();
+    expect(getCurrentPosition.mock.calls.length).toBeGreaterThan(callsBefore);
+    expect(textsOf(r)).not.toContain('Location is turned off');
+
+    // Hand back the shared stub (jest.setup.js) for the tests that follow.
+    addListener.mockImplementation((() => ({remove: jest.fn()})) as never);
+    openSettings.mockRestore();
+  });
+
+  test('on Android the first refusal can still be retried; after one, Settings leads', async () => {
+    const os = Platform.OS;
+    Platform.OS = 'android';
+    demoStore.set({locationDenied: true});
+    const r = await renderHome();
+    expect(textsOf(r)).toContain('Allow location');
+    expect(textsOf(r)).not.toContain('Open settings');
+
+    await press(r, 'Allow location');
+    expect(textsOf(r)).toContain('Open settings');
+    Platform.OS = os;
+  });
+
+  test('the list shortcut and charger card step aside while the location card is up', async () => {
+    demoStore.set({locationDenied: true});
+    const r = await renderHome();
+    const hasPill = () =>
+      pressables(r).some(n => /View list of/.test(n.props.accessibilityLabel));
+    expect(hasPill()).toBe(false);
+    expect(textsOf(r)).not.toContain('Directions');
+
+    await press(r, 'Dismiss');
+    expect(textsOf(r)).toContain('Directions');
+    await press(r, 'Close details');
+    expect(hasPill()).toBe(true);
+  });
+
+  test('a map that never starts is reported, and Reload remounts and re-arms it', async () => {
+    const g = globalThis as unknown as {
+      __MAP_NEVER_READY?: boolean;
+      __MAP_MOUNTS?: number;
+    };
+    g.__MAP_NEVER_READY = true;
+    g.__MAP_MOUNTS = 0;
+    const r = await renderHome();
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
+    expect(g.__MAP_MOUNTS).toBe(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(15_000);
+    });
+    expect(textsOf(r).join(' ')).toContain('The map is taking too long');
+
+    // Reload while the map still cannot start: a fresh map is mounted, the
+    // warning goes away, and it comes back after another 15 seconds.
+    await press(r, 'Reload map');
+    expect(g.__MAP_MOUNTS).toBe(2);
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
+    await act(async () => {
+      jest.advanceTimersByTime(15_000);
+    });
+    expect(textsOf(r).join(' ')).toContain('The map is taking too long');
+
+    // Reload when it can start: it is ready, and the warning stays away.
+    g.__MAP_NEVER_READY = false;
+    await press(r, 'Reload map');
+    expect(g.__MAP_MOUNTS).toBe(3);
+    await act(async () => {
+      jest.advanceTimersByTime(30_000);
+    });
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
+  });
+
+  test('a healthy map never shows the load warning', async () => {
+    const r = await renderHome();
+    await act(async () => {
+      jest.advanceTimersByTime(20_000);
+    });
+    expect(textsOf(r).join(' ')).not.toContain('taking too long');
   });
 
   test('a failed search keeps the screen usable and Retry recovers', async () => {

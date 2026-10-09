@@ -2,7 +2,8 @@ import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import type {Vehicle} from '../domain/types';
 import {colors, elevation, radii, spacing, type} from '../theme';
-import {Pill, typeLabel} from './Badges';
+import {typeLabel} from './Badges';
+import {ConnectorTag} from './ConnectorSelectionCard';
 import {Icon} from './Icon';
 
 /** Anything with a car's technical specs: a catalogue model or a saved vehicle. */
@@ -111,7 +112,7 @@ export function VehicleSpecCard({
 
       <View style={styles.connectors}>
         {spec.connectors.map(c => (
-          <Pill key={c} label={typeLabel(c)} tone="slate" icon="plug" />
+          <ConnectorTag key={c} type={c} />
         ))}
       </View>
       {footer ? <View style={styles.footer}>{footer}</View> : null}

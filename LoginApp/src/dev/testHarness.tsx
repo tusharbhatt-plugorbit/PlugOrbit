@@ -6,10 +6,14 @@ import {REGISTRY} from '../navigation/registry';
 import {ServicesProvider, createMockServices} from '../services';
 import type {Services} from '../services/types';
 import {VEHICLE_CATALOG} from '../services/mock/data';
-import {resetAppStore} from '../store/appStore';
+import {appStore, resetAppStore} from '../store/appStore';
 import {resetDemo} from '../store/demoStore';
 import {seedState} from '../store/seed';
 import type {ChargingSession} from '../domain/types';
+import type {ActiveTrip} from '../intelligence/types';
+import {setTrip} from '../store/smartDriveActions';
+import {resetSmartDriveMock} from '../services/mock/smartDriveService';
+import {ScenarioDriver} from './scenarioDriver';
 
 export const NEXON = {...VEHICLE_CATALOG[0], id: 'veh-1'};
 
@@ -47,6 +51,8 @@ export function seedSignedIn(
 ) {
   const now = Date.now();
   resetDemo();
+  // Presenter overlays are module state; never let one test's charger fill the next's.
+  resetSmartDriveMock();
   resetAppStore({
     ...seedState(now),
     hydrated: true,
@@ -103,4 +109,31 @@ export function TestApp({
       />
     </ServicesProvider>
   );
+}
+
+/**
+ * Put a Smart Drive trip (Nexon, Delhi to Jaipur) in the store, optionally set
+ * off and partway along. Call after `seedSignedIn`, with the clock faked to
+ * `noon()` so opening hours never depend on when the tests run.
+ */
+export function seedSmartDriveTrip(
+  opts: {soc?: number; started?: boolean; km?: number} = {},
+): ActiveTrip {
+  const d = new ScenarioDriver({soc: opts.soc ?? 72, now: Date.now()});
+  if (opts.started || opts.km) {
+    d.start();
+  }
+  if (opts.km) {
+    d.driveTo(opts.km);
+  }
+  const trip = {...d.trip, clockOffsetMs: d.now - Date.now()};
+  setTrip(trip);
+  appStore.set({
+    battery: {
+      percent: Math.round(d.trip.currentSoC),
+      source: 'trip_estimate',
+      updatedAt: Date.now(),
+    },
+  });
+  return trip;
 }

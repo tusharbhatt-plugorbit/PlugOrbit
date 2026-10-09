@@ -64,6 +64,9 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
   MultiStop: undefined,
   Privacy: undefined,
 
+  SmartDrive: undefined,
+  SmartDriveStop: undefined,
+
   PresenterTools: undefined,
 };
 
