@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # DEVELOPMENT ONLY: when a code cannot be emailed/texted, hand it back in the API
     # response so the app can show it on screen. Turn off outside development.
     otp_dev_fallback: bool = True
+    # DEVELOPMENT ONLY. A code shown on screen (dev fallback) proves nothing about the inbox
+    # or phone, so by default it signs the app in locally but does NOT open a Firebase
+    # session (which would expose that account's cloud data to anyone who can reach the API).
+    # Set true on a local dev machine without email/SMS to try cloud sync with on-screen codes.
+    otp_dev_fallback_sessions: bool = False
     # Prepended to mobile numbers typed without a country code.
     default_country_code: str = "+91"
 

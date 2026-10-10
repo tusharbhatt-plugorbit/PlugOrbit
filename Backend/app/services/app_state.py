@@ -11,8 +11,8 @@ Only the Admin SDK reaches this data; the live security rules deny every client.
 """
 import json
 import logging
+import uuid
 from contextlib import contextmanager
-from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -116,14 +116,21 @@ def list_state(uid: str) -> dict[str, dict]:
             except (KeyError, TypeError, ValueError):
                 log.warning("Skipping unreadable slice '%s' for user %s", snap.id, uid)
                 continue
-            out[snap.id] = {"value": value, "updated_at": data.get("updatedAt")}
+            out[snap.id] = {"value": value, "updated_at": data.get("updatedAt"),
+                            "schema_version": data.get("schema"), "rev": data.get("rev")}
     return out
 
 
-def put_state(uid: str, slices: dict[str, Any]) -> dict[str, datetime]:
+def put_state(uid: str, slices: dict[str, Any], schema_version: int = 1) -> dict[str, dict]:
     """Replace the given slices (all or nothing); other slices are untouched.
-    Returns when each was written."""
+    Returns {name: {"rev": ..., "updated_at": ...}} for what was written.
+
+    `rev` is a fresh random token per write and is what clients compare to learn "has this
+    slice changed since I last saw it". It is exact and independent of clocks, unlike
+    updatedAt: Firestore resolves SERVER_TIMESTAMP at request time but reports the commit time
+    as the write's update_time, so the two differ by tens of milliseconds."""
     encoded = encode_slices(slices)
+    revs = {name: uuid.uuid4().hex for name in encoded}
     with _database_errors():
         db = get_db()
         batch = db.batch()
@@ -132,7 +139,10 @@ def put_state(uid: str, slices: dict[str, Any]) -> dict[str, datetime]:
             batch.set(_collection(uid).document(name), {
                 "json": encoded[name],
                 "bytes": len(encoded[name].encode("utf-8")),
+                "schema": schema_version,
+                "rev": revs[name],
                 "updatedAt": firestore.SERVER_TIMESTAMP,
             })
         results = batch.commit()
-    return {name: result.update_time for name, result in zip(names, results)}
+    return {name: {"rev": revs[name], "updated_at": result.update_time}
+            for name, result in zip(names, results)}

@@ -145,6 +145,11 @@ export default function PrivacyScreen(): React.JSX.Element {
           body="Typed in by you, or read from your car if you connect it. We always say which."
         />
         <ExplainRow
+          icon="cloud"
+          title="Backup"
+          body="When you sign in, your cars, history, tickets, saved routes and settings are backed up to your PlugOrbit account (stored with Google Firebase) so a new phone can restore them. Erasing your history here erases that copy too."
+        />
+        <ExplainRow
           icon="credit-card"
           title="Payments"
           body="Held and charged through your bank or UPI app. We keep only a masked label, never a full card number or your UPI PIN."
@@ -157,7 +162,7 @@ export default function PrivacyScreen(): React.JSX.Element {
         <Notice
           tone="info"
           title="Demo build"
-          body="Your choices are saved on this device, but only the vehicle battery switch changes behaviour in this demo. The others are applied once the backend is connected."
+          body="Your choices are saved on this device and backed up to your account when you are signed in, but only the vehicle battery switch changes behaviour in this demo. The others are applied once the backend enforces them."
         />
       </View>
 

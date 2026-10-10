@@ -16,6 +16,8 @@ import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import MainApp from './src/app/MainApp';
 import {ServicesProvider} from './src/services';
 import {OtpError, requestOtp, verifyOtp} from './src/services/otpApi';
+import {clearSession, saveSession} from './src/services/session';
+import {startCloudSync} from './src/store/cloudSync';
 import type {OtpSendResult} from './src/services/otpApi';
 import {appStore, hydrateAppStore, useApp} from './src/store/appStore';
 import {startDemoPersistence} from './src/store/demoStore';
@@ -111,6 +113,15 @@ function AppContent(): React.JSX.Element {
     startDemoPersistence();
     hydrateAppStore();
   }, []);
+
+  // Cloud backup runs while signed in (it does nothing without a cloud session). It is
+  // not stopped here when signedIn flips to false: signing out goes through
+  // endCloudSession(), which gives pending edits one last upload before stopping.
+  useEffect(() => {
+    if (hydrated && signedIn) {
+      startCloudSync();
+    }
+  }, [hydrated, signedIn]);
 
   // Saved sign-in goes straight to the app; signing out returns to Welcome.
   useEffect(() => {
@@ -363,9 +374,15 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
 
     const request = beginRequest();
     try {
-      await verifyOtp(identifier.trim(), otp, request.signal);
+      const session = await verifyOtp(identifier.trim(), otp, request.signal);
       if (!request.isCurrent()) {
         return;
+      }
+      // Keep the cloud session (or drop a stale one) before the app starts using it.
+      if (session) {
+        await saveSession(session);
+      } else {
+        await clearSession();
       }
       onAuthenticated();
     } catch (e) {

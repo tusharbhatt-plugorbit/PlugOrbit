@@ -1,4 +1,6 @@
 import {API_BASE_URL} from '../config/api';
+import {sessionFromVerify} from './session';
+import type {CloudSession} from './session';
 
 // Login OTP client for the Backend's POST /auth/otp/send and /auth/otp/verify.
 //
@@ -229,12 +231,17 @@ export async function requestOtp(
   return issueLocalCode(identifier);
 }
 
-/** Checks a code. Resolves when it is right and throws OtpError otherwise. */
+/**
+ * Checks a code. Throws OtpError unless it is right. Resolves to the cloud session the
+ * Backend opened for this user, or undefined when it opened none (no Firebase on the
+ * Backend, a code that was shown on screen, or a code generated on this device): the
+ * app then signs in on this device only, exactly as it did before cloud backup.
+ */
 export async function verifyOtp(
   identifier: string,
   code: string,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<CloudSession | undefined> {
   if (signal?.aborted) {
     throw abortedError();
   }
@@ -242,7 +249,7 @@ export async function verifyOtp(
   const local = localCodes.get(key);
   if (local) {
     checkLocalCode(key, local, code);
-    return;
+    return undefined;
   }
   const response = await post('/auth/otp/verify', {identifier, code}, signal);
   if (response) {
@@ -255,7 +262,14 @@ export async function verifyOtp(
       isRecord(response.body) &&
       response.body.verified === true
     ) {
-      return;
+      const status = response.body.session_status;
+      if (__DEV__ && typeof status === 'string' && status !== 'ready') {
+        // Not an error: the user is signed in on this device, just without cloud backup.
+        console.warn(
+          `Signed in without cloud backup (session_status: ${status}). See Backend/.env.example (OTP_DEV_FALLBACK_SESSIONS).`,
+        );
+      }
+      return sessionFromVerify(response.body.session) ?? undefined;
     }
   }
   throw networkError();

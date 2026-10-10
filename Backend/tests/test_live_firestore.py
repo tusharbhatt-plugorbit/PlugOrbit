@@ -40,7 +40,7 @@ def test_create_read_update_delete_against_real_firestore(uid):
 
     # create
     written = app_state.put_state(uid, {"vehicles": [{"id": "v1", "name": "Nexon EV"}], "savedRoutes": [route]})
-    assert set(written) == {"vehicles", "savedRoutes"} and all(written.values())
+    assert set(written) == {"vehicles", "savedRoutes"} and all(w["rev"] and w["updated_at"] for w in written.values())
 
     # read
     state = app_state.list_state(uid)
@@ -48,10 +48,13 @@ def test_create_read_update_delete_against_real_firestore(uid):
     assert state["savedRoutes"]["value"] == [route]
     first_write = state["vehicles"]["updated_at"]
     assert first_write is not None
+    # the revision a write reports is exactly what a later read reports (clients rely on this)
+    assert state["vehicles"]["rev"] == written["vehicles"]["rev"]
 
     # update: replaces the named slice, leaves the other alone, moves the server timestamp forward
-    app_state.put_state(uid, {"vehicles": []})
+    rewritten = app_state.put_state(uid, {"vehicles": []})
     state = app_state.list_state(uid)
+    assert state["vehicles"]["rev"] == rewritten["vehicles"]["rev"] != written["vehicles"]["rev"]
     assert state["vehicles"]["value"] == []
     assert state["vehicles"]["updated_at"] >= first_write
     assert state["savedRoutes"]["value"] == [route]

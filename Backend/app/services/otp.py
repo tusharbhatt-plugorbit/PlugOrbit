@@ -37,6 +37,7 @@ class _Entry:
     expires_at: float
     attempts: int = 0
     locked: bool = False  # kept after too many wrong tries so the resend cooldown still applies
+    exposed: bool = False  # the code was returned to whoever asked for it (dev fallback)
 
 
 _store: dict[str, _Entry] = {}
@@ -135,9 +136,18 @@ def discard(key: str, code: str) -> None:
             del _store[key]
 
 
-def verify(key: str, code: str) -> None:
-    """Consume the code for `key` if `code` matches. Raises OTP_EXPIRED / OTP_INVALID /
-    OTP_TOO_MANY_ATTEMPTS otherwise."""
+def mark_exposed(key: str, code: str) -> None:
+    """Record that `code` was handed back in the API response instead of being delivered,
+    so verifying it must not be treated as proof of owning the email / number."""
+    with _lock:
+        entry = _store.get(key)
+        if entry is not None and hmac.compare_digest(entry.digest, _digest(entry.salt, code)):
+            entry.exposed = True
+
+
+def verify(key: str, code: str) -> bool:
+    """Consume the code for `key` if `code` matches and return whether it had been exposed
+    (see mark_exposed). Raises OTP_EXPIRED / OTP_INVALID / OTP_TOO_MANY_ATTEMPTS otherwise."""
     max_attempts = get_settings().otp_max_attempts
     with _lock:
         now = _now()
@@ -151,7 +161,7 @@ def verify(key: str, code: str) -> None:
                          "Too many wrong attempts. Request a new code.")
         if hmac.compare_digest(entry.digest, _digest(entry.salt, (code or "").strip())):
             del _store[key]  # single use
-            return
+            return entry.exposed
         entry.attempts += 1
         if entry.attempts >= max_attempts:
             entry.locked = True

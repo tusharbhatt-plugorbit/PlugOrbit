@@ -49,6 +49,42 @@ Optional live test of the data layer against the real project (writes only under
 RUN_LIVE_FIREBASE_TESTS=1 python -m pytest tests/test_live_firestore.py -v
 ```
 
+### Login with a one-time code becomes a Firebase sign-in
+
+`POST /auth/otp/verify` still answers `{"verified": true, "message": ...}`. When Firebase is
+configured here (Admin credentials **and** `FIREBASE_WEB_API_KEY`) it also returns `session`
+(`id_token`, `refresh_token`, `expires_in`, `user`) and `session_status` (`ready`,
+`unavailable` or `dev_code`). With no Firebase the response is byte-for-byte what it was before.
+
+1. The code proves control of the email / number. The Firebase user for it is found or created
+   (`services/identity.py`; an email address is marked verified, a number is stored as E.164).
+2. The Admin SDK mints a custom token and the Backend exchanges it for ID + refresh tokens
+   (`accounts:signInWithCustomToken`), so the app needs no Firebase client SDK.
+3. Every later call is authorised by that ID token (`Authorization: Bearer ...`);
+   the app refreshes it with `POST /auth/refresh`.
+
+Safety rules in that flow:
+
+- **Disabled accounts** are refused (`403 USER_DISABLED`), not signed in locally either.
+- **Pre-registered, unverified email**: `/auth/signup` never verifies the address, so a stranger
+  may already hold an account for it with a password they know. Proving the inbox replaces that
+  password with a random one and revokes their sessions before the real owner is signed in.
+- **Codes shown on screen** (`OTP_DEV_FALLBACK`) never open a session unless
+  `OTP_DEV_FALLBACK_SESSIONS=true` (development only), because anyone reaching the API could
+  read the code for any address. `session_status` is then `dev_code`.
+- **Firebase down or misconfigured**: the code is still consumed and verified, `session` is
+  omitted and `session_status` is `unavailable`; the app signs in on the device only.
+- With Application Default Credentials (no key file) minting custom tokens needs the service
+  account to be allowed to sign (`roles/iam.serviceAccountTokenCreator` on itself). A key file
+  signs locally and needs nothing extra.
+- Accounts are per identifier: the same person signing in by email and by phone gets two accounts.
+
+Check it end to end against the real project (creates and deletes a throwaway account):
+
+```sh
+python -m scripts.check_login_flow
+```
+
 ### Data model (Firestore)
 
 ```
@@ -56,6 +92,8 @@ users/{uid}                  profile: email, name, createdAt           (written 
 users/{uid}/state/{slice}    one document per synced app-data slice:
                                json       the slice's JSON, as a string
                                bytes      its size
+                               schema     the app's store version that wrote it
+                               rev        random token, new on every write
                                updatedAt  server timestamp
 ```
 
@@ -68,11 +106,14 @@ purpose: in-flight session, reservation, queue, Smart Drive trip state, battery/
 
 | Endpoint | |
 |---|---|
-| `GET /users/me/state` | all stored slices with their `updated_at` |
-| `PUT /users/me/state` | `{"slices": {name: value}}` replaces the named slices, all or nothing |
+| `GET /users/me/state` | all stored slices: `value`, `rev`, `schema_version`, `updated_at` |
+| `PUT /users/me/state` | `{"slices": {name: value}, "schema_version": n}` replaces the named slices, all or nothing; answers `{"slices": {name: {"rev", "updated_at"}}}` |
 | `DELETE /users/me` | deletes the account **and** everything under `users/{uid}` |
 
-All of them need `Authorization: Bearer <Firebase ID token>`.
+All of them need `Authorization: Bearer <Firebase ID token>`. Clients compare `rev` (not
+`updated_at`) to learn whether a slice changed: Firestore resolves a server timestamp at request
+time but reports the commit time as the write's update time, so those two differ by milliseconds.
+Concurrent edits are last-write-wins per slice; the app pulls before it pushes to keep that rare.
 
 ### Security rules
 

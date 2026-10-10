@@ -8,17 +8,18 @@ import type {RouteName} from '../../navigation/params';
 import {useServices} from '../../services';
 import {
   appStore,
+  demoState,
   INITIAL_STATE,
   resetAppData,
   useApp,
 } from '../../store/appStore';
+import {detachCloudSync} from '../../store/cloudSync';
 import {
   demoStore,
   resetDemo,
   useDemo,
   PaymentFailMode,
 } from '../../store/demoStore';
-import {seedState} from '../../store/seed';
 import {colors, spacing, type} from '../../theme';
 import {
   Card,
@@ -129,11 +130,14 @@ export default function PresenterToolsScreen(): React.JSX.Element {
   const resetData = async () => {
     const keep = {signedIn: appStore.get().signedIn};
     resetDemo();
+    // Back to sample content on this phone only: stop cloud backup first, so the sample
+    // data is never uploaded over the account's real data. Signing in again restores it.
+    await detachCloudSync();
     await resetAppData({
       ...INITIAL_STATE,
       ...keep,
       hydrated: true,
-      ...seedState(Date.now()),
+      ...demoState(Date.now()),
     });
     setConfirmReset(false);
     showToast('Demo data reset. Set up your car again.', 'success');

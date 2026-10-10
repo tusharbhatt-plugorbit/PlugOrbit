@@ -33,4 +33,4 @@ def get_state(user: dict = Depends(get_current_user)):
 @router.put("/me/state", response_model=PutStateResponse)
 def put_state(body: PutStateRequest, user: dict = Depends(get_current_user)):
     """Replace the given slices (all or nothing). Slices not in the body are left alone."""
-    return PutStateResponse(updated_at=app_state.put_state(user["uid"], body.slices))
+    return PutStateResponse(slices=app_state.put_state(user["uid"], body.slices, body.schema_version))

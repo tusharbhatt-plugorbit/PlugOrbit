@@ -388,6 +388,46 @@ describe('verifyOtp against the Backend', () => {
     });
   });
 
+  test('hands back the cloud session when the Backend opened one', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        verified: true,
+        message: 'Verified.',
+        session_status: 'ready',
+        session: {
+          id_token: 'ID',
+          refresh_token: 'RT',
+          expires_in: 3600,
+          user: {uid: 'u1'},
+        },
+      }),
+    );
+
+    const session = await verifyOtp('name@example.com', '123456');
+
+    expect(session).toMatchObject({
+      uid: 'u1',
+      idToken: 'ID',
+      refreshToken: 'RT',
+    });
+    expect(session!.expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  test.each([
+    ['dev_code', {session_status: 'dev_code'}],
+    ['unavailable', {session_status: 'unavailable'}],
+    ['a session that is malformed', {session: {id_token: 'ID'}}],
+  ])('%s signs in on this device only', async (_name, extra) => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {}); // the dev hint
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {verified: true, message: 'Verified.', ...extra}),
+    );
+
+    await expect(
+      verifyOtp('name@example.com', '123456'),
+    ).resolves.toBeUndefined();
+  });
+
   test.each([
     ['OTP_INVALID', 400],
     ['OTP_EXPIRED', 400],

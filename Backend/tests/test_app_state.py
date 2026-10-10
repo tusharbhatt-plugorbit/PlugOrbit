@@ -112,13 +112,22 @@ ROUTE = {"id": "r1", "polyline": [[28.61, 77.20], [28.70, 77.31]], "name": "Delh
 
 def test_round_trip_keeps_nested_arrays_and_unicode(db):
     written = app_state.put_state("u1", {"savedRoutes": [ROUTE], "language": "hi", "activeVehicleId": None})
-    assert written == {"savedRoutes": NOW, "language": NOW, "activeVehicleId": NOW}
+    assert set(written) == {"savedRoutes", "language", "activeVehicleId"}
+    assert all(w["updated_at"] == NOW and len(w["rev"]) == 32 for w in written.values())
     state = app_state.list_state("u1")
-    assert state["savedRoutes"] == {"value": [ROUTE], "updated_at": NOW}
+    assert state["savedRoutes"] == {"value": [ROUTE], "updated_at": NOW, "schema_version": 1,
+                                    "rev": written["savedRoutes"]["rev"]}
     assert state["language"]["value"] == "hi"
     assert state["activeVehicleId"]["value"] is None
     # stored under users/{uid}/state/{slice}, one document per slice
     assert ("users", "u1", "state", "savedRoutes") in db.data
+
+
+def test_every_write_gets_a_new_rev(db):
+    first = app_state.put_state("u1", {"history": []})["history"]["rev"]
+    second = app_state.put_state("u1", {"history": []})["history"]["rev"]
+    assert first != second
+    assert app_state.list_state("u1")["history"]["rev"] == second  # what the next read reports
 
 
 def test_put_replaces_only_the_named_slices(db):
@@ -198,11 +207,14 @@ def test_state_routes_need_a_login(client, db):
 def test_put_then_get_over_http(client, db, signed_in):
     r = client.put("/users/me/state", json={"slices": {"vehicles": [{"id": "v1"}], "language": "en"}})
     assert r.status_code == 200
-    assert set(r.json()["updated_at"]) == {"vehicles", "language"}
+    written = r.json()["slices"]
+    assert set(written) == {"vehicles", "language"}
+    assert len(written["vehicles"]["rev"]) == 32 and written["vehicles"]["updated_at"].startswith("2026-01-02")
     r = client.get("/users/me/state")
     assert r.status_code == 200
     assert r.json()["slices"]["vehicles"]["value"] == [{"id": "v1"}]
     assert r.json()["slices"]["language"]["updated_at"].startswith("2026-01-02T03:04:05")
+    assert r.json()["slices"]["language"]["rev"] == written["language"]["rev"]  # write and read agree
 
 
 def test_put_rejects_unknown_slice_and_empty_body(client, db, signed_in):

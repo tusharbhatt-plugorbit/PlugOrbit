@@ -22,6 +22,8 @@ import type {
 import {createStore, persist, Persisted, useStore} from './createStore';
 import {getStorage} from './storage';
 import {seedState} from './seed';
+import {sigOf} from './signature';
+import {SYNCED_KEYS} from './syncedKeys';
 
 export type ChosenStop = {
   stationId: string;
@@ -62,6 +64,13 @@ export type AppState = {
   feedbackDone: string[];
   /** Smart Drive: the trip being watched, what it learned, how to talk to you. */
   smartDrive: SmartDriveState;
+  /** Whose data this phone holds once cloud backup is linked (null = never linked). */
+  accountUid: string | null;
+  /**
+   * Fingerprints of the sample content seeded on first launch, per backed-up field. A field
+   * that still matches is demo data: cloud backup never uploads it (see store/cloudSync.ts).
+   */
+  demoSeed: Record<string, string>;
 };
 
 export const INITIAL_STATE: AppState = {
@@ -106,6 +115,8 @@ export const INITIAL_STATE: AppState = {
   paymentMethods: [],
   feedbackDone: [],
   smartDrive: INITIAL_SMART_DRIVE,
+  accountUid: null,
+  demoSeed: {},
 };
 
 export const appStore = createStore<AppState>(INITIAL_STATE);
@@ -135,12 +146,26 @@ const PERSISTED_KEYS: ReadonlyArray<keyof AppState> = [
   'paymentMethods',
   'feedbackDone',
   'smartDrive',
+  'accountUid',
+  'demoSeed',
 ];
 
 // Bump when the persisted shape changes; old blobs are then ignored safely.
 export const STORE_VERSION = 1;
 
 let persisted: Persisted | null = null;
+
+/** The first-launch sample content, with the fingerprints that mark it as demo data. */
+export function demoState(now: number): Partial<AppState> {
+  const seed = seedState(now);
+  const demoSeed: Record<string, string> = {};
+  for (const key of SYNCED_KEYS) {
+    if (key in seed) {
+      demoSeed[key] = sigOf(seed[key]);
+    }
+  }
+  return {...seed, demoSeed};
+}
 
 /**
  * Load saved state, seed demo data on first launch, mark hydrated. Safe to
@@ -158,11 +183,13 @@ export async function hydrateAppStore(): Promise<void> {
   await persisted.hydrated;
   const s = appStore.get();
   if (
+    // A phone linked to a cloud account shows that account's data, never sample content.
+    s.accountUid === null &&
     s.history.length === 0 &&
     s.tickets.length === 0 &&
     s.paymentMethods.length === 0
   ) {
-    appStore.set(seedState(Date.now()));
+    appStore.set(demoState(Date.now()));
   }
   if (s.reservation && !heldReservation(s.reservation, Date.now())) {
     // The hold ran out while the app was closed: the bay is already released.
