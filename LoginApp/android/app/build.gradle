@@ -92,7 +92,7 @@ def readEnv(String name) {
 
 def googleMapsApiKey = readEnv('GOOGLE_MAPS_ANDROID_KEY') ?: readEnv('GOOGLE_MAPS_API_KEY')
 if (!googleMapsApiKey) {
-    logger.warn('Neither GOOGLE_MAPS_ANDROID_KEY nor GOOGLE_MAPS_API_KEY is set in LoginApp/.env: the map will be blank.')
+    logger.warn('Neither GOOGLE_MAPS_ANDROID_KEY nor GOOGLE_MAPS_API_KEY is set in LoginApp/.env: the app will draw its OpenStreetMap fallback map instead of Google Maps.')
 }
 
 android {
