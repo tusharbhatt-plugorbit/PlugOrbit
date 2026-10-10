@@ -7,3 +7,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Firebase Admin keys are named like <project>-firebase-adminsdk-<id>.json when downloaded. Never commit one.
+*firebase-adminsdk*.json
+.firebase/
+firebase-debug.log

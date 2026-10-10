@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -47,6 +47,25 @@ class AuthResponse(TokenResponse):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class StateSlice(BaseModel):
+    value: Any
+    updated_at: datetime | None = None
+
+
+class StateOut(BaseModel):
+    slices: dict[str, StateSlice]
+
+
+class PutStateRequest(BaseModel):
+    # {slice name: JSON value}. Which names and shapes are allowed is decided in
+    # services/app_state.py so a bad one answers a coded 422 instead of a bare one.
+    slices: dict[str, Any] = Field(min_length=1)
+
+
+class PutStateResponse(BaseModel):
+    updated_at: dict[str, datetime]
 
 
 class OtpSendRequest(BaseModel):

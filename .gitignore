@@ -1,1 +1,5 @@
 .idea/
+
+# Firebase Admin service-account keys: secrets, never commit (anywhere in the repo).
+*firebase-adminsdk*.json
+serviceAccountKey.json

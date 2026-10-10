@@ -13,7 +13,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
     firebase_web_api_key: str = ""
+    # Admin credentials, first source found wins (see app/firebase.py):
+    # 1. the key file at firebase_credentials_path, 2. firebase_credentials_json (the
+    # key's JSON, or that JSON base64-encoded; for hosts that keep secrets in env vars),
+    # 3. Application Default Credentials when firebase_use_adc (Cloud Run, GCE, gcloud login).
     firebase_credentials_path: str = "serviceAccountKey.json"
+    firebase_credentials_json: str = ""
+    firebase_use_adc: bool = False
+    # Only needed with ADC; a key file already names its project.
+    firebase_project_id: str = ""
     cors_origins: list[str] = ["*"]
 
     # Login/signup one-time codes. The app's code boxes expect 6 digits.
