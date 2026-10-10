@@ -13,6 +13,9 @@ export const colors = {
   inkSoft: '#334155',
   muted: '#58687E',
   placeholder: '#94A3B8',
+  // Placeholder on white / light inputs. `placeholder` above is the light grey for
+  // dark surfaces; on white it is only ~2.6:1, this one clears WCAG AA (4.5:1).
+  placeholderOnLight: '#58687E',
   chipBorder: '#334155',
   chipText: '#E2E8F0',
   mapBg: '#EEF1F4',

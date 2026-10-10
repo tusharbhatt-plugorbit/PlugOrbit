@@ -3,10 +3,7 @@ import {
   Animated,
   Easing,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +11,7 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors, radii, sizes, spacing, type} from '../theme';
 import {Icon} from './Icon';
+import {KeyboardAvoider, KeyboardAwareScrollView} from './KeyboardAware';
 
 type Props = {
   visible: boolean;
@@ -56,10 +54,7 @@ export function BottomSheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={dismissable ? onClose : undefined}>
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        testID={testID}>
+      <KeyboardAvoider style={styles.root} testID={testID}>
         <Animated.View style={[styles.scrim, {opacity: progress}]}>
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -101,17 +96,15 @@ export function BottomSheet({
               )}
             </View>
           ) : null}
-          <ScrollView
+          <KeyboardAwareScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}>
             {children}
-          </ScrollView>
+          </KeyboardAwareScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </Modal>
   );
 }

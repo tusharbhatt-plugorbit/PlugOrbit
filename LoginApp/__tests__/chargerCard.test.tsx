@@ -192,6 +192,8 @@ describe('charger card shows what a driver scans', () => {
 });
 
 describe('PrimaryButton sizes', () => {
+  // Buttons set minHeight, not height, so larger system text can grow them
+  // instead of clipping the label (see Buttons.tsx).
   const heightOf = (r: Renderer) =>
     StyleSheet.flatten(
       r.root.findAll(
@@ -199,7 +201,7 @@ describe('PrimaryButton sizes', () => {
           n.props.accessibilityRole === 'button' &&
           n.type === ('View' as never),
       )[0].props.style,
-    ).height;
+    ).minHeight;
 
   test('large is 64 high, default 54, compact 44', async () => {
     expect(heightOf(await render(<PrimaryButton label="Go" large />))).toBe(64);
@@ -282,6 +284,6 @@ describe('Energy plan main action', () => {
         n.type === ('View' as never),
     )[0];
     const style = StyleSheet.flatten(button.props.style);
-    expect(style.height).toBeGreaterThanOrEqual(64);
+    expect(style.minHeight).toBeGreaterThanOrEqual(64);
   });
 });

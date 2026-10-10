@@ -1,11 +1,8 @@
 import React from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   useWindowDimensions,
   Pressable,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleProp,
   StyleSheet,
@@ -21,6 +18,7 @@ import {
 import {colors, radii, sizes, spacing, type} from '../theme';
 import {BrandLogo} from './BrandLogo';
 import {Icon} from './Icon';
+import {KeyboardAvoider, KeyboardAwareScrollView} from './KeyboardAware';
 import {OfflineBanner} from './States';
 
 /** The header's logo slot. */
@@ -81,7 +79,7 @@ export function Screen({
   const tabBarVisible = depth === 0;
 
   const body = scroll ? (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={styles.flex}
       contentContainerStyle={[
         styles.content,
@@ -90,8 +88,6 @@ export function Screen({
         contentStyle,
       ]}
       showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -102,7 +98,7 @@ export function Screen({
         ) : undefined
       }>
       <View style={[styles.column, stack && styles.stack]}>{children}</View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   ) : (
     <View style={[styles.flex, styles.content, contentStyle]}>
       <View style={[styles.column, styles.flex, stack && styles.stack]}>
@@ -112,9 +108,7 @@ export function Screen({
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoider>
       <SafeAreaView
         style={styles.safe}
         edges={['top', 'left', 'right']}
@@ -163,7 +157,7 @@ export function Screen({
           )}
         </View>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

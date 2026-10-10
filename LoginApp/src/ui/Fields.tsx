@@ -21,6 +21,7 @@ import {
   type,
 } from '../theme';
 import {Icon, IconName} from './Icon';
+import {notifyInputFocused} from './KeyboardAware';
 
 /** Light-surface text input in the Login field style (52px, 12px radius, 1.5px border). */
 export function TextField({
@@ -52,16 +53,26 @@ export function TextField({
           {...rest}
           multiline={multiline}
           accessibilityLabel={rest.accessibilityLabel ?? label}
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={colors.placeholderOnLight}
+          // Large system text must not make the box jump while typing.
+          maxFontSizeMultiplier={rest.maxFontSizeMultiplier ?? 1.3}
+          underlineColorAndroid="transparent"
           onFocus={e => {
             setFocused(true);
             rest.onFocus?.(e);
+            // With the keyboard already open, moving to this field fires no
+            // keyboard event, so ask the enclosing scroll view to bring it in.
+            notifyInputFocused();
           }}
           onBlur={e => {
             setFocused(false);
             rest.onBlur?.(e);
           }}
-          style={[styles.input, multiline && styles.inputMulti, rest.style]}
+          style={[
+            styles.input,
+            multiline ? styles.inputMulti : styles.inputSingle,
+            rest.style,
+          ]}
         />
       </View>
       {error ? (
@@ -94,7 +105,7 @@ export function SearchField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.placeholder}
+        placeholderTextColor={colors.placeholderOnLight}
         style={styles.searchInput}
         returnKeyType="search"
         onSubmitEditing={onSubmit}
@@ -359,7 +370,14 @@ const styles = StyleSheet.create({
     color: colors.ink,
     paddingVertical: 0,
   },
-  inputMulti: {minHeight: 94, textAlignVertical: 'top'},
+  // Android pads text for font ascent/descent by default, which sits it low in
+  // the box and makes it look misaligned next to the icon; centre it explicitly.
+  inputSingle: {includeFontPadding: false, textAlignVertical: 'center'},
+  inputMulti: {
+    minHeight: 94,
+    includeFontPadding: false,
+    textAlignVertical: 'top',
+  },
   helper: {...type.caption, color: colors.muted},
   error: {...type.caption, color: colors.danger, fontWeight: '700'},
   search: {

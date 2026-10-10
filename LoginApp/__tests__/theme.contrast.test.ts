@@ -29,6 +29,21 @@ const PAIRS: ReadonlyArray<[string, string, string]> = [
   ['danger on danger badges', colors.danger, colors.dangerSoft],
   ['lime on the dark header', colors.lime, colors.bg],
   ['placeholder grey on the dark header', colors.placeholder, colors.bg],
+  [
+    'light-input placeholder on white',
+    colors.placeholderOnLight,
+    colors.surface,
+  ],
+  [
+    'light-input placeholder on input fill',
+    colors.placeholderOnLight,
+    colors.inputBg,
+  ],
+  [
+    'light-input placeholder on the body sheet',
+    colors.placeholderOnLight,
+    colors.body,
+  ],
   ['ink on lime buttons', colors.ink, colors.lime],
 ];
 
