@@ -153,13 +153,8 @@ test('Scan QR finds a charger to scan instead of "none found"', async () => {
   });
   mounted.push(r);
   await flush();
-  const scan = r.root.findAll(
-    n =>
-      typeof n.props.onPress === 'function' &&
-      n.props.accessibilityLabel === 'Simulate scan',
-  )[0];
   await act(async () => {
-    scan.props.onPress();
+    r.root.findByProps({testID: 'qr-camera'}).props.onDecoded('CHARGEZONE-NEEMRANA-C2');
   });
   await flush();
   expect(probe.current).toBe('StartCharging');

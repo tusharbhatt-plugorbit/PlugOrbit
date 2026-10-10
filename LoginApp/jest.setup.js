@@ -105,3 +105,10 @@ jest.spyOn(turboModules, 'get').mockImplementation(name => {
   }
   return getNativeModule(name);
 });
+
+// Deliver decoded camera data without opening hardware during UI tests.
+jest.mock('./src/components/QrCamera', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {QrCamera: props => React.createElement(View, {testID: 'qr-camera', ...props})};
+});

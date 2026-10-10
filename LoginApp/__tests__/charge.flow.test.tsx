@@ -113,7 +113,10 @@ test('scan -> start -> charge -> stop -> failed payment -> retry -> receipt', as
     {name: 'ScanQr', params: {stationId: 'st-chargezone-manesar'}},
   ]);
 
-  await press(r, 'Simulate scan');
+  await act(async () => {
+    r.root.findByProps({testID: 'qr-camera'}).props.onDecoded('CHARGEZONE-MANESAR-C2');
+  });
+  await settle();
   expect(probe.current).toBe('StartCharging');
 
   await press(r, 'Authorise & start');

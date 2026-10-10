@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>LoginApp</string>
+	<string>PlugOrbit</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,6 +36,8 @@
 	</dict>
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PlugOrbit uses the camera to scan the QR code on your charger.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PlugOrbit uses your location to find charging stations near you.</string>
 	<key>UILaunchStoryboardName</key>
