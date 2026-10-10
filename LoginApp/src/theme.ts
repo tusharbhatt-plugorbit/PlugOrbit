@@ -9,6 +9,8 @@ export const colors = {
   limeSoft: '#E3F6D5',
   danger: '#B42318',
   dangerSoft: '#FDE4E4',
+  // Error text on the dark raised surface (the login sheet in dark mode).
+  dangerOnDark: '#FCA5A5',
   ink: '#0F172A',
   inkSoft: '#334155',
   muted: '#58687E',

@@ -1,7 +1,10 @@
 import React, {
+  createContext,
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -13,10 +16,10 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
-  StyleSheet,
   ScrollView,
   ScrollViewProps,
   StyleProp,
+  StyleSheet,
   TextInput,
   View,
   ViewStyle,
@@ -50,6 +53,9 @@ const showEvent = () =>
 const hideEvent = () =>
   Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
+type ViewInstance = React.ComponentRef<typeof View>;
+type ScrollInstance = React.ComponentRef<typeof ScrollView>;
+
 function frameOf(
   c: {height: number; screenY: number} | undefined | null,
 ): KeyboardFrame | null {
@@ -61,17 +67,38 @@ function currentFrame(): KeyboardFrame | null {
   return frameOf(Keyboard.metrics?.());
 }
 
-// Fields announce themselves here when they gain focus, so a scroll view can
-// react when the keyboard is already open and no keyboard event fires.
+/* ------------------------------------------------------------ focus routing -- */
+
+// Which scroll view the focused field belongs to, and how much of what follows it
+// (a button under a code field) should come into view with it. A field reports
+// this when it gains focus; focus always arrives just before the keyboard events,
+// so the scroll view that reacts to the keyboard already knows whose field it is.
+// `null` means "unknown": every scroll view then judges by position alone.
+let focusOwner: string | null = null;
+let focusExtraBelow = 0;
 const focusListeners = new Set<() => void>();
 
-/** Call from an input's onFocus (TextField does). Safe with no scroll view mounted. */
-export function notifyInputFocused(): void {
+const OwnerContext = createContext<string | null>(null);
+
+/** The id of the enclosing KeyboardAwareScrollView, to pass to notifyInputFocused. */
+export function useScrollOwner(): string | null {
+  return useContext(OwnerContext);
+}
+
+/**
+ * Call from an input's onFocus. With the keyboard already open, moving to another
+ * field fires no keyboard event, so this is what brings the new field into view.
+ */
+export function notifyInputFocused(
+  owner: string | null = null,
+  extraBelow = 0,
+): void {
+  focusOwner = owner;
+  focusExtraBelow = extraBelow;
   focusListeners.forEach(l => l());
 }
 
-type ViewInstance = React.ComponentRef<typeof View>;
-type ScrollInstance = React.ComponentRef<typeof ScrollView>;
+/* --------------------------------------------------------------- measuring -- */
 
 type Measured = {top: number; height: number};
 
@@ -97,28 +124,7 @@ function measureOnScreen(
   });
 }
 
-/** True when `input` is a descendant of `container` (measureLayout fails otherwise). */
-function isInside(input: unknown, container: unknown): Promise<boolean> {
-  return new Promise(resolve => {
-    const node = input as {
-      measureLayout?: (rel: unknown, ok: () => void, fail: () => void) => void;
-    };
-    if (!container || typeof node?.measureLayout !== 'function') {
-      // Cannot tell: assume yes and let the position checks decide.
-      resolve(true);
-      return;
-    }
-    try {
-      node.measureLayout(
-        container,
-        () => resolve(true),
-        () => resolve(false),
-      );
-    } catch {
-      resolve(false);
-    }
-  });
-}
+/* ---------------------------------------------------------------- avoider -- */
 
 type AvoiderProps = {
   children?: React.ReactNode;
@@ -191,11 +197,14 @@ export function KeyboardAvoider({children, style, testID}: AvoiderProps) {
   );
 }
 
+/* ------------------------------------------------------------ scroll view -- */
+
 /** A ScrollView that keeps the focused field visible above the keyboard. */
 export const KeyboardAwareScrollView = forwardRef<
   ScrollInstance,
   ScrollViewProps
 >(function KeyboardAwareScrollViewInner({onScroll, ...rest}, forwarded) {
+  const id = useId();
   const scroll = useRef<ScrollInstance>(null);
   const offset = useRef(0);
   const keyboard = useRef<KeyboardFrame | null>(currentFrame());
@@ -208,12 +217,8 @@ export const KeyboardAwareScrollView = forwardRef<
       currentlyFocusedInput?: () => {measure?: never} | null;
     };
     const input = kb ? state.currentlyFocusedInput?.() : null;
-    if (!kb || !input) {
-      return;
-    }
-    // Only react to a field that lives inside this scroll view (a field in a
-    // sheet on top of it must not scroll the screen underneath).
-    if (!(await isInside(input, scroll.current?.getInnerViewRef?.()))) {
+    // Another scroll view's field (a sheet over this screen) is not ours.
+    if (!kb || !input || (focusOwner !== null && focusOwner !== id)) {
       return;
     }
     const [field, view] = await Promise.all([
@@ -223,12 +228,20 @@ export const KeyboardAwareScrollView = forwardRef<
     if (!field || !view || keyboard.current !== kb) {
       return;
     }
+    // With no owner to go on, only react to a field that is at least where
+    // this scroll view is (or just below it, under the keyboard).
+    const placed =
+      field.top >= view.top - 1 &&
+      field.top <= view.top + view.height + kb.height;
+    if (!placed) {
+      return;
+    }
     const delta = scrollDeltaToReveal(
-      {top: field.top, bottom: field.top + field.height},
       {
-        top: view.top,
-        bottom: Math.min(view.top + view.height, kb.top),
+        top: field.top,
+        bottom: field.top + field.height + focusExtraBelow,
       },
+      {top: view.top, bottom: Math.min(view.top + view.height, kb.top)},
     );
     if (delta !== 0) {
       scroll.current?.scrollTo({
@@ -236,7 +249,7 @@ export const KeyboardAwareScrollView = forwardRef<
         animated: true,
       });
     }
-  }, []);
+  }, [id]);
 
   // Layout settles over a moment after the keyboard moves (padding applied,
   // window resized), so look twice; the second look is a no-op when the first worked.
@@ -252,6 +265,8 @@ export const KeyboardAwareScrollView = forwardRef<
     });
     const hide = Keyboard.addListener(hideEvent(), () => {
       keyboard.current = null;
+      focusOwner = null;
+      focusExtraBelow = 0;
     });
     focusListeners.add(schedule);
     const pending = timers.current;
@@ -269,14 +284,16 @@ export const KeyboardAwareScrollView = forwardRef<
   };
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      scrollEventThrottle={16}
-      {...rest}
-      ref={scroll}
-      onScroll={handleScroll}
-    />
+    <OwnerContext.Provider value={id}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        scrollEventThrottle={16}
+        {...rest}
+        ref={scroll}
+        onScroll={handleScroll}
+      />
+    </OwnerContext.Provider>
   );
 });
 

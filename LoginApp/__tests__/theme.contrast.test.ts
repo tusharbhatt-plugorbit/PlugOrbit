@@ -44,6 +44,7 @@ const PAIRS: ReadonlyArray<[string, string, string]> = [
     colors.placeholderOnLight,
     colors.body,
   ],
+  ['error on the dark raised surface', colors.dangerOnDark, colors.bgRaised],
   ['ink on lime buttons', colors.ink, colors.lime],
 ];
 

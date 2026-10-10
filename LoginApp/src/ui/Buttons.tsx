@@ -16,6 +16,8 @@ type ButtonProps = {
   onPress?: () => void;
   icon?: IconName;
   loading?: boolean;
+  /** Shown beside the spinner while loading ("Sending code…"); bare spinner without it. */
+  loadingLabel?: string;
   disabled?: boolean;
   /** Smaller (44) button for inline actions. */
   compact?: boolean;
@@ -41,6 +43,7 @@ export function PrimaryButton({
   onPress,
   icon,
   loading = false,
+  loadingLabel,
   disabled = false,
   compact = false,
   large = false,
@@ -70,7 +73,12 @@ export function PrimaryButton({
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={v.spinner} />
+        <View style={styles.row}>
+          <ActivityIndicator color={v.spinner} />
+          {loadingLabel ? (
+            <Text style={[styles.label, {color: v.fg}]}>{loadingLabel}</Text>
+          ) : null}
+        </View>
       ) : (
         <View style={styles.row}>
           {icon && (

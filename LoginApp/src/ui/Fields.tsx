@@ -21,7 +21,7 @@ import {
   type,
 } from '../theme';
 import {Icon, IconName} from './Icon';
-import {notifyInputFocused} from './KeyboardAware';
+import {notifyInputFocused, useScrollOwner} from './KeyboardAware';
 
 /** Light-surface text input in the Login field style (52px, 12px radius, 1.5px border). */
 export function TextField({
@@ -38,6 +38,7 @@ export function TextField({
   icon?: IconName;
 }) {
   const [focused, setFocused] = useState(false);
+  const scrollOwner = useScrollOwner();
   return (
     <View style={styles.fieldWrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -62,7 +63,7 @@ export function TextField({
             rest.onFocus?.(e);
             // With the keyboard already open, moving to this field fires no
             // keyboard event, so ask the enclosing scroll view to bring it in.
-            notifyInputFocused();
+            notifyInputFocused(scrollOwner);
           }}
           onBlur={e => {
             setFocused(false);

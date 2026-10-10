@@ -20,6 +20,7 @@ import {
   saveSession,
 } from '../../src/services/session';
 import {appStore, resetAppStore} from '../../src/store/appStore';
+import {markOnboardingSeen} from '../../src/store/onboarding';
 import {resetCloudSyncForTests, stopCloudSync} from '../../src/store/cloudSync';
 import {resetDemo} from '../../src/store/demoStore';
 import {createMemoryStorage, setStorage} from '../../src/store/storage';
@@ -42,6 +43,8 @@ const settle = async (ms = 100) => {
 };
 
 const renderApp = async (): Promise<Renderer> => {
+  // A returning install: the first-run introduction was already seen.
+  await markOnboardingSeen();
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(<App />);
@@ -150,11 +153,11 @@ test('a login that opens a Firebase session is backed up from then on', async ()
   };
   const r = await renderApp();
 
-  await pressText(r, 'Get Started');
+  await pressText(r, 'Get started');
   await type(r, 'name@example.com');
-  await pressText(r, 'Send Verification Code  →');
+  await pressText(r, 'Send verification code');
   await type(r, '123456');
-  await pressText(r, 'Verify & Create Account  →');
+  await pressText(r, 'Verify and create account');
 
   expect(appStore.get().signedIn).toBe(true);
   expect(peekSession()?.uid).toBe('u1');
@@ -168,11 +171,11 @@ test('a login without a session stays on this device and never calls the cloud',
   verifyBody = {verified: true, message: 'Verified.'};
   const r = await renderApp();
 
-  await pressText(r, 'Get Started');
+  await pressText(r, 'Get started');
   await type(r, 'name@example.com');
-  await pressText(r, 'Send Verification Code  →');
+  await pressText(r, 'Send verification code');
   await type(r, '123456');
-  await pressText(r, 'Verify & Create Account  →');
+  await pressText(r, 'Verify and create account');
 
   expect(appStore.get().signedIn).toBe(true);
   expect(await loadSession()).toBeNull();
