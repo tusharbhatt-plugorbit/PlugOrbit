@@ -89,6 +89,10 @@ function HomeScreen(): React.JSX.Element {
   );
   // Bumped to remount the map when the person taps Retry.
   const [mapAttempt, setMapAttempt] = useState(0);
+  // The map cannot be drawn at all (e.g. its native component is missing from
+  // this build); the panel below takes its place and offers the list.
+  const [mapBroken, setMapBroken] = useState(false);
+  const onMapUnavailable = useCallback(() => setMapBroken(true), []);
   const [permissionDismissed, setPermissionDismissed] = useState(false);
   // Times the person asked again after a refusal; one failed retry means the
   // OS will not ask any more, so Settings becomes the main action.
@@ -172,7 +176,7 @@ function HomeScreen(): React.JSX.Element {
 
   // Report a map that never finishes initialising (not when it is not drawn).
   useEffect(() => {
-    if (mapsKeyMissing) {
+    if (mapBroken) {
       return;
     }
     const timer = setTimeout(
@@ -180,7 +184,7 @@ function HomeScreen(): React.JSX.Element {
       MAP_READY_TIMEOUT_MS,
     );
     return () => clearTimeout(timer);
-  }, [mapAttempt]);
+  }, [mapAttempt, mapBroken]);
 
   const retryMap = useCallback(() => {
     setMapStatus('loading');
@@ -355,8 +359,11 @@ function HomeScreen(): React.JSX.Element {
       <View style={styles.map}>
         <OfflineBanner />
         <View style={styles.flex}>
-          {mapsKeyMissing ? (
-            <MapUnavailable onViewList={() => nav.navigate('StationList')} />
+          {mapBroken ? (
+            <MapUnavailable
+              reason="component"
+              onViewList={() => nav.navigate('StationList')}
+            />
           ) : (
             <ChargerMap
               key={mapAttempt}
@@ -366,10 +373,12 @@ function HomeScreen(): React.JSX.Element {
               vehicle={vehicle}
               selectedId={selected?.id ?? null}
               showUserLocation={userLocation !== null}
+              userLocation={userLocation}
               onSelect={select}
               onDeselect={deselect}
               onCenterChange={setMapCenter}
               onReady={onMapReady}
+              onUnavailable={onMapUnavailable}
             />
           )}
 
@@ -403,12 +412,12 @@ function HomeScreen(): React.JSX.Element {
               </Pressable>
             )}
 
-            {mapStatus === 'failed' && !mapsKeyMissing && (
+            {mapStatus === 'failed' && !mapBroken && (
               <View
                 style={[styles.notice, elevation(1)]}
                 accessibilityRole="alert">
                 <Text style={styles.noticeText}>
-                  {Platform.OS === 'android'
+                  {Platform.OS === 'android' && !mapsKeyMissing
                     ? 'The map is taking too long to load. Check your connection and Google Play services.'
                     : 'The map is taking too long to load. Check your connection.'}
                 </Text>
@@ -451,7 +460,7 @@ function HomeScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.mapButtons} pointerEvents="box-none">
-            {!mapsKeyMissing && (
+            {!mapBroken && (
               <Pressable
                 onPress={recenter}
                 accessibilityRole="button"
@@ -500,7 +509,7 @@ function HomeScreen(): React.JSX.Element {
             </View>
           )}
 
-          {selected && !showPermissionCard && !mapsKeyMissing ? (
+          {selected && !showPermissionCard && !mapBroken ? (
             <MapChargerCard
               station={selected}
               vehicle={vehicle}
@@ -517,7 +526,7 @@ function HomeScreen(): React.JSX.Element {
             />
           ) : (
             visible.length > 0 &&
-            !mapsKeyMissing &&
+            !mapBroken &&
             !showPermissionCard && (
               <Pressable
                 onPress={() => nav.navigate('StationList')}
@@ -556,7 +565,12 @@ const styles = StyleSheet.create({
   headerSide: {width: 40, height: 32, justifyContent: 'center'},
   headerRight: {alignItems: 'flex-end'},
   title: {flex: 1, textAlign: 'center', color: '#FFFFFF', ...type.title},
-  bell: {width: 24, height: 24, alignItems: 'center', justifyContent: 'center'},
+  bell: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   unread: {
     position: 'absolute',
     top: -2,

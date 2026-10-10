@@ -36,6 +36,37 @@ jest.mock('react-native-maps', () => {
   };
 });
 
+// Fallback map (Android without a Google key): a WebView we cannot run here.
+// It renders as a plain view, records what the app injects into the page, and
+// tests call its onMessage to play the page's side of the conversation.
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const WebView = React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      injectJavaScript: js => {
+        global.__WEBVIEW_JS = (global.__WEBVIEW_JS || []).concat(js);
+      },
+    }));
+    React.useEffect(() => {
+      global.__WEBVIEW_MOUNTS = (global.__WEBVIEW_MOUNTS || 0) + 1;
+    }, []);
+    return React.createElement(View, props);
+  });
+  // Tests set global.__WEBVIEW_MISSING to play a build without the native module.
+  const mod = {__esModule: true, default: WebView};
+  Object.defineProperty(mod, 'WebView', {
+    enumerable: true,
+    get() {
+      if (global.__WEBVIEW_MISSING) {
+        throw new Error('RNCWebView is not linked');
+      }
+      return WebView;
+    },
+  });
+  return mod;
+});
+
 // Native geolocation: succeed at the default centre unless a test overrides it.
 jest.mock('@react-native-community/geolocation', () => ({
   __esModule: true,

@@ -14,7 +14,10 @@ export const hasMapsKey = (
   sharedKey: string | undefined,
 ): boolean => (clean(platformKey) || clean(sharedKey)).length > 0;
 
-/** Android draws a blank grey map without a key; iOS falls back to Apple Maps. */
+/**
+ * Android draws a blank grey Google map without a key, so the app draws its
+ * OpenStreetMap fallback instead (see ChargerMap); iOS falls back to Apple Maps.
+ */
 export const isMapsKeyMissing = (os: string, hasKey: boolean): boolean =>
   os === 'android' && !hasKey;
 
@@ -40,7 +43,7 @@ export const hasIosMapsKey: boolean = hasMapsKey(
  * Whether the Android build was given a Maps SDK key (the same fallback the
  * Gradle build uses: GOOGLE_MAPS_ANDROID_KEY, else GOOGLE_MAPS_API_KEY). The
  * Google SDK draws a blank grey map without one and gives the app no error, so
- * we check up front and say so instead of showing a map that cannot work.
+ * we check up front and use the keyless fallback map instead.
  */
 export const hasAndroidMapsKey: boolean = hasMapsKey(
   GOOGLE_MAPS_ANDROID_KEY,
@@ -48,8 +51,9 @@ export const hasAndroidMapsKey: boolean = hasMapsKey(
 );
 
 /**
- * True when a map cannot be drawn on this device because its key is missing.
- * Android only: iOS uses Apple Maps when it has no Google key, which works.
+ * True when the Google map cannot be drawn on this device because its key is
+ * missing, so the keyless fallback map is used. Android only: iOS uses Apple
+ * Maps when it has no Google key, which works.
  */
 export const mapsKeyMissing: boolean = isMapsKeyMissing(
   Platform.OS,
