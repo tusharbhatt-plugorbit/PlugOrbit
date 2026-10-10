@@ -461,8 +461,7 @@ export function AuthScreen({
                       style={styles.cta}
                     />
                     <Text style={[styles.hint, {color: t.muted}]}>
-                      No password needed. We check it’s you with a one-time
-                      code.
+                      No password needed. A one-time code is all it takes.
                     </Text>
                   </>
                 ) : (

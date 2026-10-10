@@ -138,6 +138,15 @@ describe('the Connect your vehicle screen', () => {
     expect(probe.current).toBe('ManualSoc');
   });
 
+  test('no connection method looks chosen while connecting is not possible', async () => {
+    const r = await open('AutoSoc');
+    const radios = r.root.findAll(n => n.props.accessibilityRole === 'radio');
+    expect(radios.length).toBeGreaterThan(0);
+    radios.forEach(n =>
+      expect(n.props.accessibilityState).toMatchObject({selected: false}),
+    );
+  });
+
   test('with the demo on, connecting works and the reading is labelled a demo', async () => {
     demoStore.set({simulateVehicle: true});
     const r = await open('AutoSoc');

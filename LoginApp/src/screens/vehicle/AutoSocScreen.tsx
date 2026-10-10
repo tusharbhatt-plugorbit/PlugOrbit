@@ -251,7 +251,8 @@ export default function AutoSocScreen(): React.JSX.Element {
                 ? METHODS[m].body
                 : `${METHODS[m].body} Not available yet.`
             }
-            selected={activeMethod === m}
+            // Nothing looks chosen while connecting isn't possible.
+            selected={available && activeMethod === m}
             disabled={connecting || link.connected || !available}
             onPress={() => setMethod(m)}
           />

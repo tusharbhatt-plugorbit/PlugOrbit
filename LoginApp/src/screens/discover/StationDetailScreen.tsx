@@ -21,7 +21,7 @@ import type {
 } from '../../domain/types';
 import {loadStationsById} from '../../hooks/useDiscoverStations';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
-import {useServices} from '../../services';
+import {RUNS_ON_DEMO_DATA, useServices} from '../../services';
 import {OfflineError} from '../../services/types';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {useDemo} from '../../store/demoStore';
@@ -421,6 +421,13 @@ function StationDetailLoaded({
           onToggleFavourite={toggleFavourite}
         />
 
+        {RUNS_ON_DEMO_DATA && (
+          <Text style={styles.demoNote}>
+            Demo data: status and prices here are simulated, not a live operator
+            feed.
+          </Text>
+        )}
+
         {unconfirmed && (
           <Notice
             tone="warn"
@@ -680,6 +687,7 @@ export default function StationDetailScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   flex: {flex: 1},
+  demoNote: {...type.caption, color: colors.muted},
   stack: {gap: spacing.md},
   section: {},
   sectionBody: {gap: spacing.md},

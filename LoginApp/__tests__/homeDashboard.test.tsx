@@ -292,3 +292,38 @@ describe('Orbit Assist and recent trips', () => {
     expect(probe.current).toBe('TripPreferences');
   });
 });
+
+describe('demo data is never passed off as a live feed', () => {
+  test('the charger details say their status is simulated', async () => {
+    let r!: Renderer;
+    await act(async () => {
+      r = ReactTestRenderer.create(
+        <TestApp
+          tab="Profile"
+          stack={[
+            {
+              name: 'StationDetail',
+              params: {stationId: 'st-chargezone-neemrana'},
+            },
+          ]}
+        />,
+      );
+    });
+    mounted.push(r);
+    await flush();
+    expect(
+      texts(r).some(t =>
+        /^Demo data: status and prices here are simulated/.test(t),
+      ),
+    ).toBe(true);
+  });
+
+  test('so does Home, next to its nearby charger', async () => {
+    const r = await renderHome();
+    expect(
+      texts(r).some(t =>
+        /^Demo data: charger status here is simulated/.test(t),
+      ),
+    ).toBe(true);
+  });
+});
