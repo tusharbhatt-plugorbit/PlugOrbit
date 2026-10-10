@@ -23,6 +23,7 @@ jest.mock('../src/config/google', () => ({
 
 declare var global: {
   __WEBVIEW_JS?: string[];
+  __WEBVIEW_LOAD_ATTEMPTS?: number;
   __WEBVIEW_MISSING?: boolean;
   __WEBVIEW_MOUNTS?: number;
 };
@@ -30,6 +31,7 @@ declare var global: {
 const mounted: Renderer[] = [];
 beforeEach(() => {
   global.__WEBVIEW_JS = [];
+  global.__WEBVIEW_LOAD_ATTEMPTS = 0;
   global.__WEBVIEW_MISSING = false;
   global.__WEBVIEW_MOUNTS = 0;
 });
@@ -211,6 +213,9 @@ describe('Home without a Maps key', () => {
       global.__WEBVIEW_MISSING = true;
       const r = await openHome();
       expect(hasPage(r)).toBe(false);
+      // Never evaluate the package entry point: Metro reports its enforcing error
+      // even if the require itself is wrapped in try/catch.
+      expect(global.__WEBVIEW_LOAD_ATTEMPTS).toBe(0);
       expect(texts(r)).toContain('Map isn’t available');
       expect(texts(r).join(' ')).not.toContain('taking too long');
     });

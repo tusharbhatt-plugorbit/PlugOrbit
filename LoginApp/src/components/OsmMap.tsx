@@ -7,7 +7,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {Linking, Pressable, StyleSheet, Text, View} from 'react-native';
+import {
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  TurboModuleRegistry,
+  View,
+} from 'react-native';
 import type {StyleProp, ViewStyle} from 'react-native';
 import type {
   WebView as WebViewType,
@@ -65,6 +72,11 @@ type WebViewComponent = React.ComponentType<
 // pulling this change, before `npm install` and a rebuild) shows a message
 // instead of failing to start. Metro treats a require inside try/catch as optional.
 function loadWebView(): WebViewComponent | null {
+  // Metro reports errors during required-module evaluation even if require is
+  // caught. WebView's entry point enforces this module, so check it first.
+  if (!TurboModuleRegistry.get('RNCWebViewModule')) {
+    return null;
+  }
   try {
     return require('react-native-webview').WebView as WebViewComponent;
   } catch {

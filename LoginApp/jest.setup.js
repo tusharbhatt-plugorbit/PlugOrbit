@@ -58,6 +58,7 @@ jest.mock('react-native-webview', () => {
   Object.defineProperty(mod, 'WebView', {
     enumerable: true,
     get() {
+      global.__WEBVIEW_LOAD_ATTEMPTS = (global.__WEBVIEW_LOAD_ATTEMPTS || 0) + 1;
       if (global.__WEBVIEW_MISSING) {
         throw new Error('RNCWebView is not linked');
       }
@@ -94,3 +95,13 @@ storageModule.setStorage(storageModule.createMemoryStorage());
 global.fetch = jest.fn(() =>
   Promise.reject(new TypeError('Network request failed')),
 );
+
+// Match the native WebView availability without loading its enforcing entry point.
+const turboModules = require('react-native').TurboModuleRegistry;
+const getNativeModule = turboModules.get;
+jest.spyOn(turboModules, 'get').mockImplementation(name => {
+  if (name === 'RNCWebViewModule') {
+    return global.__WEBVIEW_MISSING ? null : {};
+  }
+  return getNativeModule(name);
+});
