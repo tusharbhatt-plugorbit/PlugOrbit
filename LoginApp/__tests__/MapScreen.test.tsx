@@ -33,11 +33,12 @@ const flush = async () => {
 
 const mounted: Renderer[] = [];
 
+// The map is its own route now (Home is the dashboard); it opens on top of Home.
 async function renderHome(services?: Partial<Services>): Promise<Renderer> {
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <TestApp tab="Home" services={services} />,
+      <TestApp tab="Profile" stack={[{name: 'Map'}]} services={services} />,
     );
   });
   mounted.push(renderer);
@@ -49,7 +50,7 @@ const home = (r: Renderer) =>
   r.root.findAll(
     n =>
       typeof n.props.testID === 'string' &&
-      n.props.testID === 'screen-tab-Home',
+      n.props.testID === 'screen-Map-1',
   )[0];
 
 const textsOf = (r: Renderer) =>
@@ -202,7 +203,7 @@ describe('filters', () => {
   });
 });
 
-describe('navigation from Home', () => {
+describe('navigation from the map', () => {
   test('Directions opens the navigation hand-off for that station', async () => {
     const r = await renderHome();
     await press(r, 'Directions');
@@ -215,16 +216,17 @@ describe('navigation from Home', () => {
     expect(probe.current).toBe('StationDetail');
   });
 
-  test('filters, notifications and list shortcuts', async () => {
+  test('filters, list and back shortcuts', async () => {
     let r = await renderHome();
     await press(r, 'Filters');
     expect(probe.current).toBe('Filters');
     await act(async () => r.unmount());
 
+    // The list view has its own control, and the old "N chargers" pill still works.
     seedSignedIn();
     r = await renderHome();
-    await press(r, /^Notifications/);
-    expect(probe.current).toBe('Notifications');
+    await press(r, 'Show chargers as a list');
+    expect(probe.current).toBe('StationList');
     await act(async () => r.unmount());
 
     seedSignedIn();
@@ -232,6 +234,13 @@ describe('navigation from Home', () => {
     await press(r, 'Close details');
     await press(r, /View list of/);
     expect(probe.current).toBe('StationList');
+    await act(async () => r.unmount());
+
+    // A pushed route, not a tab root: Back returns to where it was opened from.
+    seedSignedIn();
+    r = await renderHome();
+    await press(r, 'Back');
+    expect(probe.current).toBe('Profile');
   });
 });
 

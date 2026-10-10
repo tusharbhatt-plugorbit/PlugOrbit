@@ -14,6 +14,7 @@ export type RouteParams = {
   // MVP
   VehicleSetup: {onboarding?: boolean; vehicleId?: string} | undefined; // 01
   ManualSoc: {onboarding?: boolean} | undefined; // 02
+  Map: undefined; // the charger map (was the Home tab before the dashboard)
   StationList: {query?: string} | undefined; // 04
   Filters: undefined; // 05
   StationDetail: {stationId: string}; // 06
@@ -72,7 +73,8 @@ export type RouteParams = {
   Privacy: undefined; // 40
 
   // Smart Drive
-  SmartDrive: undefined; // the co-pilot: plan a trip, or watch the one in progress
+  /** Orbit Assist: plan a trip, or watch the one in progress. `toLabel` pre-fills the destination. */
+  SmartDrive: {toLabel?: string} | undefined;
   SmartDriveStop: undefined; // why this charger, what it costs, ask the co-pilot
 
   // Demo

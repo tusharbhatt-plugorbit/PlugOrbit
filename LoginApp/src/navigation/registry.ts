@@ -27,6 +27,7 @@ import SavedScreen from '../screens/discover/SavedScreen';
 import StationDetailScreen from '../screens/discover/StationDetailScreen';
 import StationListScreen from '../screens/discover/StationListScreen';
 import HomeScreen from '../screens/home/HomeScreen';
+import MapScreen from '../screens/discover/MapScreen';
 import LanguageScreen from '../screens/profile/LanguageScreen';
 import PaymentMethodsScreen from '../screens/profile/PaymentMethodsScreen';
 import PlusScreen from '../screens/profile/PlusScreen';
@@ -69,6 +70,7 @@ export const REGISTRY: Registry = {
   AutoSoc: {component: AutoSocScreen},
 
   // Discover
+  Map: {component: MapScreen, tabBar: true, tab: 'Home'},
   StationList: {component: StationListScreen, tabBar: true, tab: 'Home'},
   Filters: {component: FiltersScreen},
   StationDetail: {component: StationDetailScreen},

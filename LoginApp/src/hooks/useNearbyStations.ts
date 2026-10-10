@@ -44,6 +44,27 @@ const INITIAL: State = {
   notice: null,
 };
 
+// The last good search around the device, shared by every screen that asks
+// (Home's preview, the map, the Charge tab) so opening the map from Home does
+// not locate and call Places a second time. Only a search centred on the device
+// is kept, never "search this area" and never a failure; it expires quickly, and
+// each station's own status feed still says how old its data is.
+const CACHE_TTL_MS = 90_000;
+let cache: {vehicleId: string | null; at: number; state: State} | null = null;
+
+/** Forget the shared result (tests, sign-out, a changed demo setting). */
+export function resetNearbyCache() {
+  cache = null;
+}
+
+function freshCache(vehicleId: string | null): State | null {
+  return cache &&
+    cache.vehicleId === vehicleId &&
+    Date.now() - cache.at < CACHE_TTL_MS
+    ? cache.state
+    : null;
+}
+
 const DEMO_AREA_NOTICE: Notice = {
   kind: 'demo-area',
   message: DEMO_AREA_MESSAGE,
@@ -76,7 +97,13 @@ function locationNotice(error: unknown): Notice {
  */
 export function useNearbyStations(vehicle: Vehicle | null) {
   const {station: stationService} = useServices();
-  const [state, setState] = useState<State>(INITIAL);
+  const vehicleKey = vehicle?.id ?? null;
+  // Start from the shared result when there is a fresh one (and then skip the first refresh).
+  const seeded = useRef<State | null>(null);
+  const [state, setState] = useState<State>(() => {
+    seeded.current = freshCache(vehicleKey);
+    return seeded.current ?? INITIAL;
+  });
   const abortRef = useRef<AbortController | null>(null);
   const vehicleRef = useRef(vehicle);
   vehicleRef.current = vehicle;
@@ -110,13 +137,23 @@ export function useNearbyStations(vehicle: Vehicle | null) {
         if (fromDevice) {
           noteDemoArea(fellBack || carry?.kind === 'demo-area');
         }
-        setState(s => ({
-          ...s,
-          phase: 'ready',
-          stations,
-          ...(fellBack ? {origin: DEFAULT_CENTER, userLocation: null} : {}),
-          notice: fellBack ? DEMO_AREA_NOTICE : carry,
-        }));
+        setState(s => {
+          const next: State = {
+            ...s,
+            phase: 'ready',
+            stations,
+            ...(fellBack ? {origin: DEFAULT_CENTER, userLocation: null} : {}),
+            notice: fellBack ? DEMO_AREA_NOTICE : carry,
+          };
+          if (fromDevice) {
+            cache = {
+              vehicleId: vehicleRef.current?.id ?? null,
+              at: Date.now(),
+              state: next,
+            };
+          }
+          return next;
+        });
       } catch (e) {
         if (signal.aborted) {
           return;
@@ -182,7 +219,9 @@ export function useNearbyStations(vehicle: Vehicle | null) {
     // First mount locates; a vehicle switch re-searches in place.
     if (first.current) {
       first.current = false;
-      refresh();
+      if (!seeded.current) {
+        refresh();
+      }
     } else {
       // Keep the reason the search is centred where it is (e.g. the demo area).
       const kind = state.notice?.kind;

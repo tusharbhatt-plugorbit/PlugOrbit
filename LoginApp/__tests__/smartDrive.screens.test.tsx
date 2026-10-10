@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Text} from 'react-native';
+import {Text, TextInput} from 'react-native';
 import {noon} from '../src/dev/smartDriveFixtures';
 import {
   TestApp,
@@ -337,21 +337,23 @@ describe('the charging stop screen', () => {
 });
 
 describe('Smart Drive inside the rest of the app', () => {
-  test('Home keeps its approved header and gains one calm line', async () => {
+  test('Home shows Orbit Assist with one calm line and one way in', async () => {
     const r = await open('Home', true);
     const t = all(r);
-    expect(t).toContain('Find a Charger');
+    expect(t).toContain('Orbit Assist');
     expect(t).toContain('You’re good to drive.');
     expect(t).toMatch(/About \d+ km before your 12% reserve\./);
-    // The strip is a calm line with a round arrow; the verb lives in its label.
-    expect(pressable(r, /You’re good to drive\..*Where to\?$/)).toBeTruthy();
+    expect(t).toContain('Ready');
+    await press(r, 'Plan a journey');
+    expect(probe.current).toBe('SmartDrive');
   });
 
   test('Home shows the trip when there is one, and opens it', async () => {
     seedSmartDriveTrip({km: 20});
     const r = await open('Home', true);
     expect(all(r)).toContain('Your trip is on track.');
-    await press(r, /Your trip is on track/);
+    expect(all(r)).toContain('Active');
+    await press(r, 'Open trip');
     expect(probe.current).toBe('SmartDrive');
   });
 
@@ -361,15 +363,35 @@ describe('Smart Drive inside the rest of the app', () => {
     });
     const r = await open('Home', true);
     expect(all(r)).toContain('Battery is getting low.');
-    await press(r, /Battery is getting low/);
+    // Running low and nowhere in particular to be: the nearest chargers, as a list.
+    await press(r, 'Find chargers');
     expect(probe.current).toBe('StationList');
   });
 
   test('Home asks for the car before anything else', async () => {
     appStore.set({vehicles: [], activeVehicleId: null});
     const r = await open('Home', true);
-    await press(r, /Add your car to get started/);
+    expect(all(r)).toContain('Add your car to get started.');
+    expect(all(r)).toContain('Setup needed');
+    await press(r, 'Set up');
     expect(probe.current).toBe('VehicleSetup');
+  });
+
+  test('the destination typed on Home arrives in the Orbit Assist planner', async () => {
+    const r = await open('Home', true);
+    await act(async () => {
+      r.root
+        .findByProps({testID: 'destination-input'})
+        .props.onChangeText('Jaipur');
+    });
+    await press(r, 'Plan my journey');
+    expect(probe.current).toBe('SmartDrive');
+    const planner = screen(r);
+    const to = planner
+      .findAllByType(TextInput)
+      .map(n => n.props.value)
+      .filter(Boolean);
+    expect(to).toContain('Jaipur');
   });
 
   test('Trips offers Smart Drive up front', async () => {

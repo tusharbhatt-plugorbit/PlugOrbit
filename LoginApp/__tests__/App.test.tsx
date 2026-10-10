@@ -746,7 +746,7 @@ test('a signed-in user with a vehicle goes straight to Home on launch', async ()
   resetAppStore();
 
   const renderer = await renderApp();
-  expect(textsOf(renderer)).toContain('Find a Charger');
+  expect(textsOf(renderer)).toContain('Where are we going?');
   expect(textsOf(renderer)).not.toContain(WELCOME_HEADLINE);
 });
 

@@ -45,13 +45,18 @@ const flush = async () => {
 const mounted: Renderer[] = [];
 
 async function renderTab(
-  tab: 'Home' | 'Charge',
+  tab: 'Home' | 'Charge' | 'Map',
   services?: Partial<Services>,
 ): Promise<Renderer> {
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <TestApp tab={tab} services={services} />,
+      // The map is a pushed route; sit it on a tab that does not search itself.
+      tab === 'Map' ? (
+        <TestApp tab="Profile" stack={[{name: 'Map'}]} services={services} />
+      ) : (
+        <TestApp tab={tab} services={services} />
+      ),
     );
   });
   mounted.push(renderer);
@@ -129,14 +134,22 @@ test('the nearby list has chargers and explains the demo area', async () => {
   }
 });
 
-test('Home shows demo chargers around New Delhi with an honest notice', async () => {
+test('the map shows demo chargers around New Delhi with an honest notice', async () => {
   const stationService = createStationService();
   const nearby = jest.fn(stationService.nearby);
-  const r = await renderTab('Home', {station: {...stationService, nearby}});
+  const r = await renderTab('Map', {station: {...stationService, nearby}});
   expect(nearby.mock.calls[0][0].origin).toEqual(DEFAULT_CENTER);
   expect(textsOf(r)).toContain(NOTICE);
   expect(textsOf(r)).not.toContain('No compatible chargers found nearby');
   expect(markerLabels(r).length).toBeGreaterThan(3);
+});
+
+test('Home says it is the demo area, and shows a demo charger rather than none', async () => {
+  const r = await renderTab('Home');
+  expect(textsOf(r)).toContain('Demo area: New Delhi');
+  expect(textsOf(r)).toContain(NOTICE);
+  expect(textsOf(r)).not.toContain('No compatible chargers nearby');
+  expect(textsOf(r)).toContain('Nearby charger');
 });
 
 test('the Charge tab lists chargers and says so too', async () => {

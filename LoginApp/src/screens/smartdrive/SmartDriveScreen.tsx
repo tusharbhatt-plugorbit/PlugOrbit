@@ -7,6 +7,7 @@ import type {ActiveTrip, TripUpdate} from '../../intelligence/types';
 import {
   useIsActiveRef,
   useNavigation,
+  useRoute,
 } from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {openDirections} from '../../services/directions';
@@ -55,8 +56,10 @@ function TripPlanner(): React.JSX.Element {
   const vehicle = useApp(selectActiveVehicle);
   const battery = useApp(s => s.battery);
   const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
+  const {params} = useRoute<'SmartDrive'>();
   const [from, setFrom] = useState('Delhi');
-  const [to, setTo] = useState('');
+  // Home's "Where are we going?" hands its destination over here.
+  const [to, setTo] = useState(params?.toLabel ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{title: string; body: string} | null>(
     null,

@@ -27,6 +27,14 @@ const settle = async () => {
 
 const mounted: Renderer[] = [];
 
+// The whole rendered tree as text. Screens kept alive underneath the one under test
+// (Home, with its pull-to-refresh control) hold React elements in props, which are
+// circular; skip that one prop and keep everything else the assertions read.
+const treeJson = (r: {toJSON: () => unknown}) =>
+  JSON.stringify(r.toJSON(), (key, value) =>
+    key === 'refreshControl' ? undefined : value,
+  );
+
 async function open(
   route: React.ComponentProps<typeof TestApp>['stack'],
 ): Promise<Renderer> {
@@ -148,7 +156,7 @@ test('an external station never starts: operator instructions are shown instead'
       params: {stationId: 'st-jiobp-lodhi', connectorId: 'st-jiobp-lodhi-c1'},
     },
   ]);
-  const text = JSON.stringify(r.toJSON());
+  const text = treeJson(r);
   expect(text).toContain('runs this charger');
   expect(text).toContain('PlugOrbit can’t start or bill this charger');
   expect(text).not.toContain('Authorise & start');
@@ -176,7 +184,7 @@ test('without a verified payment method the charger cannot be started', async ()
     )
     .pop();
   expect(cta?.props.accessibilityState.disabled).toBe(true);
-  expect(JSON.stringify(r.toJSON())).toContain('Add a verified payment method');
+  expect(treeJson(r)).toContain('Add a verified payment method');
   expect(appStore.get().session).toBeNull();
 });
 
@@ -190,9 +198,9 @@ test('an occupied connector offers a free one instead of starting', async () => 
       },
     },
   ]);
-  expect(JSON.stringify(r.toJSON())).toContain('occupied');
+  expect(treeJson(r)).toContain('occupied');
   await press(r, /^Use C/);
-  expect(JSON.stringify(r.toJSON())).toContain('AVAILABLE');
+  expect(treeJson(r)).toContain('AVAILABLE');
 });
 
 test('presenter integration outage hands over to the operator flow', async () => {
@@ -206,7 +214,7 @@ test('presenter integration outage hands over to the operator flow', async () =>
       },
     },
   ]);
-  expect(JSON.stringify(r.toJSON())).toContain('temporarily unavailable');
+  expect(treeJson(r)).toContain('temporarily unavailable');
 });
 
 describe('restart recovery', () => {

@@ -10,6 +10,7 @@ const NAMES: Record<RouteName, true> = {
   Profile: true,
   VehicleSetup: true,
   ManualSoc: true,
+  Map: true,
   StationList: true,
   Filters: true,
   StationDetail: true,

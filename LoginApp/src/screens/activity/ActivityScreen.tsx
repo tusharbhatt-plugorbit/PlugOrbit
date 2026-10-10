@@ -104,7 +104,7 @@ export default function ActivityScreen(): React.JSX.Element {
               primary={{
                 label: 'Find a charger',
                 icon: 'search',
-                onPress: () => nav.switchTab('Home'),
+                onPress: () => nav.navigate('Map'),
               }}
             />
           ) : (

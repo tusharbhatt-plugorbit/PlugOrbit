@@ -134,7 +134,7 @@ export default function RoadsideScreen(): React.JSX.Element {
           label="Find the nearest charger"
           icon="zap"
           compact
-          onPress={() => nav.switchTab('Home')}
+          onPress={() => nav.navigate('Map')}
         />
       </View>
 

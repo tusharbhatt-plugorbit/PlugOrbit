@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {
   availableCount,
@@ -18,7 +18,7 @@ import {colors, elevation, radii, spacing, type} from '../theme';
 import {formatDistance} from '../utils/geo';
 import {formatInr} from '../utils/format';
 import {Pill, StatusBadge, ConfidenceBadge} from './Badges';
-import {PrimaryButton} from './Buttons';
+import {PrimaryButton, TextButton} from './Buttons';
 import {Card} from './Card';
 import {Icon} from './Icon';
 
@@ -303,6 +303,10 @@ export function MapChargerCard({
   best,
 }: MapCardProps) {
   const health = stationHealth(station, vehicle);
+  // Collapsed it leaves the map visible: name, status (with how fresh it is) and
+  // the Directions action. Expanded adds the figures behind them.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => setExpanded(false), [station.id]);
   return (
     <View style={[styles.mapCard, elevation(3), {bottom}]} testID="map-card">
       <Pressable
@@ -322,11 +326,27 @@ export function MapChargerCard({
             {formatDistance(station.distanceKm)}
           </Text>
         </View>
-        <StationFacts station={station} vehicle={vehicle} />
+        {expanded && <StationFacts station={station} vehicle={vehicle} />}
+      </Pressable>
+      <Pressable
+        onPress={() => setExpanded(e => !e)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={
+          expanded ? 'Show fewer details' : 'Show more details'
+        }
+        accessibilityState={{expanded}}
+        testID="map-card-toggle"
+        style={[styles.close, styles.toggle]}>
+        <Icon
+          name={expanded ? 'chevron-down' : 'chevron-up'}
+          size={16}
+          color={colors.ink}
+        />
       </Pressable>
       <Pressable
         onPress={onClose}
-        hitSlop={14}
+        hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Close details"
         style={styles.close}>
@@ -335,7 +355,12 @@ export function MapChargerCard({
       <View style={styles.mapTrust}>
         <ConfidenceBadge feed={station.statusFeed} now={now} subject="Status" />
       </View>
-      <PriceLine station={station} vehicle={vehicle} now={now} />
+      {expanded && (
+        <>
+          <PriceLine station={station} vehicle={vehicle} now={now} />
+          <TextButton label="View full details" onPress={onDetails} />
+        </>
+      )}
       <PrimaryButton
         label="Directions"
         icon="navigation"
@@ -495,7 +520,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.lg,
   },
-  mapTitle: {...type.heading, color: colors.ink, paddingRight: 36},
+  mapTitle: {...type.heading, color: colors.ink, paddingRight: 80},
   close: {
     position: 'absolute',
     top: spacing.lg,
@@ -507,6 +532,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Sits left of the close button; each keeps a 44px touch area through hitSlop.
+  toggle: {right: spacing.lg + 28 + 12},
   mapTrust: {marginTop: spacing.md, marginBottom: 2},
   cta: {marginTop: spacing.md},
   rel: {gap: 6},
