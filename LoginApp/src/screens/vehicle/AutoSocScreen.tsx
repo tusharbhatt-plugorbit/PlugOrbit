@@ -5,6 +5,7 @@ import {describeSocSource} from '../../domain/socEstimate';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {useApp} from '../../store/appStore';
+import {useDemo} from '../../store/demoStore';
 import {colors, radii, spacing, type} from '../../theme';
 import {
   Card,
@@ -56,6 +57,10 @@ export default function AutoSocScreen(): React.JSX.Element {
   const link = useApp(s => s.vehicleLink);
   const battery = useApp(s => s.battery);
   const allowed = useApp(s => s.privacy.vehicleBatteryData);
+  // No real OEM/OBD integration exists yet. Until one does, connecting is only
+  // offered when a presenter has switched on the labelled demo.
+  const demoOn = useDemo(s => s.simulateVehicle);
+  const available = demoOn || link.connected;
   const vehicle = useApp(s => s.vehicles.find(v => v.id === s.activeVehicleId));
   const now = useNow();
 
@@ -138,7 +143,7 @@ export default function AutoSocScreen(): React.JSX.Element {
               onPress={disconnect}
             />
           </>
-        ) : (
+        ) : available ? (
           <PrimaryButton
             label={
               error ? 'Try again' : `Connect with ${METHODS[method].title}`
@@ -147,6 +152,12 @@ export default function AutoSocScreen(): React.JSX.Element {
             loading={connecting}
             disabled={!allowed}
             onPress={connect}
+          />
+        ) : (
+          <PrimaryButton
+            label="Enter battery by hand"
+            icon="pencil"
+            onPress={() => nav.navigate('ManualSoc')}
           />
         )
       }>
@@ -189,6 +200,16 @@ export default function AutoSocScreen(): React.JSX.Element {
         </Card>
       </View>
 
+      {!available && (
+        <View style={styles.block}>
+          <Notice
+            tone="info"
+            title="Not available yet"
+            body="Connecting to your car maker’s account or an OBD dongle isn’t switched on in this version, so PlugOrbit can’t read your car. Enter your battery level by hand for now; everything else works."
+          />
+        </View>
+      )}
+
       {!allowed && (
         <View style={styles.block}>
           <Notice
@@ -225,9 +246,13 @@ export default function AutoSocScreen(): React.JSX.Element {
             key={m}
             icon={METHODS[m].icon}
             title={METHODS[m].title}
-            body={METHODS[m].body}
+            body={
+              available
+                ? METHODS[m].body
+                : `${METHODS[m].body} Not available yet.`
+            }
             selected={activeMethod === m}
-            disabled={connecting || link.connected}
+            disabled={connecting || link.connected || !available}
             onPress={() => setMethod(m)}
           />
         ))}

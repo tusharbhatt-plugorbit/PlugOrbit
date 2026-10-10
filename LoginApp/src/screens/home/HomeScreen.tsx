@@ -15,7 +15,9 @@ import {applyFilters, rankOrganic} from '../../domain/rules';
 import {describeSocSource} from '../../domain/socEstimate';
 import {timeAgo} from '../../domain/trust';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
+import {RUNS_ON_DEMO_DATA} from '../../services';
 import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
+import {assistModeOf} from '../../intelligence/types';
 import {idleStatus, tripStatus} from '../../intelligence/status';
 import {useNavigation} from '../../navigation/NavigationContext';
 import type {RouteName} from '../../navigation/params';
@@ -27,6 +29,7 @@ import {
   ChargerCard,
   Icon,
   IconName,
+  MODE_LABEL,
   Notice,
   Pill,
   PrimaryButton,
@@ -61,6 +64,7 @@ export default function HomeScreen(): React.JSX.Element {
   const unread = useApp(s => s.notifications.some(n => !n.read));
   const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
   const assistOn = useApp(s => s.smartDrive.prefs.enabled);
+  const assistMode = useApp(s => assistModeOf(s.smartDrive.prefs));
   const outcomes = useApp(s => s.smartDrive.outcomes);
   const savedRoutes = useApp(s => s.savedRoutes);
   const trip = useApp(selectTrip);
@@ -383,6 +387,10 @@ export default function HomeScreen(): React.JSX.Element {
                   <View>
                     <Text style={styles.assistHeadline}>{status.headline}</Text>
                     <Text style={styles.assistDetail}>{status.detail}</Text>
+                    <TextButton
+                      label={`Mode: ${MODE_LABEL[assistMode]} • Change`}
+                      onPress={() => go('TripPreferences')}
+                    />
                   </View>
                   <PrimaryButton
                     label={assist.cta}
@@ -596,6 +604,11 @@ function NearbyCharger({
       />
       {kind === 'demo-area' && (
         <Text style={styles.tripMeta}>{nearby.notice?.message}</Text>
+      )}
+      {RUNS_ON_DEMO_DATA && (
+        <Text style={styles.tripMeta}>
+          Demo data: charger status here is simulated, not a live feed.
+        </Text>
       )}
     </View>
   );

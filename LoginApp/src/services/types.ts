@@ -26,7 +26,12 @@ import type {
 } from '../domain/types';
 import type {CopilotAnswer, QuestionId} from '../intelligence/explain';
 import type {EventInput} from '../intelligence/sessionBridge';
-import type {ActiveTrip, TripOutcome, TripUpdate} from '../intelligence/types';
+import type {
+  ActiveTrip,
+  AssistMode,
+  TripOutcome,
+  TripUpdate,
+} from '../intelligence/types';
 import type {Coords} from '../utils/geo';
 
 /**
@@ -245,6 +250,8 @@ export interface SmartDriveService {
   setEnabled(enabled: boolean): Promise<void>;
   /** `minimal` lets only plan changes and safety alerts through. */
   setVerbosity(verbosity: 'calm' | 'minimal'): Promise<void>;
+  /** Guided recommends and waits to be asked; assist also volunteers suggestions. */
+  setMode(mode: AssistMode): Promise<void>;
   /** Remember that the driver doesn't want this preference suggestion again. */
   dismissSuggestion(id: string): Promise<void>;
   /** Finish (or abandon) the trip; keeps prediction versus reality. */

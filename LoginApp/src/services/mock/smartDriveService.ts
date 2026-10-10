@@ -3,6 +3,7 @@ import {buildOutcome} from '../../intelligence/analytics';
 import {driveMinutes} from '../../intelligence/battery';
 import {answerQuestion} from '../../intelligence/explain';
 import {createTrip, processEvent} from '../../intelligence/monitor';
+import {assistModeOf} from '../../intelligence/types';
 import {leansOf, profileFromPrefs} from '../../intelligence/preferences';
 import type {
   ActiveTrip,
@@ -73,7 +74,7 @@ const tripNow = (trip: ActiveTrip) => Date.now() + trip.clockOffsetMs;
 function currentTrip(): ActiveTrip {
   const trip = appStore.get().smartDrive.trip;
   if (!trip) {
-    throw new ApiError('There’s no trip in progress. Start Smart Drive first.');
+    throw new ApiError('There’s no trip in progress. Plan a journey first.');
   }
   return trip;
 }
@@ -151,6 +152,7 @@ function evaluate(trip: ActiveTrip, event: TripEvent): TripUpdate {
     world: worldAt(event.at, offline),
     config: DEFAULT_SMART_DRIVE_CONFIG,
     quiet: appStore.get().smartDrive.prefs.verbosity === 'minimal',
+    mode: assistModeOf(appStore.get().smartDrive.prefs),
   });
 }
 
@@ -430,6 +432,11 @@ export function createSmartDriveService(): SmartDriveService {
     async setVerbosity(verbosity) {
       await guard(100);
       setSmartDrivePrefs({verbosity});
+    },
+
+    async setMode(mode) {
+      await guard(100);
+      setSmartDrivePrefs({mode});
     },
 
     async dismissSuggestion(id) {

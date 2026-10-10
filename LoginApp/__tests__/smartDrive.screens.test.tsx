@@ -13,6 +13,7 @@ import {
   seedSmartDriveTrip,
 } from '../src/dev/testHarness';
 import type {RouteName, TabName} from '../src/navigation/params';
+import {assistModeOf} from '../src/intelligence/types';
 import {appStore} from '../src/store/appStore';
 
 const {act} = ReactTestRenderer;
@@ -124,7 +125,7 @@ describe('before a trip: "Where are we going?"', () => {
 
   test('cannot start without a destination; then plans the trip', async () => {
     const r = await open('SmartDrive');
-    expect(pressable(r, 'Start Smart Drive')?.props.disabled).toBe(true);
+    expect(pressable(r, 'Start journey')?.props.disabled).toBe(true);
     const to = screen(r).findAll(
       n =>
         n.props.accessibilityLabel === 'To' &&
@@ -134,7 +135,7 @@ describe('before a trip: "Where are we going?"', () => {
       to.props.onChangeText('Jaipur');
     });
     await flush();
-    await press(r, 'Start Smart Drive');
+    await press(r, 'Start journey');
     expect(appStore.get().smartDrive.trip?.destination.label).toBe('Jaipur');
     expect(all(r)).toContain('You’re good to drive.');
     expect(all(r)).toContain('No charging needed right now.');
@@ -242,7 +243,7 @@ describe('the trip dashboard', () => {
     await press(r, 'See offline plan');
     expect(probe.current).toBe('OfflineMode');
     const o = all(r);
-    expect(o).toContain('Smart Drive plan');
+    expect(o).toContain('Orbit Assist plan');
     expect(o).toContain('Your stop');
     expect(o).toContain('Your backup');
     expect(o).not.toMatch(/\bLIVE\b/);
@@ -331,7 +332,7 @@ describe('the charging stop screen', () => {
   test('with nothing planned it says so', async () => {
     const r = await open('SmartDriveStop');
     expect(all(r)).toContain('No trip in progress');
-    await press(r, 'Start Smart Drive');
+    await press(r, 'Plan a journey');
     expect(probe.current).toBe('SmartDrive');
   });
 });
@@ -394,10 +395,10 @@ describe('Smart Drive inside the rest of the app', () => {
     expect(to).toContain('Jaipur');
   });
 
-  test('Trips offers Smart Drive up front', async () => {
+  test('Trips offers Orbit Assist up front', async () => {
     const r = await open('Trips', true);
     expect(all(r)).toContain('You drive. We handle the charge.');
-    await press(r, 'Start Smart Drive');
+    await press(r, 'Plan a journey');
     expect(probe.current).toBe('SmartDrive');
   });
 
@@ -413,9 +414,9 @@ describe('Smart Drive inside the rest of the app', () => {
     expect(all(n)).toContain('We’ve changed your charging stop.');
   });
 
-  test('Trip preferences: Smart Drive settings save as you change them', async () => {
+  test('Trip preferences: Orbit Assist settings save as you change them', async () => {
     const r = await open('TripPreferences');
-    expect(all(r)).toContain('Smart Drive on for new trips');
+    expect(all(r)).toContain('Orbit Assist on for new trips');
     expect(all(r)).toContain('Only tell me what matters');
     const toggle = screen(r).findAll(
       n =>
@@ -467,5 +468,122 @@ describe('Smart Drive inside the rest of the app', () => {
   test('Offline mode still works with no route at all', async () => {
     const r = await open('OfflineMode');
     expect(all(r)).toContain('Nothing saved for offline');
+  });
+});
+
+describe('Orbit Assist modes and the map companion', () => {
+  const storedMode = () => assistModeOf(appStore.get().smartDrive.prefs);
+
+  test('the planner offers Guided and Orbit Assist, defaulting to the old behaviour', async () => {
+    const r = await open('SmartDrive');
+    expect(all(r)).toContain('How should we help?');
+    expect(all(r)).toContain('Guided');
+    expect(storedMode()).toBe('assist');
+    const guided = screen(r).find(
+      n =>
+        n.props.testID === 'mode-guided' &&
+        n.props.accessibilityRole === 'radio',
+    );
+    const assist = screen(r).find(
+      n =>
+        n.props.testID === 'mode-assist' &&
+        n.props.accessibilityRole === 'radio',
+    );
+    expect(assist.props.accessibilityState.selected).toBe(true);
+    expect(guided.props.accessibilityState.selected).toBe(false);
+  });
+
+  test('choosing Guided is saved, and the planner says what Guided means', async () => {
+    const r = await open('SmartDrive');
+    const guided = screen(r).find(
+      n =>
+        n.props.testID === 'mode-guided' &&
+        n.props.accessibilityRole === 'radio',
+    );
+    await act(async () => {
+      guided.props.onPress();
+    });
+    await flush();
+    expect(storedMode()).toBe('guided');
+    expect(all(r)).toContain(
+      'You decide, and we tell you what your plan needs.',
+    );
+    expect(
+      screen(r).find(
+        n =>
+          n.props.testID === 'mode-guided' &&
+          n.props.accessibilityRole === 'radio',
+      ).props.accessibilityState.selected,
+    ).toBe(true);
+  });
+
+  test('the same choice is in Trip preferences', async () => {
+    const r = await open('TripPreferences');
+    const guided = screen(r).find(
+      n =>
+        n.props.testID === 'mode-guided' &&
+        n.props.accessibilityRole === 'radio',
+    );
+    await act(async () => {
+      guided.props.onPress();
+    });
+    await flush();
+    expect(storedMode()).toBe('guided');
+  });
+
+  test('a trip in Guided mode says so in its footer, not "watching for you"', async () => {
+    seedSmartDriveTrip({km: 20});
+    appStore.set(s => ({
+      smartDrive: {
+        ...s.smartDrive,
+        prefs: {...s.smartDrive.prefs, mode: 'guided'},
+      },
+    }));
+    const r = await open('SmartDrive');
+    expect(all(r)).toContain('Guided: we’ll tell you what your plan needs.');
+    expect(all(r)).not.toContain('PlugOrbit is monitoring');
+  });
+
+  test('the planner is upfront that this build runs on preview data', async () => {
+    const r = await open('SmartDrive');
+    expect(all(r)).toContain('Preview data');
+    expect(all(r)).toMatch(/simulated in this version/);
+  });
+
+  test('over the map, an active trip is one calm line that expands on tap', async () => {
+    seedSmartDriveTrip({km: 20});
+    const r = await open('Map');
+    const panel = screen(r).find(n => n.props.testID === 'assist-map-panel');
+    expect(panel).toBeTruthy();
+    expect(all(r)).toContain('Your trip is on track.');
+    // Collapsed: the reasoning is not on the map yet.
+    expect(all(r)).not.toContain('Open trip');
+    await press(r, /^Orbit Assist\. Your trip is on track/);
+    expect(all(r)).toContain('Open trip');
+    expect(all(r)).toMatch(/Mode: Orbit Assist/);
+    await press(r, 'Open trip');
+    expect(probe.current).toBe('SmartDrive');
+  });
+
+  test('the expanded assistant takes the map: the station card steps aside, then returns', async () => {
+    seedSmartDriveTrip({km: 20});
+    const r = await open('Map');
+    // (findAll sees the component and its host view, so count presence, not matches.)
+    const card = () =>
+      screen(r).findAll(n => n.props.testID === 'map-card').length > 0;
+    expect(card()).toBe(true);
+    await press(r, /^Orbit Assist\. Your trip is on track/);
+    expect(card()).toBe(false);
+    // Said once: the detail already names the next stop.
+    expect(all(r).split('Next stop:').length - 1).toBeLessThanOrEqual(1);
+    await press(r, /^Orbit Assist\. Your trip is on track.*Hide details/);
+    expect(card()).toBe(true);
+  });
+
+  test('with no trip the map has no assistant panel', async () => {
+    const r = await open('Map');
+    expect(
+      screen(r).findAll(n => n.props.testID === 'assist-map-panel'),
+    ).toHaveLength(0);
   });
 });

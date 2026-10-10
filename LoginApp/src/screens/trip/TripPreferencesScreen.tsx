@@ -8,7 +8,9 @@ import {useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
+import {assistModeOf} from '../../intelligence/types';
 import {
+  AssistModeSelector,
   Card,
   ListCard,
   Notice,
@@ -164,11 +166,15 @@ export default function TripPreferencesScreen(): React.JSX.Element {
         />
       </ListCard>
 
-      <SectionTitle title="Smart Drive" />
+      <SectionTitle title="Orbit Assist" />
+      <AssistModeSelector
+        mode={assistModeOf(sd.prefs)}
+        onChange={m => smartDrive.setMode(m)}
+      />
       <ListCard>
         <ToggleRow
-          title="Smart Drive on for new trips"
-          subtitle="PlugOrbit watches your trip and handles the charging decisions."
+          title="Orbit Assist on for new trips"
+          subtitle="PlugOrbit plans your charging stops and keeps your plan up to date."
           value={sd.prefs.enabled}
           onValueChange={v => smartDrive.setEnabled(v)}
         />

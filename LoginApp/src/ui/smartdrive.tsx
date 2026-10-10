@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 import {availabilityHeadline} from '../domain/rules';
 import type {Vehicle} from '../domain/types';
@@ -12,9 +12,11 @@ import {
   topReasons,
 } from '../intelligence/copy';
 import {summariseRuledOut} from '../intelligence/chargingPlan';
+import {tripStatus} from '../intelligence/status';
 import type {CopilotStatus} from '../intelligence/status';
 import type {
   ActiveTrip,
+  AssistMode,
   BackupStop,
   ChargeConfidence,
   LogEntry,
@@ -26,8 +28,9 @@ import {colors, elevation, radii, spacing, type} from '../theme';
 import {formatClock} from '../utils/format';
 import {ConfidenceBadge, Pill} from './Badges';
 import {Card, KeyValue} from './Card';
+import {ChoiceCard} from './ChoiceCard';
 import {Icon, IconName} from './Icon';
-import {TextButton} from './Buttons';
+import {PrimaryButton, TextButton} from './Buttons';
 
 /* ---------------------------------------------------------------- headline -- */
 
@@ -44,7 +47,7 @@ const TONE_ICON: Record<CopilotStatus['tone'], IconName> = {
  */
 export function CopilotStatusCard({
   status,
-  kicker = 'Smart Drive',
+  kicker = 'Orbit Assist',
   footer,
 }: {
   status: CopilotStatus;
@@ -666,4 +669,136 @@ const styles = StyleSheet.create({
     backgroundColor: colors.limeDark,
   },
   monitorText: {...type.label, color: colors.inkSoft},
+});
+
+/* ------------------------------------------------------------------- modes -- */
+
+export const MODE_LABEL: Record<AssistMode, string> = {
+  guided: 'Guided',
+  assist: 'Orbit Assist',
+};
+
+/**
+ * Two ways to travel, one choice. The descriptions say only what each mode
+ * really does: Guided recommends and tells you what your plan needs; Orbit Assist
+ * also keeps watching and suggests a better stop. Neither changes your plan, pays
+ * or starts charging without you.
+ */
+export function AssistModeSelector({
+  mode,
+  onChange,
+}: {
+  mode: AssistMode;
+  onChange: (mode: AssistMode) => void;
+}) {
+  return (
+    <View style={modeStyles.group} accessibilityRole="radiogroup">
+      <ChoiceCard
+        icon="route"
+        title="Guided"
+        body="You steer. We recommend your charging stops and tell you what your plan needs. Ideas for improving it wait until you ask."
+        selected={mode === 'guided'}
+        onPress={() => onChange('guided')}
+        testID="mode-guided"
+      />
+      <ChoiceCard
+        icon="sparkles"
+        title="Orbit Assist"
+        body="Automatic. We also keep watching and suggest a better stop or a backup when things change. You approve every change."
+        selected={mode === 'assist'}
+        onPress={() => onChange('assist')}
+        testID="mode-assist"
+      />
+    </View>
+  );
+}
+
+const modeStyles = StyleSheet.create({group: {gap: spacing.sm}});
+
+/* ------------------------------------------------------- the map companion -- */
+
+/**
+ * The assistant, kept small over the map while a trip is on: one calm line,
+ * and the reasoning a tap away so the map stays clear.
+ */
+export function AssistMapPanel({
+  trip,
+  mode,
+  onOpen,
+  onExpandedChange,
+}: {
+  trip: ActiveTrip;
+  mode: AssistMode;
+  onOpen: () => void;
+  /** Lets the screen clear other overlays while the reasoning is showing. */
+  onExpandedChange?: (expanded: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const status = tripStatus(trip);
+  const alert = status.tone === 'alert';
+  return (
+    <View
+      style={[panelStyles.panel, elevation(2), alert && panelStyles.alert]}
+      testID="assist-map-panel">
+      <Pressable
+        onPress={() => {
+          setOpen(!open);
+          onExpandedChange?.(!open);
+        }}
+        accessibilityRole="button"
+        accessibilityState={{expanded: open}}
+        accessibilityLabel={`Orbit Assist. ${status.headline} ${
+          open ? 'Hide details' : 'Show details'
+        }`}
+        style={panelStyles.head}>
+        <View style={panelStyles.icon}>
+          <Icon name="sparkles" size={16} color={colors.lime} />
+        </View>
+        <Text style={panelStyles.headline} numberOfLines={open ? 3 : 1}>
+          {status.headline}
+        </Text>
+        <Icon
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={colors.ink}
+        />
+      </Pressable>
+      {open && (
+        <View style={panelStyles.body}>
+          <Text style={panelStyles.detail}>{status.detail}</Text>
+          <Text style={panelStyles.meta}>{`Mode: ${MODE_LABEL[mode]}`}</Text>
+          <PrimaryButton label="Open trip" compact onPress={onOpen} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+const panelStyles = StyleSheet.create({
+  panel: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  alert: {backgroundColor: colors.dangerSoft},
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 40,
+  },
+  icon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headline: {...type.bodyStrong, color: colors.ink, flex: 1},
+  body: {gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xs},
+  detail: {...type.body, color: colors.inkSoft, lineHeight: 19},
+  meta: {...type.caption, color: colors.muted},
 });

@@ -16,6 +16,7 @@ import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import ChargerMap, {ChargerMapHandle} from '../../components/ChargerMap';
 import {MapUnavailable} from '../../components/MapUnavailable';
 import {mapsKeyMissing} from '../../config/google';
+import {RUNS_ON_DEMO_DATA} from '../../services';
 import {
   applyFilters,
   availableCount,
@@ -26,9 +27,11 @@ import {
 import type {StationWithDistance} from '../../domain/types';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
 import {useNavigation} from '../../navigation/NavigationContext';
-import {selectActiveVehicle, useApp} from '../../store/appStore';
+import {assistModeOf} from '../../intelligence/types';
+import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
 import {
+  AssistMapPanel,
   Icon,
   LocationPermissionState,
   LogoTile,
@@ -71,6 +74,10 @@ function MapScreen(): React.JSX.Element {
   const mapRef = useRef<ChargerMapHandle>(null);
   const vehicle = useApp(selectActiveVehicle);
   const filters = useApp(s => s.filters);
+  const trip = useApp(selectTrip);
+  const assistMode = useApp(s => assistModeOf(s.smartDrive.prefs));
+  // While the assistant explains itself it has the map; the station card waits.
+  const [assistOpen, setAssistOpen] = useState(false);
   const {phase, stations, userLocation, origin, notice, refresh, searchAt} =
     useNearbyStations(vehicle);
 
@@ -346,6 +353,24 @@ function MapScreen(): React.JSX.Element {
           <View style={styles.overlayTop} pointerEvents="box-none">
             <VehicleSelector tone="light" />
 
+            {RUNS_ON_DEMO_DATA && (
+              <View
+                style={[styles.pill, elevation(1)]}
+                accessible
+                accessibilityLabel="Demo data. Charger status here is simulated.">
+                <Text style={styles.pillText}>Demo data</Text>
+              </View>
+            )}
+
+            {trip && trip.monitoringState !== 'ended' && (
+              <AssistMapPanel
+                trip={trip}
+                mode={assistMode}
+                onOpen={() => nav.navigate('SmartDrive')}
+                onExpandedChange={setAssistOpen}
+              />
+            )}
+
             {busy && (
               <View
                 style={[styles.pill, elevation(1)]}
@@ -482,7 +507,7 @@ function MapScreen(): React.JSX.Element {
             </View>
           )}
 
-          {selected && !showPermissionCard && !mapBroken ? (
+          {assistOpen ? null : selected && !showPermissionCard && !mapBroken ? (
             <MapChargerCard
               station={selected}
               vehicle={vehicle}

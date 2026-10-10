@@ -6,13 +6,14 @@ import type {
   Vehicle,
 } from '../../domain/types';
 import {appStore} from '../../store/appStore';
+import {demoStore} from '../../store/demoStore';
 import type {
   NotificationService,
   PreferencesService,
   SupportService,
   VehicleService,
 } from '../types';
-import {ApiError} from '../types';
+import {ApiError, IntegrationUnavailableError} from '../types';
 import {VEHICLE_CATALOG} from './data';
 import {guard, uid} from './runtime';
 
@@ -71,12 +72,23 @@ export function createVehicleService(): VehicleService {
     async connectVehicle(method) {
       await guard(1400);
       // TODO(integration): OEM cloud account / Bluetooth OBD dongle.
+      // There is no real integration, so a connection must not pretend to work:
+      // no sample reading is invented unless a presenter switches the demo on, and
+      // then the link is flagged so nothing calls the reading "from your car".
+      if (!demoStore.get().simulateVehicle) {
+        throw new IntegrationUnavailableError(
+          'Connecting your car isn’t available yet. Enter your battery level by hand for now.',
+        );
+      }
       const reading = {
         percent: 58,
         source: 'vehicle' as const,
         updatedAt: Date.now(),
       };
-      appStore.set({battery: reading, vehicleLink: {connected: true, method}});
+      appStore.set({
+        battery: reading,
+        vehicleLink: {connected: true, method, simulated: true},
+      });
       return reading;
     },
 
