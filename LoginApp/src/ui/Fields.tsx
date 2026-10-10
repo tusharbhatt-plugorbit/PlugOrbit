@@ -11,7 +11,15 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
-import {colors, elevation, radii, sizes, slopFor, spacing, type} from '../theme';
+import {
+  colors,
+  elevation,
+  radii,
+  sizes,
+  slopFor,
+  spacing,
+  type,
+} from '../theme';
 import {Icon, IconName} from './Icon';
 
 /** Light-surface text input in the Login field style (52px, 12px radius, 1.5px border). */
@@ -53,7 +61,7 @@ export function TextField({
             setFocused(false);
             rest.onBlur?.(e);
           }}
-          style={[styles.input, multiline && styles.inputMulti]}
+          style={[styles.input, multiline && styles.inputMulti, rest.style]}
         />
       </View>
       {error ? (
@@ -333,30 +341,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: sizes.field,
+    minHeight: sizes.field,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.inputBorder,
     borderRadius: 12,
   },
-  fieldMulti: {height: 120, alignItems: 'flex-start', paddingTop: 12},
+  fieldMulti: {minHeight: 120, alignItems: 'flex-start', paddingTop: 12},
   fieldFocused: {borderColor: colors.limeDark},
   fieldError: {borderColor: colors.danger},
-  input: {flex: 1, fontSize: 15, color: colors.ink, paddingVertical: 0},
-  inputMulti: {height: '100%', textAlignVertical: 'top'},
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
+  inputMulti: {minHeight: 94, textAlignVertical: 'top'},
   helper: {...type.caption, color: colors.muted},
   error: {...type.caption, color: colors.danger, fontWeight: '700'},
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: sizes.field,
+    minHeight: sizes.field,
+    paddingVertical: 10,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
   },
-  searchInput: {flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0},
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -379,28 +401,41 @@ const styles = StyleSheet.create({
   },
   segmentItem: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 44,
+    paddingVertical: 8,
     borderRadius: radii.md - 3,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
   segmentActive: {backgroundColor: colors.bg},
-  segmentText: {...type.label, color: colors.inkSoft},
+  segmentText: {
+    textAlign: 'center',
+    flexShrink: 1,
+    ...type.label,
+    color: colors.inkSoft,
+  },
   segmentTextActive: {color: '#FFFFFF'},
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    height: sizes.chip,
+    minHeight: sizes.chip,
+    paddingVertical: 8,
+    maxWidth: '100%',
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     backgroundColor: colors.surface,
   },
   chipSelected: {backgroundColor: colors.lime, borderColor: colors.lime},
-  chipText: {...type.label, color: colors.inkSoft, fontWeight: '600'},
+  chipText: {
+    flexShrink: 1,
+    ...type.label,
+    color: colors.inkSoft,
+    fontWeight: '600',
+  },
   chipTextSelected: {color: colors.ink, fontWeight: '800'},
   sliderHit: {height: 44, justifyContent: 'center'},
   sliderTrack: {
@@ -432,5 +467,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepValue: {...type.h1, color: colors.ink, minWidth: 64, textAlign: 'center'},
+  stepValue: {
+    ...type.h1,
+    color: colors.ink,
+    minWidth: 64,
+    textAlign: 'center',
+  },
 });

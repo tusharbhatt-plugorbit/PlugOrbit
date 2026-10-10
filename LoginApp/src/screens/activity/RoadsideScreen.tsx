@@ -19,7 +19,6 @@ import {
   TextField,
   ToggleRow,
 } from '../../ui';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 import type {Coords} from '../../utils/geo';
 
 type Issue = {key: string; title: string; sub: string; icon: IconName};
@@ -197,7 +196,7 @@ export default function RoadsideScreen(): React.JSX.Element {
               onValueChange={setSharing}
               last
             />
-            <KeyboardSpacer />
+
           </>
         )}
       </BottomSheet>

@@ -31,7 +31,6 @@ import {
   SecondaryButton,
   TextField,
 } from '../../ui';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 const BRACKET = 34;
 
@@ -254,7 +253,7 @@ export default function ScanQrScreen(): React.JSX.Element {
           onSubmitEditing={() => handleCode(code)}
           returnKeyType="go"
         />
-        <KeyboardSpacer />
+
       </BottomSheet>
     </Screen>
   );

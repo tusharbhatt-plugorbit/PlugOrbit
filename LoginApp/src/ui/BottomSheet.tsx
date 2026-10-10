@@ -3,6 +3,8 @@ import {
   Animated,
   Easing,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,7 +56,10 @@ export function BottomSheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={dismissable ? onClose : undefined}>
-      <View style={styles.root} testID={testID}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        testID={testID}>
         <Animated.View style={[styles.scrim, {opacity: progress}]}>
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -100,12 +105,13 @@ export function BottomSheet({
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}>
             {children}
           </ScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -114,6 +120,7 @@ const styles = StyleSheet.create({
   root: {flex: 1, justifyContent: 'flex-end'},
   scrim: {...StyleSheet.absoluteFill, backgroundColor: colors.scrim},
   sheet: {
+    flexShrink: 1,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
@@ -140,14 +147,14 @@ const styles = StyleSheet.create({
   },
   title: {...type.h1, color: colors.ink, flex: 1},
   close: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scroll: {flexGrow: 0},
+  scroll: {flexGrow: 0, flexShrink: 1, minHeight: 0},
   scrollContent: {paddingBottom: spacing.md, gap: spacing.md},
   footer: {paddingTop: spacing.sm, gap: spacing.sm},
 });

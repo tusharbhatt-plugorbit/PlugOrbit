@@ -12,7 +12,11 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import MainApp from './src/app/MainApp';
 import {ServicesProvider} from './src/services';
 import {OtpError, requestOtp, verifyOtp} from './src/services/otpApi';
@@ -128,7 +132,9 @@ function AppContent(): React.JSX.Element {
     if (!hydrated) {
       return;
     }
-    setScreen(prev => (signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev));
+    setScreen(prev =>
+      signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev,
+    );
   }, [hydrated, signedIn]);
 
   if (screen === null) {
@@ -202,7 +208,11 @@ function Welcome({onGetStarted, onSignIn}: WelcomeProps): React.JSX.Element {
               <View
                 style={[
                   styles.orbitRingInner,
-                  {width: ring * 1.35, height: ring * 1.35, borderRadius: ring},
+                  {
+                    width: ring * 1.35,
+                    height: ring * 1.35,
+                    borderRadius: ring,
+                  },
                 ]}>
                 <BrandLogo size={logoSize} glow />
               </View>
@@ -254,7 +264,12 @@ type AuthScreenProps = {
   onAuthenticated: () => void;
 };
 
-function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenProps): React.JSX.Element {
+function AuthScreen({
+  mode,
+  onSwitchMode,
+  onBack,
+  onAuthenticated,
+}: AuthScreenProps): React.JSX.Element {
   const [darkMode, setDarkMode] = useState(false);
   const [step, setStep] = useState<AuthStep>('identify');
   const [identifier, setIdentifier] = useState('');
@@ -263,6 +278,7 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
   const [resendIn, setResendIn] = useState(0);
   // How the current code was delivered ("Sent by" line or DEV banner).
   const [sendResult, setSendResult] = useState<OtpSendResult | null>(null);
+  const insets = useSafeAreaInsets();
   const otpInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   // The in-flight request, so it can be dropped if the user navigates away.
   const pendingRef = useRef<AbortController | null>(null);
@@ -414,8 +430,7 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
   };
 
   // Shown on screen when the code could not be emailed or texted (dev only).
-  const devCode =
-    sendResult?.channel === 'screen' ? sendResult.devCode : null;
+  const devCode = sendResult?.channel === 'screen' ? sendResult.devCode : null;
 
   const detectedLabel =
     identifierType === 'email'
@@ -442,9 +457,11 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + 48}>
         <ScrollView
           contentContainerStyle={styles.authScroll}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled">
           <View
             style={[
@@ -516,11 +533,15 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
 
                 {/* Divider */}
                 <View style={styles.dividerRow}>
-                  <View style={[styles.dividerLine, {backgroundColor: t.divider}]} />
+                  <View
+                    style={[styles.dividerLine, {backgroundColor: t.divider}]}
+                  />
                   <Text style={[styles.dividerText, {color: t.textSubtle}]}>
                     OR CONTINUE WITH
                   </Text>
-                  <View style={[styles.dividerLine, {backgroundColor: t.divider}]} />
+                  <View
+                    style={[styles.dividerLine, {backgroundColor: t.divider}]}
+                  />
                 </View>
 
                 {/* Mobile Number or Email Input */}
@@ -539,7 +560,9 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                           },
                         ]}>
                         <Icon
-                          name={identifierType === 'email' ? 'mail' : 'smartphone'}
+                          name={
+                            identifierType === 'email' ? 'mail' : 'smartphone'
+                          }
                           size={12}
                           color={t.primary}
                           strokeWidth={2.4}
@@ -585,7 +608,8 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                   ]}
                   onPress={sendCode}
                   disabled={loading}>
-                  <Text style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
+                  <Text
+                    style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
                     {loading ? 'Sending...' : 'Send Verification Code  →'}
                   </Text>
                 </Pressable>
@@ -669,20 +693,22 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                       </View>
                     );
                   })}
+                  <TextInput
+                    accessibilityLabel="Verification code"
+                    caretHidden
+                    ref={otpInputRef}
+                    style={styles.hiddenInput}
+                    value={otp}
+                    onChangeText={value =>
+                      setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH))
+                    }
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
+                    maxLength={OTP_LENGTH}
+                    autoFocus
+                  />
                 </Pressable>
-                <TextInput
-                  ref={otpInputRef}
-                  style={styles.hiddenInput}
-                  value={otp}
-                  onChangeText={value =>
-                    setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH))
-                  }
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  autoComplete="sms-otp"
-                  maxLength={OTP_LENGTH}
-                  autoFocus
-                />
 
                 <Pressable
                   style={({pressed}) => [
@@ -692,7 +718,8 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
                   ]}
                   onPress={verifyCode}
                   disabled={loading}>
-                  <Text style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
+                  <Text
+                    style={[styles.authPrimaryBtnText, {color: t.buttonText}]}>
                     {loading
                       ? 'Verifying...'
                       : isSignup
@@ -723,7 +750,9 @@ function AuthScreen({mode, onSwitchMode, onBack, onAuthenticated}: AuthScreenPro
             {/* Switch Login/Signup */}
             <View style={styles.switchRow}>
               <Text style={[styles.switchText, {color: t.textMuted}]}>
-                {isSignup ? 'Already have an account?' : "Don't have an account?"}
+                {isSignup
+                  ? 'Already have an account?'
+                  : "Don't have an account?"}
               </Text>
               <Pressable onPress={onSwitchMode}>
                 <Text style={[styles.linkText, {color: t.primary}]}>
@@ -878,6 +907,9 @@ const styles = StyleSheet.create({
   },
 
   authCard: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1.5,
@@ -1020,7 +1052,8 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 12,
     borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -1028,13 +1061,17 @@ const styles = StyleSheet.create({
   },
 
   authPrimaryBtn: {
-    height: 54,
+    minHeight: 54,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   authPrimaryBtnText: {
+    textAlign: 'center',
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -1103,14 +1140,17 @@ const styles = StyleSheet.create({
   },
 
   otpRow: {
+    gap: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
   },
 
   otpBox: {
-    width: 44,
-    height: 52,
+    flex: 1,
+    minWidth: 0,
+    maxWidth: 52,
+    minHeight: 52,
     borderRadius: 12,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -1123,19 +1163,21 @@ const styles = StyleSheet.create({
   },
 
   hiddenInput: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
+    ...StyleSheet.absoluteFill,
     opacity: 0,
   },
 
   resendRow: {
+    flexWrap: 'wrap',
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 16,
   },
 
   switchRow: {
+    flexWrap: 'wrap',
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 20,

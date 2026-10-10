@@ -23,7 +23,6 @@ import {
   SupportTicketCard,
   TextField,
 } from '../../ui';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 const CATEGORIES: ReadonlyArray<{
   value: TicketCategory;
@@ -254,7 +253,7 @@ export default function SupportScreen(): React.JSX.Element {
         {error && (
           <Notice tone="danger" title="Couldn’t open ticket" body={error} />
         )}
-        <KeyboardSpacer />
+
       </BottomSheet>
     </Screen>
   );

@@ -5,6 +5,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -319,7 +320,12 @@ function HomeScreen(): React.JSX.Element {
         />
       </View>
 
-      <View style={styles.chipsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filters}
+        contentContainerStyle={styles.chipsRow}
+        keyboardShouldPersistTaps="handled">
         {QUICK_FILTERS.map(f => {
           const active = f === quick;
           return (
@@ -340,7 +346,7 @@ function HomeScreen(): React.JSX.Element {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       <CopilotStrip
         status={copilot}
@@ -590,9 +596,17 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     marginHorizontal: spacing.xl,
     paddingHorizontal: spacing.lg,
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 12,
   },
-  searchInput: {flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0},
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
+  filters: {flexGrow: 0, flexShrink: 0},
   chipsRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -601,7 +615,8 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: 18,
-    height: 36,
+    minHeight: 44,
+    paddingVertical: 8,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.chipBorder,

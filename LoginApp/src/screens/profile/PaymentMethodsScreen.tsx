@@ -29,7 +29,6 @@ import {
   showToast,
 } from '../../ui';
 import {ConfirmActionSheet} from '../../ui/ConfirmActionSheet';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 type Kind = 'upi' | 'card';
 const KINDS = [
@@ -278,7 +277,7 @@ export default function PaymentMethodsScreen(): React.JSX.Element {
           disabled={saving}
           onPress={() => setAdding(false)}
         />
-        <KeyboardSpacer />
+
       </BottomSheet>
     </Screen>
   );

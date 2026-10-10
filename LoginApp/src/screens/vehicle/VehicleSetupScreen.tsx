@@ -35,7 +35,6 @@ import {
   showToast,
   useResource,
 } from '../../ui';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 import {VehicleSpecCard} from '../../ui/VehicleSpecCard';
 
 type Mode = 'pick' | 'custom';
@@ -411,7 +410,7 @@ export default function VehicleSetupScreen(): React.JSX.Element {
               helper="Only used for estimates, never as a guarantee."
             />
           </View>
-          <KeyboardSpacer />
+
         </View>
       )}
     </Screen>

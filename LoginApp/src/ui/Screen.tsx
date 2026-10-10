@@ -1,5 +1,8 @@
 import React from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -69,6 +72,8 @@ export function Screen({
   stack = false,
   testID,
 }: Props) {
+  const {width} = useWindowDimensions();
+  const gutter = width < 360 ? spacing.md : spacing.xl;
   const nav = useNavigation();
   const {depth} = useNavigationState();
   const insets = useSafeAreaInsets();
@@ -80,11 +85,13 @@ export function Screen({
       style={styles.flex}
       contentContainerStyle={[
         styles.content,
+        {paddingHorizontal: gutter},
         footer ? styles.contentWithFooter : null,
         contentStyle,
       ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -105,50 +112,58 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView
-      style={styles.safe}
-      edges={['top', 'left', 'right']}
-      testID={testID}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.header}>
-        <View style={styles.side}>
-          {showBack && (
-            <Pressable
-              onPress={onBack ?? nav.goBack}
-              hitSlop={14}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-              style={styles.backBtn}>
-              <Icon name="arrow-left" size={22} color="#FFFFFF" />
-            </Pressable>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <SafeAreaView
+        style={styles.safe}
+        edges={['top', 'left', 'right']}
+        testID={testID}>
+        <StatusBar barStyle="light-content" />
+        <View style={[styles.header, {paddingHorizontal: gutter}]}>
+          <View style={styles.side}>
+            {showBack && (
+              <Pressable
+                onPress={onBack ?? nav.goBack}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                style={styles.backBtn}>
+                <Icon name="arrow-left" size={22} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+          <Text
+            style={styles.title}
+            accessibilityRole="header"
+            numberOfLines={1}>
+            {title}
+          </Text>
+          <View style={[styles.side, styles.sideRight]}>
+            {right === undefined ? <LogoTile /> : right}
+          </View>
+        </View>
+        {headerExtra}
+        <View style={[styles.body, dark && styles.bodyDark]}>
+          <OfflineBanner />
+          {body}
+          {footer && (
+            <View
+              style={[
+                styles.footer,
+                {paddingHorizontal: gutter},
+                {
+                  paddingBottom: tabBarVisible
+                    ? spacing.md
+                    : Math.max(insets.bottom, spacing.md),
+                },
+              ]}>
+              <View style={[styles.column, styles.footerColumn]}>{footer}</View>
+            </View>
           )}
         </View>
-        <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
-          {title}
-        </Text>
-        <View style={[styles.side, styles.sideRight]}>
-          {right === undefined ? <LogoTile /> : right}
-        </View>
-      </View>
-      {headerExtra}
-      <View style={[styles.body, dark && styles.bodyDark]}>
-        <OfflineBanner />
-        {body}
-        {footer && (
-          <View
-            style={[
-              styles.footer,
-              {
-                paddingBottom: tabBarVisible
-                  ? spacing.md
-                  : Math.max(insets.bottom, spacing.md),
-              },
-            ]}>
-            <View style={[styles.column, styles.footerColumn]}>{footer}</View>
-          </View>
-        )}
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -163,9 +178,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     minHeight: sizes.header + spacing.sm + spacing.lg,
   },
-  side: {width: 44, height: 36, justifyContent: 'center'},
+  side: {width: 44, height: 44, justifyContent: 'center'},
   sideRight: {alignItems: 'flex-end'},
-  backBtn: {height: 36, justifyContent: 'center'},
+  backBtn: {height: 44, justifyContent: 'center'},
   title: {flex: 1, textAlign: 'center', color: '#FFFFFF', ...type.title},
   body: {
     flex: 1,
@@ -176,6 +191,7 @@ const styles = StyleSheet.create({
   },
   bodyDark: {backgroundColor: colors.bgRaised},
   content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,

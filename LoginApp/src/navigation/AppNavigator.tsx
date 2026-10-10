@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import {Animated, BackHandler, Easing, StyleSheet, View} from 'react-native';
 import {colors} from '../theme';
+import {useKeyboardVisible} from '../ui/useKeyboardVisible';
 import {
   EntryContext,
   Navigation,
@@ -248,6 +249,7 @@ export function AppNavigator({
   overlay,
   navigationRef,
 }: Props): React.JSX.Element {
+  const keyboardVisible = useKeyboardVisible();
   const [state, dispatch] = useReducer(reducer, undefined, (): State => {
     const stack = initialStack.map((e, i) => ({
       key: `${e.name}-${i + 1}`,
@@ -384,6 +386,7 @@ export function AppNavigator({
             )}
           </View>
           {showTabBar &&
+            !keyboardVisible &&
             renderTabBar({
               tab: (top && registry[top.name]?.tab) || state.tab,
               onSelect: tab => dispatch({type: 'tab', tab}),

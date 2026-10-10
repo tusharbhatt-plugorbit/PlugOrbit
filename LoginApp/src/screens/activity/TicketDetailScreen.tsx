@@ -19,7 +19,6 @@ import {
   Screen,
   SectionTitle,
 } from '../../ui';
-import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 const STATUS: Record<
   TicketStatus,
@@ -173,7 +172,7 @@ export default function TicketDetailScreen(): React.JSX.Element {
         </View>
       ))}
       {error && <Notice tone="danger" title="Couldn’t send" body={error} />}
-      <KeyboardSpacer />
+
     </Screen>
   );
 }
