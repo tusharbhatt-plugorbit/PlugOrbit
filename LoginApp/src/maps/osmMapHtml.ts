@@ -283,6 +283,7 @@ export function buildMapHtml(opts: MapHtmlOptions): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="referrer" content="no-referrer-when-downgrade">
 <style>${LEAFLET_CSS}</style>
 <style>${PAGE_CSS}</style>
 </head>

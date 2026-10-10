@@ -14,6 +14,7 @@ import type {
   WebViewMessageEvent,
   WebViewProps,
 } from 'react-native-webview';
+import {TILE_REFERER} from '../config/mapTiles';
 import {
   buildMapHtml,
   type MapMessage,
@@ -245,7 +246,7 @@ const OsmMap = forwardRef<OsmMapHandle, Props>(function OsmMapInner(
           testID="osm-webview"
           style={styles.web}
           originWhitelist={['*']}
-          source={{html}}
+          source={{html, baseUrl: TILE_REFERER}}
           javaScriptEnabled
           domStorageEnabled
           scrollEnabled={false}
@@ -260,7 +261,11 @@ const OsmMap = forwardRef<OsmMapHandle, Props>(function OsmMapInner(
           onContentProcessDidTerminate={reload}
           onShouldStartLoadWithRequest={request => {
             const url = request.url;
-            if (url === 'about:blank' || url.startsWith('data:')) {
+            if (
+              url === 'about:blank' ||
+              url.startsWith('data:') ||
+              url === TILE_REFERER
+            ) {
               return true;
             }
             // Attribution links open in the browser, not inside the map.

@@ -6,4 +6,5 @@ declare module '@env' {
   export const API_BASE_URL: string | undefined;
   export const MAP_TILE_URL: string | undefined;
   export const MAP_TILE_ATTRIBUTION: string | undefined;
+  export const MAP_TILE_REFERER: string | undefined;
 }

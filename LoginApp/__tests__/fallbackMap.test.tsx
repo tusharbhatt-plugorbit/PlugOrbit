@@ -104,6 +104,15 @@ describe('Home without a Maps key', () => {
     expect(texts(r)).not.toContain('Map isn’t available');
   });
 
+  test('loads the page from an https address, so tile requests carry a Referer', async () => {
+    // A page built from an HTML string has no address of its own and would send
+    // no Referer; OpenStreetMap's tile servers refuse such requests.
+    const r = await openHome();
+    const {source} = page(r).props;
+    expect(source.html).toContain('<!DOCTYPE html>');
+    expect(source.baseUrl).toMatch(/^https:\/\/[^/\s]+/);
+  });
+
   test('hands the chargers and the camera to the page once it is ready', async () => {
     const r = await openHome();
     // Nothing is sent to a page that has not started.
@@ -291,6 +300,13 @@ describe('The fallback page', () => {
     )![1];
     expect(JSON.parse(config).attribution).toContain(
       'OpenStreetMap</a> contributors',
+    );
+  });
+
+  test('lets the Referer through in full, which identifies the app to the tile server', () => {
+    // The default policy would cut it to the bare origin.
+    expect(buildMapHtml(opts)).toContain(
+      '<meta name="referrer" content="no-referrer-when-downgrade">',
     );
   });
 
