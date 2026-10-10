@@ -38,5 +38,8 @@ def update_name(uid: str, name: str) -> UserOut:
 
 
 def delete_user(uid: str) -> None:
-    get_db().collection(USERS).document(uid).delete()
+    # Recursive: the profile and everything under it (users/{uid}/state/*), so deleting an
+    # account leaves no orphaned user data behind.
+    ref = get_db().collection(USERS).document(uid)
+    get_db().recursive_delete(ref)
     auth.delete_user(uid)

@@ -15,12 +15,12 @@ def _unauthorized(code: str, message: str) -> HTTPException:
 
 
 def require_firebase() -> None:
-    """Fail with a clear 503 instead of a bare 500 when serviceAccountKey.json is missing."""
+    """Fail with a clear 503 instead of a bare 500 when no Firebase Admin credentials are configured."""
     if not firebase_admin._apps:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "FIREBASE_NOT_CONFIGURED",
-                    "message": "Server is not configured. Add serviceAccountKey.json to the Backend folder."},
+                    "message": "Server is not configured. Add Firebase Admin credentials (see Backend/.env.example)."},
         )
 
 
