@@ -52,6 +52,10 @@ class MessageResponse(BaseModel):
 class StateSlice(BaseModel):
     value: Any
     updated_at: datetime | None = None
+    # The app's STORE_VERSION when this was written, so an older app can ignore a newer shape.
+    schema_version: int | None = None
+    # Random token that changes on every write: "has this slice changed since I last saw it?"
+    rev: str | None = None
 
 
 class StateOut(BaseModel):
@@ -62,10 +66,16 @@ class PutStateRequest(BaseModel):
     # {slice name: JSON value}. Which names and shapes are allowed is decided in
     # services/app_state.py so a bad one answers a coded 422 instead of a bare one.
     slices: dict[str, Any] = Field(min_length=1)
+    schema_version: int = Field(default=1, ge=1, le=10_000)
+
+
+class StateWritten(BaseModel):
+    rev: str
+    updated_at: datetime
 
 
 class PutStateResponse(BaseModel):
-    updated_at: dict[str, datetime]
+    slices: dict[str, StateWritten]
 
 
 class OtpSendRequest(BaseModel):
@@ -92,3 +102,10 @@ class OtpVerifyRequest(BaseModel):
 class OtpVerifyResponse(BaseModel):
     verified: bool
     message: str
+    # Firebase sign-in for the verified email / number. Both are omitted when Firebase is not
+    # configured here (the response is then exactly what it was before Firebase), so the app
+    # signs in locally. Otherwise session_status is "ready" (session set), "unavailable"
+    # (Firebase failed, local sign-in only) or "dev_code" (code was shown on screen, see
+    # OTP_DEV_FALLBACK_SESSIONS).
+    session: AuthResponse | None = None
+    session_status: Literal["ready", "unavailable", "dev_code"] | None = None

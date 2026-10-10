@@ -4,11 +4,12 @@ from fastapi import APIRouter, HTTPException, status
 
 from ..config import get_settings
 from ..schemas import OtpSendRequest, OtpSendResponse, OtpVerifyRequest, OtpVerifyResponse
-from ..services import delivery, otp
+from ..services import delivery, identity, otp
 
 log = logging.getLogger(__name__)
 # Deliberately no require_firebase: codes live in memory and are sent by SMTP/Twilio,
-# so this works on a fresh checkout with no serviceAccountKey.json.
+# so this works on a fresh checkout with no serviceAccountKey.json. When Firebase is
+# configured, /verify additionally opens a Firebase session (services/identity.py).
 router = APIRouter(prefix="/auth/otp", tags=["otp"])
 
 
@@ -35,12 +36,15 @@ def send_otp(body: OtpSendRequest):
         )
 
     log.warning("DEV MODE: could not deliver the code for %s, handing it back to the app: %s", key, code)
+    otp.mark_exposed(key, code)
     return OtpSendResponse(message="Development mode: the code could not be sent, so it is shown on screen.",
                            channel="screen", delivered=False, dev_code=code, **common)
 
 
-@router.post("/verify", response_model=OtpVerifyResponse)
+@router.post("/verify", response_model=OtpVerifyResponse, response_model_exclude_none=True)
 def verify_otp(body: OtpVerifyRequest):
-    _, key = otp.normalize_identifier(body.identifier)
-    otp.verify(key, body.code)
-    return OtpVerifyResponse(verified=True, message="Code verified.")
+    kind, key = otp.normalize_identifier(body.identifier)
+    exposed = otp.verify(key, body.code)
+    session_status, session = identity.open_session(kind, key, code_was_exposed=exposed)
+    return OtpVerifyResponse(verified=True, message="Code verified.",
+                             session=session, session_status=session_status)

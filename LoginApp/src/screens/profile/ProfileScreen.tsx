@@ -8,6 +8,7 @@ import {
   selectActiveVehicle,
   useApp,
 } from '../../store/appStore';
+import {endCloudSession} from '../../store/cloudSync';
 import {colors, radii, spacing, type} from '../../theme';
 import {formatInr} from '../../utils/format';
 import {
@@ -86,6 +87,7 @@ export default function ProfileScreen(): React.JSX.Element {
     setConfirmOut(false);
     appStore.set({signedIn: false});
     flushAppStore();
+    endCloudSession(); // uploads pending edits (briefly), then forgets the cloud sign-in
   };
 
   return (

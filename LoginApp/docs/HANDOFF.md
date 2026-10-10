@@ -134,7 +134,7 @@ Known limits left on purpose:
 | Roadside dispatch | `RoadsideScreen`, `config/support.ts` | Partner API and real support contacts |
 | Plus billing | `PlusScreen` | Billing backend (nothing is charged) |
 | Privacy switches | `PrivacyScreen` | Backend enforcement |
-| Login OTP | `App.tsx`, `services/otpApi.ts` | Wired to the Backend's `/auth/otp/*` for development: the code is emailed or texted, or shown on screen when that is not possible (README "Login OTP (development)"). Still needed: a production email/SMS provider, a shared OTP store, and a real session (verifying only sets a local signed-in flag) |
+| Login OTP | `App.tsx`, `services/otpApi.ts` | Wired to the Backend's `/auth/otp/*` for development: the code is emailed or texted, or shown on screen when that is not possible (README "Login OTP (development)"). A verified code also opens a Firebase session when the Backend has Firebase configured, and the app then backs its data up to that account (README "Cloud backup (Firebase)"). Still needed: a production email/SMS provider, a shared OTP store, account linking (email and phone are separate accounts), and Keychain/Keystore storage for the session tokens |
 | Problem-report photos | `ReportProblemScreen` | Image picker + upload |
 
 ## Not verified in this environment

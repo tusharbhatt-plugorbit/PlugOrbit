@@ -81,6 +81,11 @@ def sign_in(email: str, password: str) -> dict:
                  {"email": email, "password": password, "returnSecureToken": True})
 
 
+def sign_in_with_custom_token(custom_token: str) -> dict:
+    return _post(f"{IDENTITY_URL}:signInWithCustomToken",
+                 {"token": custom_token, "returnSecureToken": True})
+
+
 def refresh_id_token(refresh_token: str) -> dict:
     data = _post(TOKEN_URL,
                  {"grant_type": "refresh_token", "refresh_token": refresh_token},

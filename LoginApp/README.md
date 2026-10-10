@@ -138,6 +138,23 @@ What the user sees after tapping **Send Verification Code**:
 
 The Backend's own errors (for example "wait 20 seconds before requesting another code", or a failed delivery when `OTP_DEV_FALLBACK=false`) are shown as they are and never replaced by an on-device code. In a release build an unreachable Backend is reported as an error. `OTP_DEV_FALLBACK` is for development only: anyone who can reach the API can read the code.
 
+# Cloud backup (Firebase)
+
+When the Backend has Firebase set up (`Backend/README.md`, "Firebase"), a verified login code also signs the user in to Firebase, and the app backs its data up to their account in the background. Nothing in the UI changes, the app still works from the data on the phone, and without Firebase on the Backend everything behaves exactly as before.
+
+| Backed up | Not backed up (stays on the phone) |
+|---|---|
+| Cars, active car, filters, trip and alert preferences, privacy switches, language, Plus, favourite stations, saved routes, charging history, tickets, notifications, feedback given | Sign-in flag, the charging session in progress, reservation and queue, the Smart Drive trip, battery reading and car link, **payment methods** (a decision to take explicitly before syncing financial data) |
+
+- **How it works** (`src/store/cloudSync.ts`): each field is compared with the version it was last synced at. Edits upload a couple of seconds later; offline edits are kept and retried (5 s, 10 s, ... up to 5 min), on the next launch, and when the app returns to the foreground. Changes made on another phone arrive on the next sync. If the same field was edited on two phones, this phone's edit wins.
+- **First sign-in on a phone** merges by record id, so nothing is lost: the account's copy plus anything that only exists on this phone. The sample content a fresh install starts with (sample sessions, tickets, offers) is **never uploaded** and is dropped when a real cloud account signs in. Presenter tools > Reset demo data puts the sample content back and detaches this phone from cloud backup (the account's data stays in the cloud; signing in again restores it).
+- **Another account on the same phone**: signing in as a different user clears the previous user's data from the phone first. It is never shown to, merged into or uploaded for the new account.
+- **Sign out** gives pending edits one short chance to upload, then forgets the cloud session. Data stays on the phone, as before.
+- **Login codes shown on screen** (`OTP_DEV_FALLBACK`, see above) sign in on the device only. They prove nothing about the inbox, so the Backend does not open a Firebase session for them. To try cloud backup on a development computer with no email/SMS set up, add `OTP_DEV_FALLBACK_SESSIONS=true` to `Backend/.env`. Debug builds print a hint in the Metro log when a sign-in ends up without backup.
+- **Known limits**: the session tokens are kept in AsyncStorage (app-private, not encrypted); move them to the Keychain/Keystore before a public release (`TODO(security)` in `src/services/session.ts`). A user who signs in by email and by phone gets two separate accounts until account linking exists.
+
+Check the whole chain against the real project from `Backend`: `python -m scripts.check_firebase`, then `python -m scripts.check_login_flow` (it creates and deletes a throwaway account).
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
