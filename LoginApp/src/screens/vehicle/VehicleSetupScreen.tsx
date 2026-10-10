@@ -218,7 +218,7 @@ export default function VehicleSetupScreen(): React.JSX.Element {
       </Text>
       <Text style={styles.lead}>
         {onboarding
-          ? 'Step 1 of 2. Tell us what you drive.'
+          ? 'Step 1 of 3. Tell us what you drive.'
           : 'Pick your model so we can match chargers.'}
       </Text>
 

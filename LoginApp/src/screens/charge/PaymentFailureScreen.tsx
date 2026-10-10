@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {billFor} from '../../domain/sessionBill';
@@ -34,6 +34,8 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   const methods = useApp(s => s.paymentMethods);
   const now = useNow(60_000);
   const [paying, setPaying] = useState<string | null>(null);
+  // Set synchronously: two taps in the same frame both see paying === null.
+  const inFlight = useRef(false);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +61,10 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   const current = methods.find(m => m.id === session.paymentMethodId) ?? null;
 
   const pay = async (methodId: string) => {
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
     setPaying(methodId);
     setError(null);
     try {
@@ -73,6 +79,7 @@ export default function PaymentFailureScreen(): React.JSX.Element {
       setError(describeError(e, 'We couldn’t reach your bank.').body);
     }
     setPaying(null);
+    inFlight.current = false;
   };
 
   return (

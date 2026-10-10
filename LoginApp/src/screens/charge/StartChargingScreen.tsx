@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
   energyToCharge,
@@ -153,6 +153,8 @@ function StartForm({
   const targetSoc = Math.max(target, minTarget);
 
   const [starting, setStarting] = useState(false);
+  // Set synchronously: two taps in the same frame both see starting === false.
+  const inFlight = useRef(false);
   const [handoff, setHandoff] = useState<string | null>(null);
   const [formError, setFormError] = useState<{
     title: string;
@@ -241,9 +243,10 @@ function StartForm({
     free && method !== null && price !== null && battery !== null && !starting;
 
   const start = async () => {
-    if (!ready || !method || price === null) {
+    if (!ready || !method || price === null || inFlight.current) {
       return;
     }
+    inFlight.current = true;
     setStarting(true);
     setFormError(null);
     try {
@@ -266,6 +269,7 @@ function StartForm({
         }
       }
       setStarting(false);
+      inFlight.current = false;
     }
   };
 

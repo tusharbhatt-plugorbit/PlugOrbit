@@ -68,7 +68,8 @@ export type RouteParams = {
   OfflineMode: undefined; // 35
   Community: {stationId: string}; // 36
   Notifications: undefined; // 37
-  TripPreferences: undefined; // 38
+  /** `onboarding`: the optional third setup step (after vehicle and battery). */
+  TripPreferences: {onboarding?: boolean} | undefined; // 38
   MultiStop: undefined; // 39
   Privacy: undefined; // 40
 

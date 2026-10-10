@@ -20,6 +20,7 @@ import {
   SmartJourneyIllustration,
 } from '../../ui/illustrations';
 import {useReducedMotion} from '../../ui/useReducedMotion';
+import {BrandLogo} from '../../ui/BrandLogo';
 import {WelcomeBackdrop} from '../../ui/WelcomeBackdrop';
 
 type Slide = {
@@ -111,6 +112,7 @@ export function OnboardingScreen({onDone, onBack}: Props) {
       <WelcomeBackdrop showRoad={false} showCharger={false} />
       <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
+          <BrandLogo size={32} />
           {last ? (
             <View style={styles.skipSpace} />
           ) : (
@@ -204,8 +206,9 @@ const styles = StyleSheet.create({
   topBar: {
     height: sizes.tap + spacing.sm,
     paddingHorizontal: spacing.lg,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   skip: {
     minHeight: sizes.tap,

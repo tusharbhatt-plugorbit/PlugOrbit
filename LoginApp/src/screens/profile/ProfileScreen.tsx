@@ -8,6 +8,7 @@ import {
   selectActiveVehicle,
   useApp,
 } from '../../store/appStore';
+import {presenterToolsEnabled} from '../../config/presenter';
 import {endCloudSession} from '../../store/cloudSync';
 import {colors, radii, spacing, type} from '../../theme';
 import {formatInr} from '../../utils/format';
@@ -227,16 +228,19 @@ export default function ProfileScreen(): React.JSX.Element {
           title="Roadside assistance"
           subtitle="Towing and help when you’re stranded"
           onPress={() => nav.navigate('Roadside')}
+          last={!presenterToolsEnabled()}
         />
-        <ListRow
-          icon="settings"
-          iconTone="info"
-          title="Presenter tools"
-          subtitle="Demo switches and shortcuts"
-          right={<Pill label="Demo" tone="info" uppercase />}
-          onPress={() => nav.navigate('PresenterTools')}
-          last
-        />
+        {presenterToolsEnabled() && (
+          <ListRow
+            icon="settings"
+            iconTone="info"
+            title="Presenter tools"
+            subtitle="Demo switches and shortcuts"
+            right={<Pill label="Demo" tone="info" uppercase />}
+            onPress={() => nav.navigate('PresenterTools')}
+            last
+          />
+        )}
       </ListCard>
 
       <View style={styles.signOut}>
