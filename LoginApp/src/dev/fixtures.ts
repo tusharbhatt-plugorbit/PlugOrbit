@@ -67,6 +67,7 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
 
   SmartDrive: undefined,
   SmartDriveStop: undefined,
+  Assistant: undefined,
 
   PresenterTools: undefined,
 };

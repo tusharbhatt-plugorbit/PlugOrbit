@@ -14,6 +14,8 @@ import type {ActiveTrip} from '../intelligence/types';
 import {setTrip} from '../store/smartDriveActions';
 import {resetSmartDriveMock} from '../services/mock/smartDriveService';
 import {resetNearbyCache} from '../hooks/useNearbyStations';
+import {AssistantBridge} from '../assistant/runtime';
+import {AssistantOverlay} from '../app/FloatingAssistant';
 import {ScenarioDriver} from './scenarioDriver';
 
 export const NEXON = {...VEHICLE_CATALOG[0], id: 'veh-1'};
@@ -107,7 +109,13 @@ export function TestApp({
         initialTab={tab}
         initialStack={stack}
         renderTabBar={() => null}
-        overlay={<Probe />}
+        overlay={
+          <>
+            <Probe />
+            <AssistantBridge />
+            <AssistantOverlay />
+          </>
+        }
       />
     </ServicesProvider>
   );

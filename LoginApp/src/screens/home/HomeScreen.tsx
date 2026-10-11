@@ -398,6 +398,12 @@ export default function HomeScreen(): React.JSX.Element {
                     compact
                     onPress={openAssist}
                   />
+                  <SecondaryButton
+                    label="Talk to Orbit"
+                    icon="mic"
+                    compact
+                    onPress={() => go('Assistant', {listen: true})}
+                  />
                 </View>
               </Card>
 

@@ -15,7 +15,8 @@ CircleX Siren Truck Compass Milestone Repeat Shuffle Scale Tag Banknote Coins Bu
 MapPinned Mountain Hash Cloud Satellite Cable MessageSquareText Headset Shield FileCheck Fingerprint Smile Meh Frown
 Toilet CupSoda Power CircleStop FileDown ArrowUp ArrowDown List ListOrdered GripVertical BellRing BellOff
 CalendarCheck Target BatteryLow BatteryFull BatteryWarning MapPinOff Pin ReceiptText BadgeIndianRupee UserRound
-CircleCheckBig Pause Play Navigation2Off Undo2 Save CirclePlus CircleMinus Clock3 Timer TimerReset`.split(/\s+/).filter(Boolean);
+CircleCheckBig Pause Play Navigation2Off Undo2 Save CirclePlus CircleMinus Clock3 Timer TimerReset
+Mic MicOff Volume2 VolumeX Keyboard RotateCcw Headphones`.split(/\s+/).filter(Boolean);
 
 const kebab = s => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Za-z])([0-9])/g, '$1$2').toLowerCase();
 const out = {};

@@ -1,0 +1,177 @@
+{
+  "turn_start": {
+    "message": "Jaipur jaana hai, at least 20%",
+    "context": {
+      "locale": "en-IN",
+      "voice_language": "hinglish",
+      "response_style": "brief",
+      "input_mode": "voice",
+      "driving_mode": true,
+      "local_time": "2026-01-15T12:00:00+00:00",
+      "demo_data": true,
+      "journey": {
+        "destination": "Jaipur",
+        "origin": "Delhi",
+        "min_arrival_soc_pct": 15,
+        "strategy": "reliable",
+        "max_stops": 2,
+        "selected_station_id": "st-chargezone-neemrana",
+        "selected_station_name": "ChargeZone • Neemrana",
+        "updated_at": 1768478400000
+      },
+      "remembered_preferences": [
+        {
+          "key": "prioritise",
+          "value": "cost",
+          "saved_at": 1768478400000
+        }
+      ],
+      "recent_events": []
+    }
+  },
+  "tool_results": {
+    "session_id": "id1",
+    "turn_id": "id2",
+    "tool_results": [
+      {
+        "tool_use_id": "toolu_01",
+        "status": "ok",
+        "data": {
+          "from": "Delhi",
+          "to": "Jaipur",
+          "strategy": "reliable",
+          "distance_km": 282,
+          "total_minutes_including_charging": 284,
+          "start_soc_percent": 60,
+          "arrive_soc_percent": 27,
+          "reserve_percent": 20,
+          "charging_needed": true,
+          "stop_count": 2,
+          "charging_cost_inr_known": 523,
+          "stops_without_published_price": 0,
+          "stops": [
+            {
+              "station_id": "st-chargezone-manesar",
+              "name": "ChargeZone • Manesar",
+              "operator": "ChargeZone",
+              "detour_min": 1,
+              "arrive_soc_percent": 45,
+              "charge_to_soc_percent": 80,
+              "charge_min": 15,
+              "cost_inr": 302,
+              "connector": {
+                "id": "st-chargezone-manesar-c1",
+                "type": "CCS2",
+                "power_kw": 60,
+                "power_kw_for_this_car": 60,
+                "price_per_kwh": 18
+              },
+              "availability": {
+                "status": "available",
+                "free_connectors": 2,
+                "trust": "live",
+                "source": "operator_feed",
+                "updated_min_ago": 1
+              },
+              "wait": {
+                "min_minutes": 0,
+                "max_minutes": 0,
+                "confidence": "high",
+                "basis": "live_queue"
+              },
+              "reliability_percent": 89,
+              "backup": {
+                "station_id": "st-tata-gurgaon",
+                "name": "Tata Power • Gurgaon",
+                "extra_min": 17
+              },
+              "why_this_charger": [
+                "Has a CCS2 connector your car can use, about 60 kW for this car.",
+                "You would arrive with about 45%, above your 20% reserve.",
+                "Chosen for reliability: 89% of recent sessions worked.",
+                "Backup if it fails: Tata Power • Gurgaon, 17 min extra."
+              ]
+            },
+            {
+              "station_id": "st-statiq-kotputli",
+              "name": "Statiq • Kotputli",
+              "operator": "Statiq",
+              "detour_min": 1,
+              "arrive_soc_percent": 39,
+              "charge_to_soc_percent": 65,
+              "charge_min": 11,
+              "cost_inr": 221,
+              "connector": {
+                "id": "st-statiq-kotputli-c1",
+                "type": "CCS2",
+                "power_kw": 60,
+                "power_kw_for_this_car": 60,
+                "price_per_kwh": 17.8
+              },
+              "availability": {
+                "status": "available",
+                "free_connectors": 2,
+                "trust": "live",
+                "source": "operator_feed",
+                "updated_min_ago": 1
+              },
+              "wait": {
+                "min_minutes": 0,
+                "max_minutes": 0,
+                "confidence": "high",
+                "basis": "live_queue"
+              },
+              "reliability_percent": 85,
+              "backup": {
+                "station_id": "st-tata-behror",
+                "name": "Tata Power • Behror",
+                "extra_min": 23
+              },
+              "why_this_charger": [
+                "Has a CCS2 connector your car can use, about 60 kW for this car.",
+                "You would arrive with about 39%, above your 20% reserve.",
+                "Chosen for reliability: 85% of recent sessions worked.",
+                "Backup if it fails: Tata Power • Behror, 23 min extra."
+              ]
+            }
+          ],
+          "meets_stop_limit": null,
+          "avoided_station_ids": []
+        },
+        "source": {
+          "system": "plugorbit_app",
+          "kind": "deterministic_engine",
+          "as_of": 1768478400000,
+          "demo": true
+        },
+        "assumptions": [
+          "Starting battery 60% (typed by the driver, 0 min old).",
+          "Arrival reserve 20% (as the driver asked).",
+          "Energy use comes from the car’s real-world range at 100% battery, at a steady average speed.",
+          "Traffic, weather, elevation and air-conditioning are not included.",
+          "A backup is planned for every stop where a reachable one exists."
+        ]
+      },
+      {
+        "tool_use_id": "toolu_02",
+        "status": "ok",
+        "data": {
+          "percent": 60,
+          "source": "typed in by the driver",
+          "updated_min_ago": 0,
+          "estimated_range_km": 180
+        },
+        "source": {
+          "system": "plugorbit_app",
+          "kind": "device_store",
+          "as_of": 1768478400000,
+          "demo": false,
+          "trust": "user"
+        },
+        "assumptions": [
+          "Range is the car’s real-world range scaled by the battery percent; speed, load and air-conditioning change it."
+        ]
+      }
+    ]
+  }
+}
