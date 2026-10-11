@@ -52,7 +52,6 @@ const FLOAT_LIFT: Partial<Record<RouteName, number>> = {
   BackupAlert: 96,
   EnergyPlanner: 96,
   MultiStop: 96,
-  SmartDrive: 96,
   SmartDriveStop: 96,
 };
 

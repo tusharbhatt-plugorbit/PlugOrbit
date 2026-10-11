@@ -1,20 +1,22 @@
-import React, {useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
-import {describeError} from '../../domain/describeError';
-import {PHRASES, kmLabel, pctLabel} from '../../intelligence/copy';
-import {assistModeOf} from '../../intelligence/types';
-import {tripStatus} from '../../intelligence/status';
-import type {ActiveTrip, TripUpdate} from '../../intelligence/types';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { describeError } from '../../domain/describeError';
+import { PHRASES, kmLabel, pctLabel } from '../../intelligence/copy';
+import { assistModeOf } from '../../intelligence/types';
+import { tripStatus } from '../../intelligence/status';
+import type { ActiveTrip, TripUpdate } from '../../intelligence/types';
 import {
   useIsActiveRef,
   useNavigation,
   useRoute,
 } from '../../navigation/NavigationContext';
-import {RUNS_ON_DEMO_DATA, useServices} from '../../services';
-import {openDirections} from '../../services/directions';
-import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
-import {colors, spacing, type} from '../../theme';
-import {formatClock} from '../../utils/format';
+import { RUNS_ON_DEMO_DATA, useServices } from '../../services';
+import { openDirections } from '../../services/directions';
+import { getCurrentLocation } from '../../services/location';
+import type { Coords } from '../../utils/geo';
+import { selectActiveVehicle, selectTrip, useApp } from '../../store/appStore';
+import { colors, spacing, type } from '../../theme';
+import { formatClock } from '../../utils/format';
 import {
   AssistModeSelector,
   Card,
@@ -24,6 +26,7 @@ import {
   EmptyState,
   JourneyBar,
   KeyValue,
+  IconButton,
   MonitoringFooter,
   Notice,
   PrimaryButton,
@@ -37,7 +40,7 @@ import {
   showToast,
   useTripNow,
 } from '../../ui';
-import {PlaceField} from '../../ui/PlaceField';
+import { PlaceField } from '../../ui/PlaceField';
 
 /**
  * Orbit Assist. Before a trip it asks one question, "Where are we going?". During
@@ -52,19 +55,57 @@ export default function SmartDriveScreen(): React.JSX.Element {
 /* ----------------------------------------------------------------- planner -- */
 
 function TripPlanner(): React.JSX.Element {
+  const { width, height } = useWindowDimensions();
   const nav = useNavigation();
   const active = useIsActiveRef();
-  const {smartDrive} = useServices();
+  const { smartDrive } = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const battery = useApp(s => s.battery);
   const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
   const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
-  const {params} = useRoute<'SmartDrive'>();
-  const [from, setFrom] = useState('Delhi');
+  const { params } = useRoute<'SmartDrive'>();
+  const [from, setFrom] = useState('');
+  const [fromCoords, setFromCoords] = useState<Coords | undefined>();
+  const [locating, setLocating] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const locationRequest = useRef(0);
+  const submitting = useRef(false);
+  const locate = async () => {
+    const request = ++locationRequest.current;
+    setLocating(true);
+    setLocationError(null);
+    try {
+      const coords = await getCurrentLocation();
+      if (active.current && request === locationRequest.current) {
+        setFrom('Current location');
+        setFromCoords(coords);
+      }
+    } catch (e) {
+      if (active.current && request === locationRequest.current) {
+        setLocationError(
+          e instanceof Error
+            ? e.message
+            : 'Location unavailable. Enter your starting city.',
+        );
+      }
+    } finally {
+      if (active.current && request === locationRequest.current) {
+        setLocating(false);
+      }
+    }
+  };
+  useEffect(() => {
+    locate();
+    return () => {
+      locationRequest.current += 1;
+    };
+    // Get one fix on entry; changing the origin must not trigger another request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Home's "Where are we going?" hands its destination over here.
   const [to, setTo] = useState(params?.toLabel ?? '');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{title: string; body: string} | null>(
+  const [error, setError] = useState<{ title: string; body: string } | null>(
     null,
   );
 
@@ -91,19 +132,25 @@ function TripPlanner(): React.JSX.Element {
   const ready = from.trim() !== '' && to.trim() !== '' && soc !== null && !same;
 
   const start = async () => {
-    if (!ready) {
+    if (!ready || submitting.current) {
       return;
     }
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
-      await smartDrive.start({fromLabel: from.trim(), toLabel: to.trim()});
+      await smartDrive.start({
+        fromLabel: from.trim(),
+        fromCoords,
+        toLabel: to.trim(),
+      });
     } catch (e) {
       if (active.current) {
         const copy = describeError(e, 'We couldn’t plan this trip.');
-        setError({title: copy.title, body: copy.body});
+        setError({ title: copy.title, body: copy.body });
       }
     }
+    submitting.current = false;
     if (active.current) {
       setBusy(false);
     }
@@ -113,37 +160,57 @@ function TripPlanner(): React.JSX.Element {
     <Screen
       title="Orbit Assist"
       stack
-      footer={
-        <PrimaryButton
-          label="Start journey"
-          icon="route"
-          loading={busy}
-          disabled={!ready}
-          onPress={start}
+      right={
+        <IconButton
+          icon="sparkles"
+          label="Talk to Orbit"
+          onPress={() => nav.navigate('Assistant')}
         />
-      }>
+      }
+      footer={
+        height >= 700 ? (
+          <PrimaryButton
+            label="Start journey"
+            icon="route"
+            loading={busy}
+            disabled={!ready}
+            onPress={start}
+          />
+        ) : undefined
+      }
+    >
       <Text style={styles.lead}>Where are we going?</Text>
-      <Card tone="dark">
-        <Text style={styles.kicker}>Orbit Assist</Text>
-        <Text style={styles.heroTitle}>{PHRASES.tagline}</Text>
-        <Text style={styles.heroBody}>
-          {mode === 'guided'
-            ? 'Tell us where you’re headed. We work out if and where you need to charge and pick a stop and a backup. You decide, and we tell you what your plan needs.'
-            : 'Tell us where you’re headed. We work out if and where you need to charge, pick a stop and a backup, and keep watching so you don’t have to.'}
-        </Text>
-      </Card>
-
-      <SectionTitle title="How should we help?" />
-      <AssistModeSelector mode={mode} onChange={m => smartDrive.setMode(m)} />
-
       <Card>
         <View style={styles.fields}>
           <PlaceField
             label="From"
             value={from}
-            onChangeText={setFrom}
-            placeholder="Start city"
+            onChangeText={value => {
+              locationRequest.current += 1;
+              setLocating(false);
+              setLocationError(null);
+              setFromCoords(undefined);
+              setFrom(value);
+            }}
+            placeholder={locating ? 'Finding your location…' : 'Start city'}
             icon="navigation"
+          />
+          <Text style={styles.locationNote} accessibilityLiveRegion="polite">
+            {locating
+              ? 'Finding your current location…'
+              : locationError ??
+                (fromCoords
+                  ? 'Using your device location. You can enter a different start.'
+                  : 'Enter a starting city or use your location.')}
+          </Text>
+          <TextButton
+            label="Use current location"
+            icon="navigation"
+            onPress={() => {
+              if (!locating) {
+                locate();
+              }
+            }}
           />
           <PlaceField
             label="To"
@@ -156,6 +223,30 @@ function TripPlanner(): React.JSX.Element {
             }
           />
         </View>
+      </Card>
+
+      {height < 700 && (
+        <PrimaryButton
+          label="Start journey"
+          icon="route"
+          loading={busy}
+          disabled={!ready}
+          onPress={start}
+        />
+      )}
+
+      <SectionTitle title="How should we help?" />
+      <AssistModeSelector mode={mode} onChange={m => smartDrive.setMode(m)} />
+      <Card tone="dark">
+        <Text style={styles.kicker}>Orbit Assist</Text>
+        <Text style={[styles.heroTitle, width < 360 && styles.compactTitle]}>
+          {PHRASES.tagline}
+        </Text>
+        <Text style={styles.heroBody}>
+          {mode === 'guided'
+            ? 'You decide, and we tell you what your plan needs.'
+            : 'We recommend charging stops and a backup, and keep watching. You approve every change.'}
+        </Text>
       </Card>
 
       <Card>
@@ -186,7 +277,7 @@ function TripPlanner(): React.JSX.Element {
         <Notice
           tone="info"
           title="Preview data"
-          body="Charger availability and your position are simulated in this version, so treat plans as a preview. Live data needs charger-operator and GPS integrations."
+          body="Your starting point can use device GPS. Routes, charger availability and journey monitoring are simulated in this version, so treat plans as a preview."
         />
       )}
       {soc === null && (
@@ -203,19 +294,19 @@ function TripPlanner(): React.JSX.Element {
 
 /* --------------------------------------------------------------- dashboard -- */
 
-function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
+function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
   const nav = useNavigation();
   const active = useIsActiveRef();
-  const {smartDrive} = useServices();
+  const { smartDrive } = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
   const now = useTripNow(trip.clockOffsetMs, 15_000);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<{title: string; body: string} | null>(
+  const [error, setError] = useState<{ title: string; body: string } | null>(
     null,
   );
 
-  const {plan} = trip;
+  const { plan } = trip;
   const stop = plan.primary;
   const status = tripStatus(trip);
   const ended = trip.phase === 'arrived';
@@ -242,7 +333,7 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
     } catch (e) {
       if (active.current) {
         const copy = describeError(e, 'Something didn’t go through.');
-        setError({title: copy.title, body: copy.body});
+        setError({ title: copy.title, body: copy.body });
       }
     }
     if (active.current) {
@@ -299,7 +390,7 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
               onPress: () =>
                 act('begin', async () => {
                   await smartDrive.begin();
-                  await openMaps({id: 'dest', ...destination});
+                  await openMaps({ id: 'dest', ...destination });
                 }),
             };
       case 'at_stop':
@@ -334,7 +425,7 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
           : {
               label: 'Open navigation',
               icon: 'navigation' as const,
-              onPress: () => openMaps({id: 'dest', ...destination}),
+              onPress: () => openMaps({ id: 'dest', ...destination }),
             };
     }
   })();
@@ -349,6 +440,13 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
     <Screen
       title="Orbit Assist"
       stack
+      right={
+        <IconButton
+          icon="sparkles"
+          label="Talk to Orbit"
+          onPress={() => nav.navigate('Assistant')}
+        />
+      }
       footer={
         <>
           {!ended && trip.monitoringState !== 'ended' && (
@@ -373,7 +471,8 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
             />
           )}
         </>
-      }>
+      }
+    >
       <CopilotStatusCard status={status} />
 
       {trip.network === 'offline' && (
@@ -500,7 +599,7 @@ function DemoDrive({
     quietNote?: string,
   ) => Promise<void>;
 }) {
-  const {smartDrive} = useServices();
+  const { smartDrive } = useServices();
   const canDrive = trip.phase !== 'ready' && trip.phase !== 'charging';
   const quiet = 'Checked. Nothing you need to do.';
   return (
@@ -568,25 +667,27 @@ function DemoDrive({
 }
 
 const styles = StyleSheet.create({
-  lead: {...type.display, color: colors.ink},
-  kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
-  heroTitle: {...type.h1, color: '#FFFFFF', marginTop: 6},
+  lead: { ...type.display, color: colors.ink },
+  kicker: { ...type.micro, color: colors.lime, textTransform: 'uppercase' },
+  heroTitle: { ...type.h1, color: '#FFFFFF', marginTop: 6 },
   heroBody: {
     ...type.body,
     color: colors.chipText,
     marginTop: spacing.sm,
     lineHeight: 20,
   },
-  fields: {gap: spacing.sm},
-  row: {marginTop: spacing.md},
+  fields: { gap: spacing.sm },
+  row: { marginTop: spacing.md },
   links: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  route: {...type.h1, color: colors.ink, marginBottom: spacing.sm},
-  center: {alignItems: 'center'},
-  demoTitle: {...type.heading, color: colors.ink},
+  route: { ...type.h1, color: colors.ink, marginBottom: spacing.sm },
+  center: { alignItems: 'center' },
+  demoTitle: { ...type.heading, color: colors.ink },
   demoBody: {
     ...type.caption,
     color: colors.muted,
@@ -594,6 +695,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     lineHeight: 18,
   },
-  demoRow: {flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm},
-  half: {flex: 1},
+  demoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  half: { flexGrow: 1, flexBasis: 140 },
+  compactTitle: { fontSize: 22, lineHeight: 28 },
+  locationNote: { ...type.caption, color: colors.muted, flexShrink: 1 },
 });

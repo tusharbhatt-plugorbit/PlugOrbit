@@ -474,7 +474,6 @@ describe('the floating assistant and its sheet', () => {
     ['Home', true],
     ['Trips', true],
     ['Map', false],
-    ['SmartDrive', false],
     ['RoutePlanner', false],
     ['Navigation', false],
   ] as const)('is on %s', async (route, tab) => {

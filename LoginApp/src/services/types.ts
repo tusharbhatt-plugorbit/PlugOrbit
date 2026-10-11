@@ -214,6 +214,8 @@ export interface PreferencesService {
 
 export type StartSmartDriveInput = {
   fromLabel: string;
+  /** Device GPS origin, when the driver uses their current location. */
+  fromCoords?: import('../utils/geo').Coords;
   toLabel: string;
   /** Defaults to the battery on record. */
   startSoc?: number;

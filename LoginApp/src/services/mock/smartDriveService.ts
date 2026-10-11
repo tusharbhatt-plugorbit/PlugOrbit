@@ -303,14 +303,31 @@ export function createSmartDriveService(): SmartDriveService {
           'Set your battery first so we know where you start.',
         );
       }
-      const from = findPlace(input.fromLabel);
+      const gps = input.fromCoords;
+      if (
+        gps &&
+        (!Number.isFinite(gps.latitude) ||
+          !Number.isFinite(gps.longitude) ||
+          Math.abs(gps.latitude) > 90 ||
+          Math.abs(gps.longitude) > 180)
+      ) {
+        throw new ApiError(
+          'Your starting location is invalid. Try locating again.',
+        );
+      }
+      const from = gps
+        ? { name: input.fromLabel, coords: { ...gps } }
+        : findPlace(input.fromLabel);
       const to = findPlace(input.toLabel);
       if (!from || !to) {
         throw new ApiError(
           'Choose a start and destination from the suggestions.',
         );
       }
-      if (from.name === to.name) {
+      if (
+        from.coords.latitude === to.coords.latitude &&
+        from.coords.longitude === to.coords.longitude
+      ) {
         throw new ApiError('Start and destination are the same place.');
       }
       demo.reset();

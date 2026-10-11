@@ -4,19 +4,26 @@
  */
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Text, TextInput} from 'react-native';
-import {noon} from '../src/dev/smartDriveFixtures';
+import { Text, TextInput } from 'react-native';
+import { noon } from '../src/dev/smartDriveFixtures';
 import {
   TestApp,
   probe,
   seedSignedIn,
   seedSmartDriveTrip,
 } from '../src/dev/testHarness';
-import type {RouteName, TabName} from '../src/navigation/params';
-import {assistModeOf} from '../src/intelligence/types';
-import {appStore} from '../src/store/appStore';
+import type { RouteName, TabName } from '../src/navigation/params';
+import { assistModeOf } from '../src/intelligence/types';
+import { appStore } from '../src/store/appStore';
+import { getCurrentLocation } from '../src/services/location';
+import { Screen } from '../src/ui/Screen';
 
-const {act} = ReactTestRenderer;
+jest.mock('../src/services/location', () => ({
+  ...jest.requireActual('../src/services/location'),
+  getCurrentLocation: jest.fn(),
+}));
+
+const { act } = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const flush = async () => {
@@ -39,7 +46,7 @@ async function open(
       tab ? (
         <TestApp tab={route as TabName} />
       ) : (
-        <TestApp stack={[{name: route as RouteName}]} />
+        <TestApp stack={[{ name: route as RouteName }]} />
       ),
     );
   });
@@ -101,8 +108,11 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  (getCurrentLocation as jest.Mock)
+    .mockReset()
+    .mockResolvedValue({ latitude: 28.6139, longitude: 77.209 });
   jest.setSystemTime(noon());
-  seedSignedIn({soc: 72});
+  seedSignedIn({ soc: 72 });
 });
 
 afterEach(async () => {
@@ -116,6 +126,75 @@ afterAll(() => {
 });
 
 describe('before a trip: "Where are we going?"', () => {
+  test.each([320, 430])(
+    'keeps the start action in the scrollable form on a short %i dp display',
+    async width => {
+      const dimensions = jest
+        .spyOn(require('react-native'), 'useWindowDimensions')
+        .mockReturnValue({ width, height: 640, scale: 1, fontScale: 1.3 });
+      try {
+        const r = await open('SmartDrive');
+        expect(screen(r).findByType(Screen).props.footer).toBeUndefined();
+        expect(pressable(r, 'Start journey')).toBeDefined();
+        const content = all(r);
+        expect(content.indexOf('From')).toBeLessThan(
+          content.indexOf('How should we help?'),
+        );
+        expect(pressable(r, 'Talk to Orbit')).toBeDefined();
+      } finally {
+        dimensions.mockRestore();
+      }
+    },
+  );
+  test('defaults to device GPS and passes the actual coordinates into the journey', async () => {
+    const r = await open('SmartDrive');
+    const from = screen(r)
+      .findAllByType(TextInput)
+      .find(n => n.props.accessibilityLabel === 'From')!;
+    expect(from.props.value).toBe('Current location');
+    const to = screen(r)
+      .findAllByType(TextInput)
+      .find(n => n.props.accessibilityLabel === 'To')!;
+    await act(async () => to.props.onChangeText('Jaipur'));
+    await press(r, 'Start journey');
+    expect(appStore.get().smartDrive.trip?.origin.coords).toEqual({
+      latitude: 28.6139,
+      longitude: 77.209,
+    });
+    expect(appStore.get().smartDrive.trip?.origin.label).toBe(
+      'Current location',
+    );
+  });
+
+  test('keeps manual origin entry available when permission is denied', async () => {
+    (getCurrentLocation as jest.Mock).mockRejectedValue(
+      new Error('Location permission was denied.'),
+    );
+    const r = await open('SmartDrive');
+    expect(all(r)).toContain('Location permission was denied.');
+    const from = screen(r)
+      .findAllByType(TextInput)
+      .find(n => n.props.accessibilityLabel === 'From')!;
+    expect(from.props.value).toBe('');
+    await act(async () => from.props.onChangeText('Delhi'));
+    expect(all(r)).not.toContain('Location permission was denied.');
+  });
+
+  test('a late GPS fix cannot replace a manually edited origin', async () => {
+    let resolve!: (value: { latitude: number; longitude: number }) => void;
+    (getCurrentLocation as jest.Mock).mockReturnValue(
+      new Promise(done => {
+        resolve = done;
+      }),
+    );
+    const r = await open('SmartDrive');
+    const from = screen(r)
+      .findAllByType(TextInput)
+      .find(n => n.props.accessibilityLabel === 'From')!;
+    await act(async () => from.props.onChangeText('Gurugram'));
+    await act(async () => resolve({ latitude: 28.6139, longitude: 77.209 }));
+    expect(from.props.value).toBe('Gurugram');
+  });
   test('asks one question, in the PlugOrbit voice', async () => {
     const r = await open('SmartDrive');
     expect(all(r)).toContain('Where are we going?');
@@ -142,7 +221,7 @@ describe('before a trip: "Where are we going?"', () => {
   });
 
   test('needs a car first', async () => {
-    appStore.set({vehicles: [], activeVehicleId: null});
+    appStore.set({ vehicles: [], activeVehicleId: null });
     const r = await open('SmartDrive');
     expect(all(r)).toContain('Add your car first');
     await press(r, 'Add your EV');
@@ -173,7 +252,7 @@ describe('the trip dashboard', () => {
   });
 
   test('on the road it reassures, and shows that it is watching', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('SmartDrive');
     const t = all(r);
     expect(t).toContain('Your trip is on track.');
@@ -184,7 +263,7 @@ describe('the trip dashboard', () => {
   });
 
   test('driving to the stop leads straight into charging, with the recommended target', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const target =
       appStore.get().smartDrive.trip!.primaryStop!.metrics.targetSoc;
     const r = await open('SmartDrive');
@@ -198,7 +277,7 @@ describe('the trip dashboard', () => {
   });
 
   test('a long queue at the charger changes the plan, and says so once', async () => {
-    seedSmartDriveTrip({km: 60});
+    seedSmartDriveTrip({ km: 60 });
     const r = await open('SmartDrive');
     await press(r, 'Busy charger');
     const t = all(r);
@@ -211,7 +290,7 @@ describe('the trip dashboard', () => {
   });
 
   test('a plan change can be undone', async () => {
-    seedSmartDriveTrip({km: 60});
+    seedSmartDriveTrip({ km: 60 });
     const original = appStore.get().smartDrive.trip!.primaryStop!.station;
     const r = await open('SmartDrive');
     await press(r, 'Busy charger');
@@ -226,7 +305,7 @@ describe('the trip dashboard', () => {
   });
 
   test('a dead charger is replaced, with no "keep" option (it is not safe)', async () => {
-    seedSmartDriveTrip({km: 60});
+    seedSmartDriveTrip({ km: 60 });
     const r = await open('SmartDrive');
     await press(r, 'Dead charger');
     expect(all(r)).toContain('Plan changed');
@@ -234,7 +313,7 @@ describe('the trip dashboard', () => {
   });
 
   test('losing signal keeps the plan and never shows cached status as live', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('SmartDrive');
     await press(r, 'Lose signal');
     const t = all(r);
@@ -251,7 +330,7 @@ describe('the trip dashboard', () => {
   });
 
   test('"End trip" finishes it and goes home', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('SmartDrive');
     await press(r, 'End trip');
     expect(appStore.get().smartDrive.trip).toBeNull();
@@ -261,7 +340,7 @@ describe('the trip dashboard', () => {
 
 describe('the charging stop screen', () => {
   test('explains the choice: why, time, cost, your car, the backup', async () => {
-    seedSmartDriveTrip({km: 100});
+    seedSmartDriveTrip({ km: 100 });
     const r = await open('SmartDriveStop');
     const t = all(r);
     [
@@ -287,21 +366,21 @@ describe('the charging stop screen', () => {
   });
 
   test('far from the stop it declines to guess, rather than invent a forecast', async () => {
-    seedSmartDriveTrip({km: 5});
+    seedSmartDriveTrip({ km: 5 });
     const r = await open('SmartDriveStop');
     expect(all(r)).toContain('Too far ahead to say');
     expect(all(r)).toContain('We don’t guess this far ahead.');
   });
 
   test('"charge just enough" is quantified', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('SmartDriveStop');
     expect(all(r)).toMatch(/enough to finish your trip with 12% to spare/);
     expect(all(r)).toMatch(/saves about \d+ min/);
   });
 
   test('you can ask it things, and it answers from the plan', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('SmartDriveStop');
     await press(r, 'Why are we stopping here?');
     expect(all(r)).toMatch(
@@ -314,7 +393,7 @@ describe('the charging stop screen', () => {
   });
 
   test('a cheaper option can be taken in one tap', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const before = appStore.get().smartDrive.trip!.primaryStop!.station.id;
     const r = await open('SmartDriveStop');
     await press(r, 'Find me something cheaper');
@@ -350,7 +429,7 @@ describe('Smart Drive inside the rest of the app', () => {
   });
 
   test('Home shows the trip when there is one, and opens it', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('Home', true);
     expect(all(r)).toContain('Your trip is on track.');
     expect(all(r)).toContain('Active');
@@ -360,7 +439,7 @@ describe('Smart Drive inside the rest of the app', () => {
 
   test('Home turns urgent only when the battery is low', async () => {
     appStore.set({
-      battery: {percent: 12, source: 'manual', updatedAt: Date.now()},
+      battery: { percent: 12, source: 'manual', updatedAt: Date.now() },
     });
     const r = await open('Home', true);
     expect(all(r)).toContain('Battery is getting low.');
@@ -370,7 +449,7 @@ describe('Smart Drive inside the rest of the app', () => {
   });
 
   test('Home asks for the car before anything else', async () => {
-    appStore.set({vehicles: [], activeVehicleId: null});
+    appStore.set({ vehicles: [], activeVehicleId: null });
     const r = await open('Home', true);
     expect(all(r)).toContain('Add your car to get started.');
     expect(all(r)).toContain('Setup needed');
@@ -382,7 +461,7 @@ describe('Smart Drive inside the rest of the app', () => {
     const r = await open('Home', true);
     await act(async () => {
       r.root
-        .findByProps({testID: 'destination-input'})
+        .findByProps({ testID: 'destination-input' })
         .props.onChangeText('Jaipur');
     });
     await press(r, 'Plan my journey');
@@ -403,7 +482,7 @@ describe('Smart Drive inside the rest of the app', () => {
   });
 
   test('Notifications show how much each Smart Drive message matters', async () => {
-    seedSmartDriveTrip({km: 60});
+    seedSmartDriveTrip({ km: 60 });
     const r = await open('SmartDrive');
     await press(r, 'Dead charger');
     await act(async () => {
@@ -532,11 +611,11 @@ describe('Orbit Assist modes and the map companion', () => {
   });
 
   test('a trip in Guided mode says so in its footer, not "watching for you"', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     appStore.set(s => ({
       smartDrive: {
         ...s.smartDrive,
-        prefs: {...s.smartDrive.prefs, mode: 'guided'},
+        prefs: { ...s.smartDrive.prefs, mode: 'guided' },
       },
     }));
     const r = await open('SmartDrive');
@@ -551,7 +630,7 @@ describe('Orbit Assist modes and the map companion', () => {
   });
 
   test('over the map, an active trip is one calm line that expands on tap', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('Map');
     const panel = screen(r).find(n => n.props.testID === 'assist-map-panel');
     expect(panel).toBeTruthy();
@@ -566,7 +645,7 @@ describe('Orbit Assist modes and the map companion', () => {
   });
 
   test('the expanded assistant takes the map: the station card steps aside, then returns', async () => {
-    seedSmartDriveTrip({km: 20});
+    seedSmartDriveTrip({ km: 20 });
     const r = await open('Map');
     // (findAll sees the component and its host view, so count presence, not matches.)
     const card = () =>
