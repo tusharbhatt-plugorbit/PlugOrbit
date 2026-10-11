@@ -210,7 +210,7 @@ class AssistantEngine:
         if self.meter.tokens_today(uid) >= s.assistant_daily_token_budget:
             raise AssistantError("DAILY_LIMIT", "You've reached today's Orbit Assist limit. It resets tomorrow.", 429)
 
-        session = self.sessions.get(uid, req.session_id) if req.session_id else None
+        session = self.sessions.get(uid, req.session_id, now) if req.session_id else None
         resumed = session is not None
         if session is None:
             session = self.sessions.create(uid, now)
@@ -234,7 +234,7 @@ class AssistantEngine:
         s = self.settings
         if not req.session_id or not req.turn_id or req.tool_results is None:
             raise AssistantError("BAD_REQUEST", "session_id, turn_id and tool_results are all required.", 422)
-        session = self.sessions.get(uid, req.session_id)
+        session = self.sessions.get(uid, req.session_id, now)
         if session is None:
             raise AssistantError("SESSION_NOT_FOUND", "That conversation has ended. Ask again to start a new one.", 404)
         pending = session.pending

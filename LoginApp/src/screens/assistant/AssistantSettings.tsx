@@ -73,7 +73,7 @@ export function AssistantSettings({
   return (
     <View style={styles.wrap}>
       <Text style={styles.section}>Voice</Text>
-      <Card padded={false}>
+      <Card>
         <View style={styles.pad}>
           <Text style={styles.label}>Language</Text>
           <SegmentedControl
@@ -124,7 +124,7 @@ export function AssistantSettings({
       </Card>
 
       <Text style={styles.section}>While driving</Text>
-      <Card padded={false}>
+      <Card>
         <ToggleRow
           title="Driving mode"
           subtitle="A large microphone and short spoken answers. Typed questions are read aloud too."
@@ -156,7 +156,7 @@ export function AssistantSettings({
       </Card>
 
       <Text style={styles.section}>Privacy and memory</Text>
-      <Card padded={false}>
+      <Card>
         <ToggleRow
           title="Remember my preferences"
           subtitle="Keep things you ask Orbit to remember, like “I prefer cheaper chargers”, on this phone."
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: spacing.sm,
   },
-  pad: {padding: spacing.lg, gap: spacing.sm},
+  pad: {gap: spacing.sm, paddingBottom: spacing.lg},
   label: {...type.label, color: colors.ink},
   help: {...type.caption, color: colors.muted, lineHeight: 18},
   prefRow: {

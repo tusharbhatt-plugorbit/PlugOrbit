@@ -9,7 +9,7 @@ import {
 } from '../navigation/NavigationContext';
 import type {RouteName} from '../navigation/params';
 import {REGISTRY} from '../navigation/registry';
-import {Conversation, VoiceStage} from '../screens/assistant/AssistantScreen';
+import {Conversation} from '../screens/assistant/AssistantScreen';
 import {
   statusText,
   useAssistantOpened,
@@ -32,14 +32,13 @@ import {useKeyboardVisible} from '../ui/useKeyboardVisible';
 import {useApp} from '../store/appStore';
 
 /**
- * Where the compact Orbit Assist entry point shows, and how far above the
+ * Where the compact Orbit Assist entry point shows (the Map has its own button in its control stack), and how far above the
  * bottom edge it sits so it never covers a screen's own bottom button or the
  * map's list pill.
  */
 const FLOAT_LIFT: Partial<Record<RouteName, number>> = {
   Home: 0,
   Trips: 0,
-  Map: 76,
   StationList: 96,
   RoutePlanner: 96,
   RouteResult: 96,
@@ -150,7 +149,7 @@ export function AssistantSheet() {
               }
             />
             <View style={styles.controls}>
-              <VoiceStageMini />
+              <SheetStatus view={view} />
               <RoundAction
                 icon="circle-stop"
                 label="Stop talking"
@@ -187,7 +186,6 @@ export function AssistantSheet() {
         state={view.microphone}
         onOpenSettings={view.openPhoneSettings}
       />
-      {settings.drivingMode ? null : <VoiceStage view={view} />}
       <View style={styles.sheetLinks}>
         <TextButton
           label="Open full conversation"
@@ -208,13 +206,17 @@ export function AssistantSheet() {
   );
 }
 
-/** A small orb for the sheet's control row. */
-function VoiceStageMini() {
-  const phase = useAssistantState(s => s.phase);
-  const level = useAssistantState(s => s.level);
+/** Orb and one line of status, for the sheet's control row. */
+function SheetStatus({view}: {view: ReturnType<typeof useAssistantView>}) {
   return (
     <View style={styles.mini}>
-      <VoiceOrb phase={phase} level={level} size={48} />
+      <VoiceOrb phase={view.phase} level={view.level} size={52} />
+      <Text
+        style={styles.miniText}
+        numberOfLines={3}
+        accessibilityLiveRegion="polite">
+        {statusText(view)}
+      </Text>
     </View>
   );
 }
@@ -259,7 +261,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  mini: {flex: 1, alignItems: 'flex-start'},
+  mini: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  miniText: {...type.caption, color: colors.inkSoft, flex: 1},
   context: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
   empty: {...type.body, color: colors.inkSoft, lineHeight: 20},
   sheetLinks: {

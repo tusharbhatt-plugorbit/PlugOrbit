@@ -11,6 +11,15 @@ changed; only what people read became "Orbit Assist". The engine design is in
 This page says what is real, what is simulated, and what still needs an
 integration. Nothing here is a mock-up presented as live.
 
+## Talk to it
+
+Orbit Assist can now be spoken to (push-to-talk, English / Hindi / Hinglish) or typed to. A
+language model understands the request and calls the tools in this document's planner; the
+numbers it quotes always come from those tools. Design, setup, costs and what is not yet
+verified are in [`ASSISTANT_AI.md`](ASSISTANT_AI.md). Entry points: **Talk to Orbit** on Home
+and Trips, a button on the Map, and a floating button with a bottom sheet on the journey
+screens.
+
 ## The two modes
 
 | | **Guided** | **Orbit Assist** (default) |

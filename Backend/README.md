@@ -119,3 +119,31 @@ Concurrent edits are last-write-wins per slice; the app pulls before it pushes t
 
 `firestore.rules` is deny-all and matches what is already live. It is only applied when you run
 `firebase deploy --only firestore:rules` from this folder; nothing in this repo deploys it.
+
+## Orbit Assist AI gateway
+
+An isolated, additive module (`app/ai`) behind the existing Firebase auth. It adds endpoints
+only; no existing endpoint, schema or Firestore collection changed, and nothing is stored (sessions
+live in memory for 30 minutes). Full design, setup and costs: `LoginApp/docs/ASSISTANT_AI.md`.
+
+| Endpoint | |
+|---|---|
+| `GET /assistant/status` | enabled?, model, tools, limits |
+| `POST /assistant/turn` | one driver turn; streams newline-delimited JSON (`session`, `text`, `memory`, `tool_requests`, `actions`, `done`, `error`) |
+| `DELETE /assistant/sessions/{id}` · `DELETE /assistant/sessions` | forget conversations |
+| `GET /assistant/usage` | this user's token use and estimated cost today |
+
+```sh
+pip install -r requirements-dev.txt     # includes the anthropic SDK
+# .env: ANTHROPIC_API_KEY=sk-ant-...    (secret; server only. Without it the assistant is simply "unavailable")
+python -m pytest tests/test_ai_*.py     # no network and no key needed
+```
+
+Per user: 12 turns a minute and a daily token budget (`ASSISTANT_*` in `.env.example`). The
+model's tools run on the phone, so the gateway never sees raw app data it was not sent for a
+turn. In development the assistant needs a Firebase session, which on-screen OTP codes do not
+open unless `OTP_DEV_FALLBACK_SESSIONS=true`.
+
+The wire protocol is locked from both sides by `tests/fixtures/*.json`; after changing it
+regenerate with `UPDATE_FIXTURES=1 pytest tests/test_ai_protocol.py` and then
+`UPDATE_FIXTURES=1 npx jest __tests__/assistant/protocol.test.ts` (in `LoginApp/`).

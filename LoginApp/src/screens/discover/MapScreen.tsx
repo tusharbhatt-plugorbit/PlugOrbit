@@ -15,6 +15,7 @@ import {
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import ChargerMap, {ChargerMapHandle} from '../../components/ChargerMap';
 import {MapUnavailable} from '../../components/MapUnavailable';
+import {assistantStore} from '../../assistant/store';
 import {mapsKeyMissing} from '../../config/google';
 import {RUNS_ON_DEMO_DATA} from '../../services';
 import {
@@ -491,6 +492,19 @@ function MapScreen(): React.JSX.Element {
                 </View>
               )}
             </Pressable>
+            <Pressable
+              onPress={() => assistantStore.set({sheetOpen: true})}
+              accessibilityRole="button"
+              accessibilityLabel="Open Orbit Assist"
+              testID="map-assistant"
+              style={({pressed}) => [
+                styles.mapBtn,
+                styles.mapBtnAssist,
+                elevation(2),
+                pressed && styles.pillPressed,
+              ]}>
+              <Icon name="sparkles" size={20} color={colors.lime} />
+            </Pressable>
           </View>
 
           {showPermissionCard && permissionIssue && (
@@ -665,6 +679,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Orbit Assist is the one dark button in the stack: same family as its floating button elsewhere.
+  mapBtnAssist: {backgroundColor: colors.bg},
   filterBadge: {
     position: 'absolute',
     top: -4,

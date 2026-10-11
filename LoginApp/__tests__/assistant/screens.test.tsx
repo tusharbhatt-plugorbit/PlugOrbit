@@ -467,8 +467,22 @@ describe('the floating assistant and its sheet', () => {
     expect(probe.current).toBe('Map');
     expect(allText(r)).toMatch(/Ask Orbit about your battery/);
     expect(openSheet(r).findAllByType(TextInput)).toHaveLength(1);
-    // The floating button steps aside while the sheet is open.
+  });
+
+  test('the floating button steps aside while the sheet is open', async () => {
+    const r = await open('Home', true);
+    await press(r, 'Open Orbit Assist');
+    expect(assistantStore.get().sheetOpen).toBe(true);
     expect(pressable(r, 'Open Orbit Assist')).toBeUndefined();
+  });
+
+  test('on the Map the entry is a button in the map’s own control stack, not a floating one', async () => {
+    const r = await open('Map');
+    const button = r.root.find(n => n.props.testID === 'map-assistant');
+    expect(button).toBeDefined();
+    expect(
+      r.root.findAll(n => n.props.testID === 'floating-assistant'),
+    ).toHaveLength(0);
   });
 
   test('answers inside the sheet, and the full conversation is one tap away', async () => {

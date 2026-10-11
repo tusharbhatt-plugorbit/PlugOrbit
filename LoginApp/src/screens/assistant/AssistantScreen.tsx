@@ -79,8 +79,18 @@ export function Conversation({
   );
 }
 
-/** Orb + one live line: what Orbit is doing, or what it is hearing. */
+/**
+ * Orb + one live line: what Orbit is doing, or what it is hearing. While idle and
+ * healthy it stays out of the way (the microphone says the same thing).
+ */
 export function VoiceStage({view}: {view: AssistantView}) {
+  const trouble =
+    view.gateway.health === 'offline' ||
+    view.gateway.health === 'signed_out' ||
+    view.gateway.health === 'unavailable';
+  if (view.phase === 'idle' && !trouble) {
+    return null;
+  }
   return (
     <View style={styles.stage} testID="voice-stage">
       <VoiceOrb phase={view.phase} level={view.level} size={76} />

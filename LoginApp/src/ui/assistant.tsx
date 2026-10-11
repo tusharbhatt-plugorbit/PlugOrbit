@@ -510,16 +510,10 @@ export function ActionCard({
           <PrimaryButton
             compact
             label={
-              needsConsent
-                ? 'Allow and save'
-                : approval
-                ? 'Yes, do it'
-                : action.label
+              needsConsent ? 'Allow and save' : approval ? 'Yes, do it' : 'Open'
             }
             onPress={onRun}
-            accessibilityHint={
-              approval ? `Approve: ${action.label}` : undefined
-            }
+            accessibilityHint={action.label}
             style={styles.flex}
           />
           <SecondaryButton

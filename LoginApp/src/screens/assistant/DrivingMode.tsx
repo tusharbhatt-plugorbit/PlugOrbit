@@ -32,6 +32,7 @@ export function DrivingMode({
     <Screen
       title="Driving mode"
       dark
+      hideBack
       scroll={false}
       right={
         <IconButton
