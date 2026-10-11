@@ -11,7 +11,7 @@ finished. [`ORBIT_ASSIST.md`](ORBIT_ASSIST.md) describes the deterministic plann
 built on; [`SMART_DRIVE.md`](SMART_DRIVE.md) is its engine reference.
 
 > **Status in one paragraph.** Everything below is implemented and tested in Jest and
-> pytest (1,012 app tests, 200 backend tests). Two things have **not** been exercised in
+> pytest (1,018 app tests, 202 backend tests). Two things have **not** been exercised in
 > this environment and need a real device and a real key before anyone relies on them:
 > the live model call (no API key here; the Anthropic adapter was tested through the
 > official SDK against a simulated Messages API, not against the real service) and the
@@ -413,9 +413,9 @@ for tool use or Hindi quality.
 | Suite | Result |
 |---|---|
 | App (Jest), baseline on `main` | 47 suites, 787 tests |
-| App (Jest), now | 56 suites, 1,012 tests, all passing (includes the crawl test, which opens the new route and presses every button) |
+| App (Jest), now | 56 suites, 1,018 tests, all passing (includes the crawl test, which opens the new route and presses every button) |
 | Backend (pytest), baseline on `main` | 130 passed, 1 skipped (live Firestore) |
-| Backend (pytest), now | 200 passed, 1 skipped |
+| Backend (pytest), now | 202 passed, 1 skipped |
 | `tsc --noEmit` | clean |
 | ESLint | 0 errors; the same 5 warnings as `main` |
 

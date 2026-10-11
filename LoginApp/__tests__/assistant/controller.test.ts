@@ -86,6 +86,25 @@ describe('a typed question', () => {
     expect((rig.gateway.bodies[1] as any).session_id).toBe('s1'); // follow-up keeps the conversation
   });
 
+  it('keeps what it sends within the gateway’s limits', async () => {
+    const rig = makeRig();
+    assistantStore.set({
+      journey: {
+        destination: 'J'.repeat(200),
+        selected_station_name: 'S'.repeat(300),
+        min_arrival_soc_pct: 20.4,
+        updated_at: Date.now(),
+      },
+    });
+    rig.gateway.scripts = [[session(), text('ok'), done()]];
+    await rig.controller.send('x'.repeat(2000));
+    const body = rig.gateway.bodies[0] as any;
+    expect(body.message).toHaveLength(1200);
+    expect(body.context.journey.destination).toHaveLength(80);
+    expect(body.context.journey.selected_station_name).toHaveLength(120);
+    expect(body.context.journey.min_arrival_soc_pct).toBe(20);
+  });
+
   it('forgets a journey the driver has not mentioned for hours', async () => {
     const rig = makeRig();
     assistantStore.set({
@@ -511,6 +530,18 @@ describe('microphone', () => {
     rig.gateway.scripts = [[session(), text('Typed answers work.'), done()]];
     await rig.controller.send('hello');
     expect(last(rig).text).toBe('Typed answers work.');
+  });
+
+  it('a second tap while the first is still starting does not open a second session', async () => {
+    const rig = makeRig();
+    rig.permissions.state = 'unknown';
+    rig.permissions.onRequest = 'granted';
+    await Promise.all([
+      rig.controller.startListening(),
+      rig.controller.startListening(),
+    ]);
+    expect(rig.recognizer.started).toBe(1);
+    expect(rig.permissions.requests).toBe(1);
   });
 
   it('does not listen before the driver has agreed to AI use', async () => {

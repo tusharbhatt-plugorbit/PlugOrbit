@@ -101,6 +101,9 @@ export function startProactive(
         return;
       }
       handled.add(n.id);
+      if (!assistantOn()) {
+        return; // the driver has not turned Orbit on: the engine's own in-app alerts are enough
+      }
       const at = now();
       const {verdict, key} = judge(n, {
         seen: assistantStore.get().proactiveSeen,
@@ -123,6 +126,8 @@ export function startProactive(
       });
     });
   };
+
+  const assistantOn = () => assistantStore.get().settings.aiConsentAt !== null;
 
   const onTrip = (trip: AppState['smartDrive']['trip']) => {
     if (trip === prevTrip) {
@@ -158,7 +163,12 @@ export function startProactive(
 
   const onSession = () => {
     const s = app.get().session;
-    if (!s || s.status !== 'active' || announcedSessions.has(s.id)) {
+    if (
+      !s ||
+      s.status !== 'active' ||
+      announcedSessions.has(s.id) ||
+      !assistantOn()
+    ) {
       return;
     }
     if (computeSessionMetrics(s, now()).reachedTarget) {

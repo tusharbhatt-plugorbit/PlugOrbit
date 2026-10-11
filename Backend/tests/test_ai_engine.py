@@ -350,3 +350,15 @@ def test_session_expiry_and_per_user_cap():
     c = store.create("u", now[0])  # evicts the oldest
     assert store.get("u", a.id, now[0]) is None and store.get("u", b.id, now[0]) and store.get("u", c.id, now[0])
     assert store.get("u", b.id, 500) is None  # expired
+
+
+def test_limiter_forgets_users_who_stopped_asking():
+    from app.ai.ratelimit import SlidingWindowLimiter
+
+    limiter = SlidingWindowLimiter(limit=2, window_s=60)
+    for i in range(50):
+        limiter.hit(f"user-{i}", now=0.0)
+    assert len(limiter._hits) == 50
+    limiter.prune(now=120.0)
+    assert len(limiter._hits) == 0
+    assert limiter.hit("user-1", now=121.0) == (True, 0)

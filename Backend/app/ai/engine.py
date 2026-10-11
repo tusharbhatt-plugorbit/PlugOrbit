@@ -170,6 +170,7 @@ class AssistantEngine:
         self._request_limit = SlidingWindowLimiter(settings.assistant_requests_per_minute)
         self._model_slots = asyncio.Semaphore(settings.assistant_max_concurrent_model_calls)
         self._clock = clock
+        self._calls = 0
         self._tools = api_tool_definitions()
 
     @property
@@ -183,6 +184,11 @@ class AssistantEngine:
             raise AssistantError("ASSISTANT_UNAVAILABLE", "The assistant isn't available right now.", 503)
 
         now = self._clock()
+        self._calls += 1
+        if self._calls % 500 == 0:  # forget users who stopped asking, so the counters stay small
+            self._request_limit.prune(now)
+            self._turn_limit.prune(now)
+            self.sessions.sweep(now)
         ok, wait = self._request_limit.hit(uid, now)
         if not ok:
             raise AssistantError("RATE_LIMITED", "Too many requests. Try again in a moment.", 429, wait)

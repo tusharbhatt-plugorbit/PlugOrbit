@@ -9,6 +9,8 @@ import {Modal, Switch, Text, TextInput} from 'react-native';
 import {GatewayError} from '../../src/assistant/gateway';
 import {resetAssistantRuntime} from '../../src/assistant/runtime';
 import {assistantStore, updateSettings} from '../../src/assistant/store';
+import {DEFAULT_SETTINGS} from '../../src/assistant/types';
+import {appStore} from '../../src/store/appStore';
 import {
   done,
   makeRig,
@@ -137,6 +139,33 @@ afterEach(async () => {
     mounted.splice(0).forEach(r => r.unmount());
   });
   resetAssistantRuntime();
+});
+
+describe('signing out', () => {
+  test('leaves nothing of the conversation, memory or consent for the next person', async () => {
+    rig.gateway.scripts = [[session('s5'), text('Hi.'), done()]];
+    updateSettings({rememberPreferences: true, voiceLanguage: 'hi'});
+    assistantStore.set({
+      journey: {destination: 'Jaipur', updated_at: Date.now()},
+      preferences: [{key: 'prioritise', value: 'cost', savedAt: 1}],
+    });
+    await open('Home', true);
+    await act(async () => {
+      await rig.controller.send('hello');
+    });
+    expect(assistantStore.get().messages.length).toBeGreaterThan(0);
+    await act(async () => {
+      appStore.set({signedIn: false}); // what Sign out does
+      mounted.splice(0).forEach(m => m.unmount()); // the signed-in app goes away
+    });
+    await flush();
+    const s = assistantStore.get();
+    expect(s.messages).toEqual([]);
+    expect(s.journey).toBeNull();
+    expect(s.preferences).toEqual([]);
+    expect(s.settings).toEqual(DEFAULT_SETTINGS);
+    expect(rig.gateway.cleared).toContain('s5');
+  });
 });
 
 describe('consent', () => {

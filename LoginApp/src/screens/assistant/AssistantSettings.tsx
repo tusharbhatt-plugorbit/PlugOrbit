@@ -101,7 +101,6 @@ export function AssistantSettings({
           onValueChange={async v => {
             updateSettings({textOnly: v});
             if (v) {
-              await assistant.setMuted(settings.muted);
               await assistant.interrupt();
             }
           }}

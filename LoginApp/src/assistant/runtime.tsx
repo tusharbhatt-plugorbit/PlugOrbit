@@ -14,12 +14,14 @@ import {startProactive} from './proactive';
 import {
   activePreferences,
   assistantStore,
+  eraseAssistantData,
   flushAssistantStore,
   freshJourney,
   hydrateAssistantStore,
 } from './store';
 import {createToolRunner} from './tools';
 import type {ToolDeps} from './tools';
+import {DEFAULT_SETTINGS} from './types';
 import type {ToolEnvelope} from './types';
 import {createNativeVoice} from './voice/native';
 
@@ -138,6 +140,13 @@ export function AssistantBridge(): null {
       stop?.();
       sub.remove();
       attachAssistant(null, null);
+      if (!appStore.get().signedIn) {
+        // Signed out (or the account was deleted): the next person to use this phone must
+        // not inherit a conversation, a journey, remembered preferences or an AI consent.
+        assistant.clearHistory();
+        eraseAssistantData();
+        assistantStore.set({settings: DEFAULT_SETTINGS});
+      }
     };
   }, []);
 

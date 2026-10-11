@@ -129,3 +129,10 @@ def test_existing_endpoints_are_untouched():
     paths = set(app.openapi()["paths"])
     for path in ("/auth/otp/verify", "/users/me/state", "/auth/refresh", "/assistant/turn"):
         assert path in paths
+
+
+def test_an_enormous_message_is_rejected_before_it_reaches_the_engine(client):
+    c, engine, _ = client
+    r = c.post("/assistant/turn", json={"message": "x" * 9000})
+    assert r.status_code == 422
+    assert engine.meter.totals.turns == 0

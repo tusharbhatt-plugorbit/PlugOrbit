@@ -44,6 +44,8 @@ export type ControllerDeps = {
 };
 
 const MAX_ROUNDS = 8;
+/** The gateway rejects longer messages; a long utterance is cut rather than lost. */
+const MAX_MESSAGE_CHARS = 1200;
 const RECENT_NOTICE_WINDOW_MS = 30 * 60 * 1000;
 const QUEUED_SPEECH_MAX_AGE_MS = 2 * 60 * 1000;
 
@@ -136,6 +138,7 @@ export class AssistantController {
   /** Bumped to invalidate everything an in-flight turn does. */
   private turn = 0;
   private listen = 0;
+  private starting = false;
   private seq = 0;
   private running = new Set<string>();
   private queuedSpeech: Array<{text: string; id: string; at: number}> = [];
@@ -276,7 +279,7 @@ export class AssistantController {
       driving_mode: st.settings.drivingMode,
       local_time: localIso(new Date(now)),
       demo_data: this.deps.demo ?? true,
-      ...(j ? {journey: stripUndefined(j)} : {}),
+      ...(j ? {journey: clampJourney(j)} : {}),
       remembered_preferences: activePreferences(st)
         .slice(0, 12)
         .map(p => ({
@@ -331,7 +334,7 @@ export class AssistantController {
 
   /** Returns false when nothing was sent (empty text, or the driver has not agreed to AI use yet). */
   async send(text: string, via: 'voice' | 'text' = 'text'): Promise<boolean> {
-    const clean = text.trim();
+    const clean = text.trim().slice(0, MAX_MESSAGE_CHARS);
     if (!clean || !hasAiConsent(this.s)) {
       return false;
     }
@@ -518,6 +521,19 @@ export class AssistantController {
   }
 
   async startListening(): Promise<void> {
+    // A second tap while the first is still asking for permission must not open a second session.
+    if (this.starting) {
+      return;
+    }
+    this.starting = true;
+    try {
+      await this.beginListening();
+    } finally {
+      this.starting = false;
+    }
+  }
+
+  private async beginListening(): Promise<void> {
     const v = this.deps.voice;
     if (!hasAiConsent(this.s)) {
       return;
@@ -705,8 +721,9 @@ export class AssistantController {
 
   /** Wipe the transcript and the server's copy of the conversation. */
   async clearHistory(): Promise<void> {
-    await this.interrupt();
+    // Read the session first: a caller may wipe the rest of the store straight after.
     const sid = this.s.sessionId;
+    await this.interrupt();
     clearConversationState();
     if (sid) {
       await this.deps.gateway.clearSession(sid).catch(() => undefined);
@@ -837,10 +854,41 @@ export class AssistantController {
 
 // ----------------------------------------------------------------- helpers ---
 
-function stripUndefined<T extends object>(o: T): T {
-  return Object.fromEntries(
-    Object.entries(o).filter(([, v]) => v !== undefined && v !== null),
-  ) as T;
+/** Only what the gateway accepts: known fields, within its length limits. */
+function clampJourney(j: JourneyMemory): JourneyMemory {
+  const out: JourneyMemory = {};
+  const text = (
+    k:
+      | 'destination'
+      | 'origin'
+      | 'selected_station_id'
+      | 'selected_station_name',
+    max: number,
+  ) => {
+    if (j[k]) {
+      out[k] = String(j[k]).slice(0, max);
+    }
+  };
+  text('destination', 80);
+  text('origin', 80);
+  text('selected_station_id', 80);
+  text('selected_station_name', 120);
+  if (j.min_arrival_soc_pct !== undefined) {
+    out.min_arrival_soc_pct = Math.max(
+      0,
+      Math.min(100, Math.round(j.min_arrival_soc_pct)),
+    );
+  }
+  if (j.max_stops !== undefined) {
+    out.max_stops = Math.max(0, Math.min(10, Math.round(j.max_stops)));
+  }
+  if (j.strategy) {
+    out.strategy = j.strategy;
+  }
+  if (j.updated_at !== undefined) {
+    out.updated_at = j.updated_at;
+  }
+  return out;
 }
 
 function localIso(d: Date): string {

@@ -106,7 +106,7 @@ class ToolResult(_Strict):
 class TurnRequest(_Strict):
     session_id: str | None = Field(default=None, max_length=64)
     # Exactly one of `message` (a new driver turn) or `turn_id` + `tool_results`.
-    message: str | None = None
+    message: str | None = Field(default=None, max_length=8000)
     turn_id: str | None = Field(default=None, max_length=64)
     tool_results: list[ToolResult] | None = Field(default=None, max_length=12)
     context: ClientContext = Field(default_factory=ClientContext)

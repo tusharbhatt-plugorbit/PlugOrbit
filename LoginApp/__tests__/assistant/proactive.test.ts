@@ -163,6 +163,19 @@ describe('coordinator', () => {
     expect(rig.store.get().messages).toHaveLength(0);
   });
 
+  it('stays out of it until the driver has turned Orbit on', async () => {
+    const rig = makeRig({consent: false});
+    stop = startProactive(rig.controller, {now: () => Date.now()});
+    arrive(note({at: Date.now()}));
+    await flush();
+    expect(rig.store.get().messages).toHaveLength(0);
+    expect(rig.synthesizer.spoken).toHaveLength(0);
+    // The engine's own in-app notification is untouched.
+    expect(
+      appStore.get().notifications.some(n => n.source === 'smart_drive'),
+    ).toBe(true);
+  });
+
   it('does not replay what was already in the store when it started', async () => {
     appStore.set({notifications: [note({at: Date.now()})]});
     const rig = setup();
