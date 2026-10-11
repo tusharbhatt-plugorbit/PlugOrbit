@@ -1,5 +1,5 @@
-import {Linking, PermissionsAndroid, Platform} from 'react-native';
-import type {PermissionState} from '../types';
+import { Linking, PermissionsAndroid, Platform } from 'react-native';
+import type { PermissionState } from '../types';
 import type {
   AudioSessionPort,
   PermissionPort,
@@ -52,7 +52,7 @@ const loadTts: Loader<any> = () => {
  * SpeechRecognizer.ERROR_* numbers ("7/No match"); iOS uses text.
  */
 export function mapRecognizerError(
-  raw: {code?: unknown; message?: unknown} | undefined,
+  raw: { code?: unknown; message?: unknown } | undefined,
 ): RecognizerErrorCode {
   const code = String(raw?.code ?? '').trim();
   const message = String(raw?.message ?? '').toLowerCase();
@@ -152,23 +152,25 @@ export function createNativeRecognizer(
       v.onSpeechStart = () => {
         alive();
       };
-      v.onSpeechPartialResults = (e: {value?: string[]}) => {
+      v.onSpeechPartialResults = (e: { value?: string[] }) => {
         if (alive() && e?.value?.[0]) {
           events.onPartial(e.value[0]);
         }
       };
-      v.onSpeechResults = (e: {value?: string[]}) => {
+      v.onSpeechResults = (e: { value?: string[] }) => {
         if (alive()) {
           events.onFinal(e?.value?.[0] ?? '');
         }
       };
-      v.onSpeechVolumeChanged = (e: {value?: number}) => {
+      v.onSpeechVolumeChanged = (e: { value?: number }) => {
         if (alive() && typeof e?.value === 'number') {
           // Android reports roughly -2..10 dB, iOS differs; this only drives an animation.
           events.onLevel?.(Math.max(0, Math.min(1, (e.value + 2) / 12)));
         }
       };
-      v.onSpeechError = (e: {error?: {code?: unknown; message?: unknown}}) => {
+      v.onSpeechError = (e: {
+        error?: { code?: unknown; message?: unknown };
+      }) => {
         if (alive()) {
           events.onError(
             mapRecognizerError(e?.error),
@@ -193,7 +195,7 @@ export function createNativeRecognizer(
       } catch (e: any) {
         clearWatchdog();
         events.onError(
-          mapRecognizerError({code: e?.code, message: e?.message}),
+          mapRecognizerError({ code: e?.code, message: e?.message }),
           String(e?.message ?? ''),
         );
       }
@@ -232,6 +234,7 @@ export function createNativeSynthesizer(
   load: Loader<any> = loadTts,
 ): SpeechSynthesizerPort {
   let ready: Promise<boolean> | null = null;
+  let generation = 0;
   let current: {
     resolve: (r: SpeakResult) => void;
     timer: ReturnType<typeof setTimeout>;
@@ -259,11 +262,11 @@ export function createNativeSynthesizer(
           tts.addEventListener?.('tts-cancel', () => settle('cancelled'));
           tts.addEventListener?.('tts-error', () => settle('error'));
           // Lower other audio (navigation prompts, music) while Orbit speaks.
-          tts.setDucking?.(true);
+          await tts.setDucking?.(true);
           if (Platform.OS === 'ios') {
-            tts.setIgnoreSilentSwitch?.('ignore');
+            await tts.setIgnoreSilentSwitch?.('ignore');
           }
-          tts.setDefaultRate?.(0.5);
+          await tts.setDefaultRate?.(0.5);
           return true;
         } catch {
           // No speech engine installed (Android) or it failed to start.
@@ -278,19 +281,26 @@ export function createNativeSynthesizer(
     isAvailable: () => init(),
 
     async speak(text, options) {
+      const started = generation;
       const tts = load();
       if (!tts || !(await init())) {
         return 'error';
       }
+      if (started !== generation) {
+        return 'cancelled';
+      }
       settle('cancelled'); // never two at once
       try {
         await tts.setDefaultLanguage(options.locale);
+        if (options.rate !== undefined) {
+          await tts.setDefaultRate?.(options.rate);
+        }
       } catch {
         // That voice is not installed. Speaking would use the wrong language.
         return 'error';
       }
-      if (options.rate !== undefined) {
-        tts.setDefaultRate?.(options.rate);
+      if (started !== generation) {
+        return 'cancelled';
       }
       return new Promise<SpeakResult>(resolve => {
         // If the engine never reports back, do not hold the queue forever.
@@ -298,9 +308,13 @@ export function createNativeSynthesizer(
           () => settle('error'),
           Math.max(SPEAK_MIN_TIMEOUT_MS, text.length * SPEAK_PER_CHAR_MS),
         );
-        current = {resolve, timer};
+        current = { resolve, timer };
         try {
-          tts.speak(text);
+          Promise.resolve(tts.speak(text)).catch(() => {
+            if (current?.resolve === resolve) {
+              settle('error');
+            }
+          });
         } catch {
           settle('error');
         }
@@ -308,6 +322,7 @@ export function createNativeSynthesizer(
     },
 
     async stop() {
+      generation += 1;
       const tts = load();
       settle('cancelled');
       try {

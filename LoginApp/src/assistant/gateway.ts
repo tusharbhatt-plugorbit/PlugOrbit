@@ -1,8 +1,8 @@
-import {API_BASE_URL} from '../config/api';
-import {CloudError} from '../services/backend';
-import {getIdToken} from '../services/session';
-import {NdjsonParser} from './ndjson';
-import type {StreamEvent} from './types';
+import { API_BASE_URL } from '../config/api';
+import { CloudError } from '../services/backend';
+import { getIdToken } from '../services/session';
+import { NdjsonParser } from './ndjson';
+import type { StreamEvent } from './types';
 
 /**
  * The only code that talks to the AI gateway (Backend/app/ai). It carries the
@@ -29,7 +29,7 @@ export class GatewayError extends Error {
   constructor(
     code: GatewayErrorCode,
     message: string,
-    extra: {status?: number; retryAfter?: number} = {},
+    extra: { status?: number; retryAfter?: number } = {},
   ) {
     super(message);
     this.name = 'GatewayError';
@@ -118,7 +118,7 @@ export type Gateway = {
   streamTurn: (
     body: TurnBody,
     onEvent: (event: StreamEvent) => void,
-    options?: {signal?: AbortSignal},
+    options?: { signal?: AbortSignal },
   ) => Promise<void>;
   status: () => Promise<GatewayStatus>;
   clearSession: (sessionId: string) => Promise<void>;
@@ -128,7 +128,7 @@ export type Gateway = {
 export type GatewayDeps = {
   baseUrl?: string;
   transport?: Transport;
-  getToken?: (opts?: {forceRefresh?: boolean}) => Promise<string | null>;
+  getToken?: (opts?: { forceRefresh?: boolean }) => Promise<string | null>;
   /** The gateway sends nothing for this long: give up. */
   idleTimeoutMs?: number;
 };
@@ -148,14 +148,14 @@ function errorFromResponse(res: TransportResult): GatewayError {
   let message = '';
   try {
     const parsed = JSON.parse(res.body) as {
-      detail?: {code?: string; message?: string};
+      detail?: { code?: string; message?: string };
     };
     code = parsed.detail?.code ?? '';
     message = parsed.detail?.message ?? '';
   } catch {
     // not JSON
   }
-  const extra = {status: res.status, retryAfter: res.retryAfter};
+  const extra = { status: res.status, retryAfter: res.retryAfter };
   if (res.status === 401 || res.status === 403) {
     return new GatewayError('NO_SESSION', 'You need to be signed in.', extra);
   }
@@ -198,7 +198,7 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
 
   async function token(forceRefresh = false): Promise<string> {
     try {
-      const t = await getToken({forceRefresh});
+      const t = await getToken({ forceRefresh });
       if (t) {
         return t;
       }
@@ -212,7 +212,9 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
 
   /** One request with auth; on a 401 the token is refreshed once and the call repeated. */
   async function send(
-    req: Omit<TransportRequest, 'headers'> & {headers?: Record<string, string>},
+    req: Omit<TransportRequest, 'headers'> & {
+      headers?: Record<string, string>;
+    },
   ): Promise<TransportResult> {
     const attempt = async (forceRefresh: boolean) => {
       const bearer = await token(forceRefresh);
@@ -222,7 +224,7 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
         headers: {
           Accept: 'application/json',
           ...(req.body !== undefined
-            ? {'Content-Type': 'application/json'}
+            ? { 'Content-Type': 'application/json' }
             : {}),
           ...req.headers,
           Authorization: `Bearer ${bearer}`,
@@ -247,7 +249,22 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
   }
 
   async function json<T>(req: Parameters<typeof send>[0]): Promise<T> {
-    const res = await send(req);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let res: TransportResult;
+    try {
+      res = await Promise.race([
+        send({ ...req, signal: controller.signal }),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(new GatewayError('TIMEOUT', 'The assistant took too long.'));
+            controller.abort();
+          }, idleMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.status < 200 || res.status >= 300) {
       throw errorFromResponse(res);
     }
@@ -284,7 +301,7 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
       }
       const emit = (items: unknown[]) =>
         items.forEach(item => {
-          const type = (item as {type?: unknown} | null)?.type;
+          const type = (item as { type?: unknown } | null)?.type;
           if (typeof type === 'string' && KNOWN_EVENTS.has(type)) {
             onEvent(item as StreamEvent);
           }
@@ -324,7 +341,7 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
     },
 
     status: () =>
-      json<GatewayStatus>({method: 'GET', url: '/assistant/status'}),
+      json<GatewayStatus>({ method: 'GET', url: '/assistant/status' }),
 
     async clearSession(sessionId) {
       await json({
@@ -334,7 +351,7 @@ export function createGateway(deps: GatewayDeps = {}): Gateway {
     },
 
     async clearAll() {
-      await json({method: 'DELETE', url: '/assistant/sessions'});
+      await json({ method: 'DELETE', url: '/assistant/sessions' });
     },
   };
 }

@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
   Pressable,
@@ -9,20 +9,23 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {OtpError, requestOtp, verifyOtp} from '../../services/otpApi';
-import type {OtpSendResult} from '../../services/otpApi';
-import {clearSession, saveSession} from '../../services/session';
-import {colors, radii, sizes, spacing, type} from '../../theme';
-import {BrandLogo} from '../../ui/BrandLogo';
-import {PrimaryButton} from '../../ui/Buttons';
-import {Icon} from '../../ui/Icon';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import { OtpError, requestOtp, verifyOtp } from '../../services/otpApi';
+import type { OtpSendResult } from '../../services/otpApi';
+import { clearSession, saveSession } from '../../services/session';
+import { colors, radii, sizes, spacing, type } from '../../theme';
+import { BrandLogo } from '../../ui/BrandLogo';
+import { PrimaryButton } from '../../ui/Buttons';
+import { Icon } from '../../ui/Icon';
 import {
   KeyboardAvoider,
   KeyboardAwareScrollView,
   notifyInputFocused,
 } from '../../ui/KeyboardAware';
-import {useKeyboardVisible} from '../../ui/useKeyboardVisible';
+import { useKeyboardVisible } from '../../ui/useKeyboardVisible';
 import {
   OTP_LENGTH,
   RESEND_SECONDS,
@@ -121,7 +124,7 @@ export function AuthScreen({
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const insets = useSafeAreaInsets();
-  const {height} = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const keyboardVisible = useKeyboardVisible();
   const otpInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   // The in-flight request, so it can be dropped if the user navigates away.
@@ -181,7 +184,7 @@ export function AuthScreen({
 
   const sendCode = async () => {
     // The keyboard's send key is not disabled while a request is in flight.
-    if (loading) {
+    if (pendingRef.current) {
       return;
     }
     const problem = identifierProblem(identifier);
@@ -219,7 +222,7 @@ export function AuthScreen({
 
   const verifyCode = async () => {
     // A second tap must not cancel the first request and spend another attempt.
-    if (loading) {
+    if (pendingRef.current) {
       return;
     }
     const problem = codeProblem(otp);
@@ -240,6 +243,9 @@ export function AuthScreen({
         await saveSession(session);
       } else {
         await clearSession();
+      }
+      if (!request.isCurrent()) {
+        return;
       }
       onAuthenticated();
     } catch (e) {
@@ -313,16 +319,18 @@ export function AuthScreen({
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Back"
-              style={({pressed}) => [styles.iconBtn, pressed && styles.dim]}>
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.dim]}
+            >
               <Icon name="arrow-left" size={24} color="#FFFFFF" />
             </Pressable>
             <Pressable
               accessibilityRole="switch"
-              accessibilityState={{checked: dark}}
+              accessibilityState={{ checked: dark }}
               accessibilityLabel="Toggle dark mode"
               onPress={() => setDark(d => !d)}
               hitSlop={8}
-              style={({pressed}) => [styles.iconBtn, pressed && styles.dim]}>
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.dim]}
+            >
               <Icon
                 name={dark ? 'sun' : 'moon'}
                 size={22}
@@ -334,14 +342,16 @@ export function AuthScreen({
           <KeyboardAwareScrollView
             style={styles.flex}
             contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+          >
             {tight ? (
               <View style={styles.heroTight}>
                 <BrandLogo size={32} />
                 <Text
                   style={styles.titleTight}
                   accessibilityRole="header"
-                  maxFontSizeMultiplier={1.3}>
+                  maxFontSizeMultiplier={1.3}
+                >
                   {title}
                 </Text>
               </View>
@@ -351,7 +361,8 @@ export function AuthScreen({
                 <Text
                   style={styles.title}
                   accessibilityRole="header"
-                  maxFontSizeMultiplier={1.3}>
+                  maxFontSizeMultiplier={1.3}
+                >
                   {title}
                 </Text>
                 <Text style={styles.subtitle} maxFontSizeMultiplier={1.3}>
@@ -368,20 +379,22 @@ export function AuthScreen({
                   paddingBottom:
                     Math.max(insets.bottom, spacing.xl) + spacing.md,
                 },
-              ]}>
+              ]}
+            >
               <View style={styles.column}>
                 {step === 'identify' ? (
                   <>
                     <View style={styles.labelRow}>
-                      <Text style={[styles.label, {color: t.text}]}>
+                      <Text style={[styles.label, { color: t.text }]}>
                         Mobile number or email
                       </Text>
                       {detectedLabel && (
                         <View
                           style={[
                             styles.badge,
-                            {backgroundColor: t.accentSoft},
-                          ]}>
+                            { backgroundColor: t.accentSoft },
+                          ]}
+                        >
                           <Icon
                             name={
                               identifierType === 'email' ? 'mail' : 'smartphone'
@@ -390,7 +403,7 @@ export function AuthScreen({
                             color={t.accent}
                             strokeWidth={2.4}
                           />
-                          <Text style={[styles.badgeText, {color: t.accent}]}>
+                          <Text style={[styles.badgeText, { color: t.accent }]}>
                             {detectedLabel}
                           </Text>
                         </View>
@@ -407,7 +420,8 @@ export function AuthScreen({
                             ? t.focus
                             : t.fieldBorder,
                         },
-                      ]}>
+                      ]}
+                    >
                       <Icon
                         name={
                           identifierType === 'email'
@@ -420,7 +434,7 @@ export function AuthScreen({
                         color={t.subtle}
                       />
                       <TextInput
-                        style={[styles.input, {color: t.text}]}
+                        style={[styles.input, { color: t.text }]}
                         accessibilityLabel="Mobile number or email"
                         placeholder="name@example.com or +91…"
                         placeholderTextColor={t.placeholder}
@@ -460,7 +474,7 @@ export function AuthScreen({
                       onPress={sendCode}
                       style={styles.cta}
                     />
-                    <Text style={[styles.hint, {color: t.muted}]}>
+                    <Text style={[styles.hint, { color: t.muted }]}>
                       No password needed. A one-time code is all it takes.
                     </Text>
                   </>
@@ -468,8 +482,9 @@ export function AuthScreen({
                   <>
                     <View style={styles.sentTo}>
                       <Text
-                        style={[styles.sentToText, {color: t.text}]}
-                        numberOfLines={2}>
+                        style={[styles.sentToText, { color: t.text }]}
+                        numberOfLines={2}
+                      >
                         {identifier.trim()}
                       </Text>
                       <Pressable
@@ -477,15 +492,16 @@ export function AuthScreen({
                         hitSlop={8}
                         accessibilityRole="button"
                         accessibilityLabel="Change number or email"
-                        style={styles.changeBtn}>
-                        <Text style={[styles.link, {color: t.accent}]}>
+                        style={styles.changeBtn}
+                      >
+                        <Text style={[styles.link, { color: t.accent }]}>
                           Change
                         </Text>
                       </Pressable>
                     </View>
 
                     {sendResult && sendResult.channel !== 'screen' ? (
-                      <Text style={[styles.sentVia, {color: t.muted}]}>
+                      <Text style={[styles.sentVia, { color: t.muted }]}>
                         {sendResult.channel === 'sms'
                           ? 'Sent by SMS'
                           : 'Sent by email'}
@@ -496,32 +512,39 @@ export function AuthScreen({
                       <View
                         style={[
                           styles.dev,
-                          {backgroundColor: t.devBg, borderColor: t.devBorder},
-                        ]}>
-                        <Text style={[styles.devLabel, {color: t.devText}]}>
+                          {
+                            backgroundColor: t.devBg,
+                            borderColor: t.devBorder,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.devLabel, { color: t.devText }]}>
                           DEV MODE
                         </Text>
                         <Text
                           selectable
-                          style={[styles.devCode, {color: t.text}]}>
+                          style={[styles.devCode, { color: t.text }]}
+                        >
                           {`Your code is ${devCode}`}
                         </Text>
                         {sendResult?.viaLocalFallback ? (
-                          <Text style={[styles.devNote, {color: t.muted}]}>
+                          <Text style={[styles.devNote, { color: t.muted }]}>
                             Backend unreachable, code generated on this device
                           </Text>
                         ) : null}
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel="Tap to fill"
-                          style={({pressed}) => [
+                          style={({ pressed }) => [
                             styles.devFill,
-                            {borderColor: t.devBorder},
+                            { borderColor: t.devBorder },
                             pressed && styles.dim,
                           ]}
-                          onPress={() => setOtp(devCode)}>
+                          onPress={() => setOtp(devCode)}
+                        >
                           <Text
-                            style={[styles.devFillText, {color: t.devText}]}>
+                            style={[styles.devFillText, { color: t.devText }]}
+                          >
                             Tap to fill
                           </Text>
                         </Pressable>
@@ -531,8 +554,9 @@ export function AuthScreen({
                     {/* Six boxes, backed by one hidden input that owns the keyboard. */}
                     <Pressable
                       style={styles.otpRow}
-                      onPress={() => otpInputRef.current?.focus()}>
-                      {Array.from({length: OTP_LENGTH}).map((_, i) => (
+                      onPress={() => otpInputRef.current?.focus()}
+                    >
+                      {Array.from({ length: OTP_LENGTH }).map((_, i) => (
                         <View
                           key={i}
                           style={[
@@ -545,8 +569,9 @@ export function AuthScreen({
                                 ? t.focus
                                 : t.fieldBorder,
                             },
-                          ]}>
-                          <Text style={[styles.otpDigit, {color: t.text}]}>
+                          ]}
+                        >
+                          <Text style={[styles.otpDigit, { color: t.text }]}>
                             {otp[i] ?? ''}
                           </Text>
                         </View>
@@ -591,11 +616,11 @@ export function AuthScreen({
                     />
 
                     <View style={styles.resendRow}>
-                      <Text style={[styles.small, {color: t.muted}]}>
+                      <Text style={[styles.small, { color: t.muted }]}>
                         Didn’t get the code?
                       </Text>
                       {resendIn > 0 ? (
-                        <Text style={[styles.small, {color: t.subtle}]}>
+                        <Text style={[styles.small, { color: t.subtle }]}>
                           {` Resend in ${resendIn}s`}
                         </Text>
                       ) : (
@@ -604,8 +629,9 @@ export function AuthScreen({
                           disabled={loading}
                           accessibilityRole="button"
                           accessibilityLabel="Resend code"
-                          style={styles.changeBtn}>
-                          <Text style={[styles.link, {color: t.accent}]}>
+                          style={styles.changeBtn}
+                        >
+                          <Text style={[styles.link, { color: t.accent }]}>
                             {' Resend code'}
                           </Text>
                         </Pressable>
@@ -615,7 +641,7 @@ export function AuthScreen({
                 )}
 
                 <View style={styles.switchRow}>
-                  <Text style={[styles.small, {color: t.muted}]}>
+                  <Text style={[styles.small, { color: t.muted }]}>
                     {isSignup
                       ? 'Already have an account?'
                       : 'New to PlugOrbit?'}
@@ -624,8 +650,9 @@ export function AuthScreen({
                     onPress={onSwitchMode}
                     accessibilityRole="button"
                     accessibilityLabel={isSignup ? 'Log in' : 'Create account'}
-                    style={styles.changeBtn}>
-                    <Text style={[styles.link, {color: t.accent}]}>
+                    style={styles.changeBtn}
+                  >
+                    <Text style={[styles.link, { color: t.accent }]}>
                       {isSignup ? ' Log in' : ' Create account'}
                     </Text>
                   </Pressable>
@@ -640,7 +667,7 @@ export function AuthScreen({
 }
 
 /** An inline problem under a field. Announced to screen readers when it appears. */
-function Message({text, color}: {text: string | null; color: string}) {
+function Message({ text, color }: { text: string | null; color: string }) {
   if (!text) {
     return null;
   }
@@ -648,16 +675,17 @@ function Message({text, color}: {text: string | null; color: string}) {
     <View
       style={styles.message}
       accessibilityRole="alert"
-      accessibilityLiveRegion="polite">
+      accessibilityLiveRegion="polite"
+    >
       <Icon name="circle-alert" size={16} color={color} />
-      <Text style={[styles.messageText, {color}]}>{text}</Text>
+      <Text style={[styles.messageText, { color }]}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {flex: 1, backgroundColor: colors.bg},
-  flex: {flex: 1},
+  root: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -671,8 +699,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dim: {opacity: 0.6},
-  scroll: {flexGrow: 1},
+  dim: { opacity: 0.6 },
+  scroll: { flexGrow: 1 },
   hero: {
     alignItems: 'center',
     paddingHorizontal: spacing.xxl,
@@ -703,7 +731,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.md,
   },
-  titleTight: {...type.h1, color: '#FFFFFF', flexShrink: 1},
+  titleTight: { ...type.h1, color: '#FFFFFF', flexShrink: 1 },
   sheet: {
     flexGrow: 1,
     borderTopLeftRadius: radii.xl,
@@ -712,7 +740,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
   },
   // Grows with the sheet so the account-switch row can sit at its bottom.
-  column: {width: '100%', maxWidth: 480, alignSelf: 'center', flexGrow: 1},
+  column: { width: '100%', maxWidth: 480, alignSelf: 'center', flexGrow: 1 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -720,7 +748,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     gap: spacing.sm,
   },
-  label: {...type.bodyStrong, flexShrink: 1},
+  label: { ...type.bodyStrong, flexShrink: 1 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -729,7 +757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  badgeText: {...type.micro, letterSpacing: 0.2},
+  badgeText: { ...type.micro, letterSpacing: 0.2 },
   // One box, not a bare input: the border, the icon and the text share a single
   // row and a fixed minimum height, so nothing shifts while typing.
   field: {
@@ -756,9 +784,9 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: spacing.sm,
   },
-  messageText: {...type.label, flexShrink: 1, lineHeight: 18},
-  cta: {marginTop: spacing.xl},
-  hint: {...type.caption, textAlign: 'center', marginTop: spacing.md},
+  messageText: { ...type.label, flexShrink: 1, lineHeight: 18 },
+  cta: { marginTop: spacing.xl },
+  hint: { ...type.caption, textAlign: 'center', marginTop: spacing.md },
   sentTo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -766,14 +794,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  sentToText: {...type.heading, textAlign: 'center', flexShrink: 1},
-  sentVia: {...type.caption, textAlign: 'center', marginTop: 2},
+  sentToText: { ...type.heading, textAlign: 'center', flexShrink: 1 },
+  sentVia: { ...type.caption, textAlign: 'center', marginTop: 2 },
   changeBtn: {
     minHeight: sizes.tap,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  link: {...type.bodyStrong, fontWeight: '800'},
+  link: { ...type.bodyStrong, fontWeight: '800' },
   dev: {
     borderWidth: 1.5,
     borderRadius: radii.md,
@@ -781,9 +809,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     alignItems: 'center',
   },
-  devLabel: {...type.micro},
-  devCode: {...type.h1, marginTop: 4},
-  devNote: {...type.caption, textAlign: 'center', marginTop: 4},
+  devLabel: { ...type.micro },
+  devCode: { ...type.h1, marginTop: 4 },
+  devNote: { ...type.caption, textAlign: 'center', marginTop: 4 },
   devFill: {
     minHeight: sizes.tap,
     minWidth: 120,
@@ -794,7 +822,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  devFillText: {...type.bodyStrong, fontWeight: '800'},
+  devFillText: { ...type.bodyStrong, fontWeight: '800' },
   otpRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -811,8 +839,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  otpDigit: {fontSize: 22, fontWeight: '800'},
-  hiddenInput: {...StyleSheet.absoluteFill, opacity: 0},
+  otpDigit: { fontSize: 22, fontWeight: '800' },
+  hiddenInput: { ...StyleSheet.absoluteFill, opacity: 0 },
   resendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -828,5 +856,5 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     paddingTop: spacing.xl,
   },
-  small: {...type.body},
+  small: { ...type.body },
 });

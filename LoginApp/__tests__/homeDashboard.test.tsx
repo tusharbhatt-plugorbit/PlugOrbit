@@ -175,7 +175,7 @@ describe('everything is one tap away', () => {
     ['My vehicle', 'Vehicles'],
     ['Charging history', 'Activity'],
     ['Saved stations', 'Saved'],
-    ['Orbit Assist', 'SmartDrive'],
+    ['Orbit Assist', 'Assistant'],
   ];
 
   test.each(TILES)('"%s" opens %s', async (label, route) => {

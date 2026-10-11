@@ -1,4 +1,4 @@
-import {PermissionsAndroid, Platform} from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import {
   RECOGNIZER_WATCHDOG_MS,
   createNativeRecognizer,
@@ -9,19 +9,19 @@ import {
 
 describe('mapRecognizerError', () => {
   it.each([
-    [{code: '7', message: '7/No match'}, 'no_speech'],
-    [{message: '6/No speech input'}, 'no_speech'],
-    [{message: '9/Insufficient permissions'}, 'permission'],
-    [{message: '2/Network error'}, 'network'],
-    [{message: '1/Network timeout'}, 'network'],
-    [{message: '8/RecognitionService busy'}, 'busy'],
-    [{message: '3/Audio error'}, 'busy'],
-    [{message: '12/Language not supported'}, 'unavailable'],
-    [{code: '1110', message: 'No speech detected'}, 'no_speech'],
-    [{message: 'Speech recognition permission denied'}, 'permission'],
-    [{message: 'Siri and Dictation are disabled'}, 'unavailable'],
-    [{message: 'The network connection was lost'}, 'network'],
-    [{message: 'weird'}, 'unknown'],
+    [{ code: '7', message: '7/No match' }, 'no_speech'],
+    [{ message: '6/No speech input' }, 'no_speech'],
+    [{ message: '9/Insufficient permissions' }, 'permission'],
+    [{ message: '2/Network error' }, 'network'],
+    [{ message: '1/Network timeout' }, 'network'],
+    [{ message: '8/RecognitionService busy' }, 'busy'],
+    [{ message: '3/Audio error' }, 'busy'],
+    [{ message: '12/Language not supported' }, 'unavailable'],
+    [{ code: '1110', message: 'No speech detected' }, 'no_speech'],
+    [{ message: 'Speech recognition permission denied' }, 'permission'],
+    [{ message: 'Siri and Dictation are disabled' }, 'unavailable'],
+    [{ message: 'The network connection was lost' }, 'network'],
+    [{ message: 'weird' }, 'unknown'],
     [undefined, 'unknown'],
   ])('%j -> %s', (raw, expected) => {
     expect(mapRecognizerError(raw as any)).toBe(expected);
@@ -65,7 +65,7 @@ describe('native recognizer', () => {
     expect(await createNativeRecognizer(() => null).isAvailable()).toBe(false);
     expect(
       await createNativeRecognizer(() =>
-        fakeVoiceModule({isAvailable: async () => 0}),
+        fakeVoiceModule({ isAvailable: async () => 0 }),
       ).isAvailable(),
     ).toBe(false);
     expect(
@@ -89,9 +89,9 @@ describe('native recognizer', () => {
     await r.start('hi-IN', ev);
     expect(mod.started).toEqual(['hi-IN']);
     mod.onSpeechStart();
-    mod.onSpeechPartialResults({value: ['jaipur']});
-    mod.onSpeechVolumeChanged({value: 4});
-    mod.onSpeechResults({value: ['jaipur jaana hai', 'other']});
+    mod.onSpeechPartialResults({ value: ['jaipur'] });
+    mod.onSpeechVolumeChanged({ value: 4 });
+    mod.onSpeechResults({ value: ['jaipur jaana hai', 'other'] });
     mod.onSpeechEnd();
     expect(ev.onPartial).toHaveBeenCalledWith('jaipur');
     expect(ev.onLevel).toHaveBeenCalledWith(0.5);
@@ -104,7 +104,7 @@ describe('native recognizer', () => {
     const ev = events();
     await createNativeRecognizer(() => mod).start('en-IN', ev);
     mod.onSpeechError({
-      error: {code: '9', message: '9/Insufficient permissions'},
+      error: { code: '9', message: '9/Insufficient permissions' },
     });
     expect(ev.onError).toHaveBeenCalledWith(
       'permission',
@@ -156,7 +156,7 @@ describe('native recognizer', () => {
     await r.start('en-IN', ev);
     mod.onSpeechStart();
     await r.cancel();
-    mod.onSpeechResults({value: ['late']});
+    mod.onSpeechResults({ value: ['late'] });
     expect(ev.onFinal).not.toHaveBeenCalled();
     expect(mod.cancels).toBe(1);
   });
@@ -189,9 +189,43 @@ function fakeTtsModule(over: Record<string, any> = {}) {
   return m;
 }
 
+async function settleNativeSetup() {
+  for (let i = 0; i < 12; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe('native synthesizer', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
+
+  it('handles a rejected native speak promise immediately', async () => {
+    const mod = fakeTtsModule({
+      speak: () => Promise.reject(new Error('audio unavailable')),
+    });
+    const result = createNativeSynthesizer(() => mod).speak('Hello.', {
+      locale: 'en-IN',
+    });
+    await settleNativeSetup();
+    expect(await result).toBe('error');
+  });
+
+  it('does not speak after stop while the language is still being prepared', async () => {
+    let ready!: () => void;
+    const mod = fakeTtsModule({
+      setDefaultLanguage: () =>
+        new Promise<void>(resolve => {
+          ready = resolve;
+        }),
+    });
+    const synth = createNativeSynthesizer(() => mod);
+    const result = synth.speak('Old response.', { locale: 'en-IN' });
+    await settleNativeSetup();
+    await synth.stop();
+    ready();
+    expect(await result).toBe('cancelled');
+    expect(mod.spoken).toEqual([]);
+  });
 
   it('is unavailable when the module or its engine is missing', async () => {
     expect(await createNativeSynthesizer(() => null).isAvailable()).toBe(false);
@@ -199,7 +233,7 @@ describe('native synthesizer', () => {
       await createNativeSynthesizer(() =>
         fakeTtsModule({
           getInitStatus: async () => {
-            throw {code: 'no_engine'};
+            throw { code: 'no_engine' };
           },
         }),
       ).isAvailable(),
@@ -209,10 +243,8 @@ describe('native synthesizer', () => {
   it('turns on ducking and speaks in the requested language until the engine finishes', async () => {
     const mod = fakeTtsModule();
     const s = createNativeSynthesizer(() => mod);
-    const result = s.speak('Hello there.', {locale: 'en-IN'});
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    const result = s.speak('Hello there.', { locale: 'en-IN' });
+    await settleNativeSetup();
     expect(mod.setDucking).toHaveBeenCalledWith(true);
     expect(mod.languages).toEqual(['en-IN']);
     expect(mod.spoken).toEqual(['Hello there.']);
@@ -223,16 +255,12 @@ describe('native synthesizer', () => {
   it('reports a cancel and an engine error', async () => {
     const mod = fakeTtsModule();
     const s = createNativeSynthesizer(() => mod);
-    const a = s.speak('One.', {locale: 'en-IN'});
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    const a = s.speak('One.', { locale: 'en-IN' });
+    await settleNativeSetup();
     await s.stop();
     expect(await a).toBe('cancelled');
-    const b = s.speak('Two.', {locale: 'en-IN'});
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    const b = s.speak('Two.', { locale: 'en-IN' });
+    await settleNativeSetup();
     mod.handlers['tts-error']();
     expect(await b).toBe('error');
   });
@@ -256,9 +284,7 @@ describe('native synthesizer', () => {
     const result = createNativeSynthesizer(() => mod).speak('Stuck.', {
       locale: 'en-IN',
     });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settleNativeSetup();
     jest.advanceTimersByTime(9000);
     expect(await result).toBe('error');
   });
@@ -267,7 +293,7 @@ describe('native synthesizer', () => {
 describe('permissions', () => {
   const original = Platform.OS;
   afterEach(() => {
-    Object.defineProperty(Platform, 'OS', {get: () => original});
+    Object.defineProperty(Platform, 'OS', { get: () => original });
     jest.restoreAllMocks();
   });
   const os = (name: string) =>

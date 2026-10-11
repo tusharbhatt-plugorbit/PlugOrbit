@@ -1,6 +1,6 @@
-import type {Store} from '../store/createStore';
-import {ActionOutcome} from './actions';
-import {Gateway, GatewayError, TurnBody} from './gateway';
+import type { Store } from '../store/createStore';
+import { ActionOutcome } from './actions';
+import { Gateway, GatewayError, TurnBody } from './gateway';
 import {
   AssistantState,
   assistantStore,
@@ -12,10 +12,10 @@ import {
   patchJourney,
   updateSettings,
 } from './store';
-import {SentenceSplitter} from './voice/sentences';
-import {Endpointer} from './voice/endpointing';
-import {SpeechPipeline} from './voice/pipeline';
-import type {RecognizerErrorCode, VoiceDeps} from './voice/ports';
+import { SentenceSplitter } from './voice/sentences';
+import { Endpointer } from './voice/endpointing';
+import { SpeechPipeline } from './voice/pipeline';
+import type { RecognizerErrorCode, VoiceDeps } from './voice/ports';
 import type {
   AssistantAction,
   AssistantPhase,
@@ -32,7 +32,7 @@ export type ControllerDeps = {
   runTool: (call: ToolCall) => Promise<ToolEnvelope>;
   performAction: (
     action: AssistantAction,
-    options: {consent?: boolean},
+    options: { consent?: boolean },
   ) => Promise<ActionOutcome>;
   /** Null when the speech modules are not part of this build: text only. */
   voice: VoiceDeps | null;
@@ -139,9 +139,10 @@ export class AssistantController {
   private turn = 0;
   private listen = 0;
   private starting = false;
+  private foreground = true;
   private seq = 0;
   private running = new Set<string>();
-  private queuedSpeech: Array<{text: string; id: string; at: number}> = [];
+  private queuedSpeech: Array<{ text: string; id: string; at: number }> = [];
 
   constructor(private readonly deps: ControllerDeps) {
     this.store = deps.store ?? assistantStore;
@@ -168,7 +169,7 @@ export class AssistantController {
 
   private setPhase(phase: AssistantPhase): void {
     if (this.s.phase !== phase) {
-      this.set({phase});
+      this.set({ phase });
     }
   }
 
@@ -178,10 +179,10 @@ export class AssistantController {
   }
 
   private push(
-    msg: Omit<ChatMessage, 'id' | 'at'> & {id?: string},
+    msg: Omit<ChatMessage, 'id' | 'at'> & { id?: string },
   ): ChatMessage {
-    const full: ChatMessage = {id: this.id('m'), at: this.now(), ...msg};
-    this.set({messages: [...this.s.messages, full]});
+    const full: ChatMessage = { id: this.id('m'), at: this.now(), ...msg };
+    this.set({ messages: [...this.s.messages, full] });
     return full;
   }
 
@@ -192,7 +193,7 @@ export class AssistantController {
     this.set({
       messages: this.s.messages.map(m =>
         m.id === id
-          ? {...m, ...(typeof patch === 'function' ? patch(m) : patch)}
+          ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) }
           : m,
       ),
     });
@@ -254,7 +255,7 @@ export class AssistantController {
   }
 
   grantConsent(): void {
-    updateSettings({aiConsentAt: this.now()});
+    updateSettings({ aiConsentAt: this.now() });
   }
 
   // ---------------------------------------------------------------- context ---
@@ -279,7 +280,7 @@ export class AssistantController {
       driving_mode: st.settings.drivingMode,
       local_time: localIso(new Date(now)),
       demo_data: this.deps.demo ?? true,
-      ...(j ? {journey: clampJourney(j)} : {}),
+      ...(j ? { journey: clampJourney(j) } : {}),
       remembered_preferences: activePreferences(st)
         .slice(0, 12)
         .map(p => ({
@@ -310,7 +311,7 @@ export class AssistantController {
   }
 
   private onSpeaking(id: string | null, speaking: boolean): void {
-    this.set({speakingId: speaking ? id : null});
+    this.set({ speakingId: speaking ? id : null });
     if (speaking) {
       this.setPhase('speaking');
     } else if (!this.busy && this.s.phase !== 'listening') {
@@ -354,11 +355,11 @@ export class AssistantController {
     const abort = new AbortController();
     this.abort = abort;
     this.splitter.reset();
-    this.set({partial: ''});
+    this.set({ partial: '' });
     this.setPhase('thinking');
 
     if (attempt === 0) {
-      this.push({role: 'user', text, via});
+      this.push({ role: 'user', text, via });
     }
     const reply = this.push({
       role: 'assistant',
@@ -374,22 +375,22 @@ export class AssistantController {
       message: text,
       context: this.context(via),
     };
-    let streamError: Extract<StreamEvent, {type: 'error'}> | null = null;
+    let streamError: Extract<StreamEvent, { type: 'error' }> | null = null;
 
     const onEvent = (
       ev: StreamEvent,
-      state: {calls: ToolCall[] | null; turnId: string | null},
+      state: { calls: ToolCall[] | null; turnId: string | null },
     ) => {
       if (!alive()) {
         return;
       }
       switch (ev.type) {
         case 'session':
-          this.set({sessionId: ev.session_id});
+          this.set({ sessionId: ev.session_id });
           state.turnId = ev.turn_id;
           break;
         case 'text':
-          this.update(reply.id, m => ({text: m.text + ev.delta}));
+          this.update(reply.id, m => ({ text: m.text + ev.delta }));
           if (speak) {
             this.splitter
               .push(ev.delta)
@@ -404,10 +405,10 @@ export class AssistantController {
           state.turnId = ev.turn_id;
           break;
         case 'actions':
-          this.update(reply.id, {actions: ev.actions});
+          this.update(reply.id, { actions: ev.actions });
           break;
         case 'done':
-          this.update(reply.id, {sources: ev.sources});
+          this.update(reply.id, { sources: ev.sources });
           break;
         case 'error':
           streamError = ev;
@@ -417,7 +418,7 @@ export class AssistantController {
 
     try {
       for (let round = 0; round < MAX_ROUNDS; round++) {
-        const state: {calls: ToolCall[] | null; turnId: string | null} = {
+        const state: { calls: ToolCall[] | null; turnId: string | null } = {
           calls: null,
           turnId: null,
         };
@@ -452,17 +453,17 @@ export class AssistantController {
           .forEach(sentence => this.pipeline!.enqueue(sentence, reply.id));
       }
       if (streamError) {
-        const err: Extract<StreamEvent, {type: 'error'}> = streamError;
+        const err: Extract<StreamEvent, { type: 'error' }> = streamError;
         this.update(reply.id, m => ({
           streaming: false,
           interrupted: m.text.length > 0,
           error: err.message,
           ...(err.retryable
-            ? {fallbacks: [FALLBACK_PLANNER, FALLBACK_MAP]}
+            ? { fallbacks: [FALLBACK_PLANNER, FALLBACK_MAP] }
             : {}),
         }));
       } else {
-        this.update(reply.id, {streaming: false});
+        this.update(reply.id, { streaming: false });
       }
     } catch (e) {
       if (!alive()) {
@@ -475,9 +476,9 @@ export class AssistantController {
       ) {
         // The server forgot this conversation (restart, expiry). Start a fresh one with
         // the same question; the journey memory in the context carries what matters.
-        this.set({sessionId: null});
-        this.update(reply.id, {streaming: false, text: ''});
-        this.set({messages: this.s.messages.filter(m => m.id !== reply.id)});
+        this.set({ sessionId: null });
+        this.update(reply.id, { streaming: false, text: '' });
+        this.set({ messages: this.s.messages.filter(m => m.id !== reply.id) });
         this.abort = null;
         return this.runTurn(text, via, 1);
       }
@@ -487,7 +488,7 @@ export class AssistantController {
       const d = describeGatewayError(e);
       if (d.health) {
         this.set({
-          gateway: {health: d.health, reason: d.text, checkedAt: this.now()},
+          gateway: { health: d.health, reason: d.text, checkedAt: this.now() },
         });
       }
       this.update(reply.id, m => ({
@@ -535,13 +536,13 @@ export class AssistantController {
 
   private async beginListening(): Promise<void> {
     const v = this.deps.voice;
-    if (!hasAiConsent(this.s)) {
+    if (!hasAiConsent(this.s) || !this.foreground) {
       return;
     }
     if (!v || !this.s.recognizerAvailable) {
       this.notice(
         'Voice input isn’t available on this phone, so type your question instead.',
-        {speak: false, kind: 'voice_unavailable'},
+        { speak: false, kind: 'voice_unavailable' },
       );
       return;
     }
@@ -549,26 +550,41 @@ export class AssistantController {
     if (this.busy || this.pipeline?.busy || this.s.phase === 'speaking') {
       await this.interrupt();
     }
+    const permissionRequest = this.listen;
     let permission = await v.permissions
       .microphone()
       .catch(() => 'unknown' as const);
+    if (
+      permissionRequest !== this.listen ||
+      !this.foreground ||
+      !hasAiConsent(this.s)
+    ) {
+      return;
+    }
     if (permission !== 'granted') {
       permission = await v.permissions
         .requestMicrophone()
         .catch(() => 'denied' as const);
     }
-    this.set({microphone: permission});
+    if (
+      permissionRequest !== this.listen ||
+      !this.foreground ||
+      !hasAiConsent(this.s)
+    ) {
+      return;
+    }
+    this.set({ microphone: permission });
     if (permission !== 'granted') {
       this.notice(
         permission === 'blocked'
           ? 'Microphone access is off for PlugOrbit. Turn it on in your phone’s settings to talk to Orbit. You can still type.'
           : 'Orbit needs the microphone to hear you. You can allow it, or type instead.',
-        {speak: false, kind: 'mic_permission'},
+        { speak: false, kind: 'mic_permission' },
       );
       return;
     }
     const id = ++this.listen;
-    this.set({partial: '', level: 0});
+    this.set({ partial: '', level: 0 });
     this.setPhase('listening');
     this.endpointer.start();
     const current = () => id === this.listen;
@@ -578,7 +594,7 @@ export class AssistantController {
         {
           onPartial: text => {
             if (current()) {
-              this.set({partial: text});
+              this.set({ partial: text });
               if (text.trim()) {
                 this.endpointer.heardSpeech();
               }
@@ -591,7 +607,7 @@ export class AssistantController {
           },
           onLevel: level => {
             if (current()) {
-              this.set({level});
+              this.set({ level });
             }
           },
           onError: (code, message) => {
@@ -639,7 +655,7 @@ export class AssistantController {
     this.listen += 1; // ignore any late events from this utterance
     this.endpointer.stop();
     const heard = text.trim();
-    this.set({partial: '', level: 0});
+    this.set({ partial: '', level: 0 });
     if (!heard) {
       this.setPhase('idle');
       return;
@@ -651,13 +667,13 @@ export class AssistantController {
   private listenFailed(code: RecognizerErrorCode, message: string): void {
     this.listen += 1;
     this.endpointer.stop();
-    this.set({partial: '', level: 0});
+    this.set({ partial: '', level: 0 });
     this.setPhase('idle');
     if (code === 'permission') {
-      this.set({microphone: 'denied'});
+      this.set({ microphone: 'denied' });
     }
     if (code === 'unavailable') {
-      this.set({recognizerAvailable: false});
+      this.set({ recognizerAvailable: false });
     }
     const text =
       code === 'no_speech'
@@ -671,7 +687,7 @@ export class AssistantController {
         : code === 'unavailable'
         ? 'This phone has no speech recognition service. Type your question instead.'
         : `I couldn’t listen just now.${message ? '' : ''} Try again, or type.`;
-    this.notice(text, {speak: false, kind: `voice_${code}`});
+    this.notice(text, { speak: false, kind: `voice_${code}` });
   }
 
   // ----------------------------------------------------------- interruption ---
@@ -693,7 +709,7 @@ export class AssistantController {
     this.set({
       messages: this.s.messages.map(m =>
         m.streaming
-          ? {...m, streaming: false, interrupted: m.text.length > 0}
+          ? { ...m, streaming: false, interrupted: m.text.length > 0 }
           : m,
       ),
       partial: '',
@@ -705,15 +721,18 @@ export class AssistantController {
 
   /** The app moved to the background or the screen locked: no listening or talking there. */
   async onBackground(): Promise<void> {
-    if (this.s.phase !== 'idle' || this.busy) {
-      await this.interrupt();
-    }
+    this.foreground = false;
+    await this.interrupt();
+  }
+
+  onForeground(): void {
+    this.foreground = true;
   }
 
   async endConversation(): Promise<void> {
     await this.interrupt();
     const sid = this.s.sessionId;
-    this.set({sessionId: null});
+    this.set({ sessionId: null });
     if (sid) {
       this.deps.gateway.clearSession(sid).catch(() => undefined);
     }
@@ -755,7 +774,7 @@ export class AssistantController {
 
   /** Mute: stop talking now and stay quiet until unmuted. */
   async setMuted(muted: boolean): Promise<void> {
-    updateSettings({muted});
+    updateSettings({ muted });
     if (muted) {
       this.queuedSpeech = [];
       await this.pipeline?.stop();
@@ -767,7 +786,7 @@ export class AssistantController {
   async runAction(
     messageId: string,
     actionId: string,
-    options: {consent?: boolean} = {},
+    options: { consent?: boolean } = {},
   ): Promise<void> {
     const msg = this.s.messages.find(m => m.id === messageId);
     const action = msg?.actions?.find(a => a.id === actionId);
@@ -813,7 +832,9 @@ export class AssistantController {
     patch: Partial<AssistantAction>,
   ): void {
     this.update(messageId, m => ({
-      actions: m.actions?.map(a => (a.id === actionId ? {...a, ...patch} : a)),
+      actions: m.actions?.map(a =>
+        a.id === actionId ? { ...a, ...patch } : a,
+      ),
     }));
   }
 
@@ -839,13 +860,13 @@ export class AssistantController {
       text,
       level: options.level ?? 'info',
       kind: options.kind,
-      ...(options.fallbacks ? {fallbacks: options.fallbacks} : {}),
+      ...(options.fallbacks ? { fallbacks: options.fallbacks } : {}),
     });
     if (options.speak !== false && this.shouldSpeak('proactive')) {
       if (this.s.phase === 'idle' && !this.busy && !this.pipeline?.busy) {
         this.pipeline!.enqueue(text, msg.id);
       } else if (this.s.phase !== 'listening') {
-        this.queuedSpeech.push({text, id: msg.id, at: this.now()});
+        this.queuedSpeech.push({ text, id: msg.id, at: this.now() });
       }
     }
     return msg;

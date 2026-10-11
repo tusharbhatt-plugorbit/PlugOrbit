@@ -24,15 +24,15 @@ import type {
   Vehicle,
   WaitEstimate,
 } from '../domain/types';
-import type {CopilotAnswer, QuestionId} from '../intelligence/explain';
-import type {EventInput} from '../intelligence/sessionBridge';
+import type { CopilotAnswer, QuestionId } from '../intelligence/explain';
+import type { EventInput } from '../intelligence/sessionBridge';
 import type {
   ActiveTrip,
   AssistMode,
   TripOutcome,
   TripUpdate,
 } from '../intelligence/types';
-import type {Coords} from '../utils/geo';
+import type { Coords } from '../utils/geo';
 
 /**
  * Service contracts. The mock implementations in ./mock back every screen today;
@@ -78,12 +78,12 @@ export class IntegrationUnavailableError extends Error {
   }
 }
 
-export type VehicleModel = Omit<Vehicle, 'id'> & {modelId: string};
+export type VehicleModel = Omit<Vehicle, 'id'> & { modelId: string };
 
 export interface VehicleService {
   catalog(): Promise<VehicleModel[]>;
   /** Persist a vehicle (adds or updates) and make it active. */
-  save(vehicle: Omit<Vehicle, 'id'> & {id?: string}): Promise<Vehicle>;
+  save(vehicle: Omit<Vehicle, 'id'> & { id?: string }): Promise<Vehicle>;
   setActive(vehicleId: string): Promise<void>;
   remove(vehicleId: string): Promise<void>;
   setBattery(percent: number): Promise<BatteryReading>;
@@ -115,7 +115,7 @@ export interface StationService {
     stationId: string,
     kind: CommunityUpdate['kind'],
   ): Promise<CommunityUpdate>;
-  report(report: ProblemReport): Promise<{ticketId: string}>;
+  report(report: ProblemReport): Promise<{ ticketId: string }>;
   /** Join the queue / leave it (TODO(integration): operator queue API). */
   joinQueue(stationId: string): Promise<QueueTicket>;
   leaveQueue(): Promise<void>;
@@ -217,6 +217,9 @@ export type StartSmartDriveInput = {
   toLabel: string;
   /** Defaults to the battery on record. */
   startSoc?: number;
+  /** Per-journey overrides; never overwrite the driver's saved preferences. */
+  reservePct?: number;
+  strategy?: TripPreferences['strategy'];
 };
 
 /**
@@ -285,4 +288,4 @@ export type Services = {
   preferences: PreferencesService;
 };
 
-export type {AppNotification, SessionSummary, Station};
+export type { AppNotification, SessionSummary, Station };

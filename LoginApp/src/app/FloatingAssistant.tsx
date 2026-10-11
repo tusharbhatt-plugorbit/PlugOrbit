@@ -1,21 +1,27 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {getAssistant} from '../assistant/runtime';
-import {assistantStore, useAssistantState} from '../assistant/store';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getAssistant } from '../assistant/runtime';
+import { assistantStore, useAssistantState } from '../assistant/store';
 import {
   useNavigation,
   useNavigationState,
 } from '../navigation/NavigationContext';
-import type {RouteName} from '../navigation/params';
-import {REGISTRY} from '../navigation/registry';
-import {Conversation} from '../screens/assistant/AssistantScreen';
+import type { RouteName } from '../navigation/params';
+import { REGISTRY } from '../navigation/registry';
+import { Conversation } from '../screens/assistant/AssistantScreen';
 import {
   statusText,
   useAssistantOpened,
   useAssistantView,
 } from '../screens/assistant/useAssistantView';
-import {colors, elevation, radii, sizes, spacing, type} from '../theme';
+import { colors, elevation, radii, sizes, spacing, type } from '../theme';
 import {
   BottomSheet,
   Composer,
@@ -28,8 +34,8 @@ import {
   TextButton,
   VoiceOrb,
 } from '../ui';
-import {useKeyboardVisible} from '../ui/useKeyboardVisible';
-import {useApp} from '../store/appStore';
+import { useKeyboardVisible } from '../ui/useKeyboardVisible';
+import { useApp } from '../store/appStore';
 
 /**
  * Where the compact Orbit Assist entry point shows (the Map has its own button in its control stack), and how far above the
@@ -54,14 +60,20 @@ const SESSION_BANNER_LIFT = 64;
 
 /** The small floating button. Opens the assistant sheet without leaving the screen. */
 export function FloatingAssistant() {
-  const {current, depth} = useNavigationState();
+  const { width } = useWindowDimensions();
+  const { current, depth } = useNavigationState();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardVisible();
   const phase = useAssistantState(s => s.phase);
   const sheetOpen = useAssistantState(s => s.sheetOpen);
   const hasSession = useApp(s => s.session !== null);
   const lift = FLOAT_LIFT[current];
-  if (lift === undefined || keyboard || sheetOpen) {
+  if (
+    lift === undefined ||
+    keyboard ||
+    sheetOpen ||
+    (current === 'Home' && width < 360)
+  ) {
     return null;
   }
   const tabBarVisible = depth === 0 || !!REGISTRY[current]?.tabBar;
@@ -72,19 +84,20 @@ export function FloatingAssistant() {
     (hasSession ? SESSION_BANNER_LIFT : 0);
   const live = phase !== 'idle';
   return (
-    <View style={[styles.floatWrap, {bottom}]} pointerEvents="box-none">
+    <View style={[styles.floatWrap, { bottom }]} pointerEvents="box-none">
       <Pressable
-        onPress={() => assistantStore.set({sheetOpen: true})}
+        onPress={() => assistantStore.set({ sheetOpen: true })}
         accessibilityRole="button"
         accessibilityLabel={
           live ? 'Orbit Assist is active. Open it' : 'Open Orbit Assist'
         }
         testID="floating-assistant"
-        style={({pressed}) => [
+        style={({ pressed }) => [
           styles.fab,
           elevation(3),
-          pressed && {opacity: 0.9},
-        ]}>
+          pressed && { opacity: 0.9 },
+        ]}
+      >
         <Icon
           name={
             phase === 'listening'
@@ -107,15 +120,15 @@ export function AssistantSheet() {
   const open = useAssistantState(s => s.sheetOpen);
   const view = useAssistantView();
   const nav = useNavigation();
-  const {assistant, settings} = view;
+  const { assistant, settings } = view;
   useAssistantOpened(open);
 
   const close = async () => {
-    assistantStore.set({sheetOpen: false});
+    assistantStore.set({ sheetOpen: false });
     await assistant.interrupt();
   };
   const openFull = () => {
-    assistantStore.set({sheetOpen: false});
+    assistantStore.set({ sheetOpen: false });
     nav.navigate('Assistant');
   };
   const recent = view.messages.slice(-5);
@@ -127,7 +140,7 @@ export function AssistantSheet() {
       title="Orbit Assist"
       testID="assistant-sheet"
       footer={
-        settings.drivingMode ? (
+        !view.consented ? undefined : settings.drivingMode ? (
           <View style={styles.drivingFooter}>
             <MicButton
               phase={view.phase}
@@ -166,7 +179,8 @@ export function AssistantSheet() {
             </View>
           </View>
         )
-      }>
+      }
+    >
       <View style={styles.context}>
         {view.context.map(c => (
           <ContextChip key={c.text} icon={c.icon} text={c.text} />
@@ -197,7 +211,7 @@ export function AssistantSheet() {
           icon="car"
           onPress={() =>
             assistantStore.set(s => ({
-              settings: {...s.settings, drivingMode: !s.settings.drivingMode},
+              settings: { ...s.settings, drivingMode: !s.settings.drivingMode },
             }))
           }
         />
@@ -207,14 +221,15 @@ export function AssistantSheet() {
 }
 
 /** Orb and one line of status, for the sheet's control row. */
-function SheetStatus({view}: {view: ReturnType<typeof useAssistantView>}) {
+function SheetStatus({ view }: { view: ReturnType<typeof useAssistantView> }) {
   return (
     <View style={styles.mini}>
       <VoiceOrb phase={view.phase} level={view.level} size={52} />
       <Text
         style={styles.miniText}
         numberOfLines={3}
-        accessibilityLiveRegion="polite">
+        accessibilityLiveRegion="polite"
+      >
         {statusText(view)}
       </Text>
     </View>
@@ -233,7 +248,7 @@ export function AssistantOverlay() {
 }
 
 const styles = StyleSheet.create({
-  floatWrap: {position: 'absolute', right: spacing.lg},
+  floatWrap: { position: 'absolute', right: spacing.lg },
   fab: {
     width: 56,
     height: 56,
@@ -255,21 +270,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.bg,
   },
-  footer: {gap: spacing.md},
+  footer: { gap: spacing.md },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  mini: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
-  miniText: {...type.caption, color: colors.inkSoft, flex: 1},
-  context: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  empty: {...type.body, color: colors.inkSoft, lineHeight: 20},
+  mini: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  miniText: { ...type.caption, color: colors.inkSoft, flex: 1 },
+  context: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  empty: { ...type.body, color: colors.inkSoft, lineHeight: 20 },
   sheetLinks: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  drivingFooter: {alignItems: 'center', gap: spacing.md},
-  drivingStatus: {...type.title, color: colors.ink, textAlign: 'center'},
+  drivingFooter: { alignItems: 'center', gap: spacing.md },
+  drivingStatus: { ...type.title, color: colors.ink, textAlign: 'center' },
 });

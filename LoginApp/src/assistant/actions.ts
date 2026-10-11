@@ -1,11 +1,11 @@
-import {compatibleConnectors} from '../domain/rules';
-import type {Navigation} from '../navigation/NavigationContext';
-import {ApiError, OfflineError} from '../services/types';
-import {cacheRoute} from '../store/tripActions';
-import {describeError} from '../domain/describeError';
-import {assistantStore, patchJourney, savePreference} from './store';
-import {ToolDeps, buildRequest, isEnvelope} from './tools/common';
-import type {AssistantAction, PreferenceKey} from './types';
+import { compatibleConnectors } from '../domain/rules';
+import type { Navigation } from '../navigation/NavigationContext';
+import { ApiError, OfflineError } from '../services/types';
+import { cacheRoute } from '../store/tripActions';
+import { describeError } from '../domain/describeError';
+import { assistantStore, patchJourney, savePreference } from './store';
+import { ToolDeps, buildRequest, isEnvelope } from './tools/common';
+import type { AssistantAction, PreferenceKey } from './types';
 
 /**
  * Carries out an action the driver approved, using the app's own services and
@@ -55,7 +55,7 @@ async function stationOrNull(deps: ActionDeps, id: string) {
 export async function performAction(
   action: AssistantAction,
   deps: ActionDeps,
-  options: {consent?: boolean} = {},
+  options: { consent?: boolean } = {},
 ): Promise<ActionOutcome> {
   const nav = deps.getNav();
   if (!nav) {
@@ -95,7 +95,7 @@ export async function performAction(
             return failed('One of those chargers isn’t available any more.');
           }
         }
-        nav.navigate('Compare', {stationIds: ids});
+        nav.navigate('Compare', { stationIds: ids });
         return done('Opened the comparison.');
       }
 
@@ -105,7 +105,7 @@ export async function performAction(
         if (!id || !s) {
           return failed('That charger isn’t available right now.');
         }
-        nav.navigate('StationDetail', {stationId: id});
+        nav.navigate('StationDetail', { stationId: id });
         return done(`Opened ${s.name}.`);
       }
 
@@ -115,7 +115,7 @@ export async function performAction(
         if (!id || !s) {
           return failed('That charger isn’t available right now.');
         }
-        nav.navigate('Navigation', {stationId: id});
+        nav.navigate('Navigation', { stationId: id });
         return done(`Opened directions to ${s.name}.`);
       }
 
@@ -131,7 +131,7 @@ export async function performAction(
         const fits = compatibleConnectors(s, vehicle ?? null);
         const connector = fits.find(c => c.status === 'available') ?? fits[0];
         if (s.integration !== 'integrated' || !connector) {
-          nav.navigate('StationDetail', {stationId: id});
+          nav.navigate('StationDetail', { stationId: id });
           return unavailable(
             s.integration !== 'integrated'
               ? 'PlugOrbit can’t start charging at this charger. I opened its details with the operator’s steps.'
@@ -160,15 +160,17 @@ export async function performAction(
         const trip = await deps.tools.services.smartDrive.start({
           fromLabel: ctx.request.fromLabel,
           toLabel: ctx.request.toLabel,
+          reservePct: ctx.request.safetyReservePct,
+          strategy: ctx.request.strategy,
           ...(typeof p.start_soc_percent === 'number'
-            ? {startSoc: p.start_soc_percent}
+            ? { startSoc: p.start_soc_percent }
             : {}),
         });
         patchJourney({
           destination: trip.destination.label,
           origin: trip.origin.label,
         });
-        nav.navigate('SmartDrive', {toLabel: trip.destination.label});
+        nav.navigate('SmartDrive', { toLabel: trip.destination.label });
         return done(
           `Journey to ${trip.destination.label} is planned. Open it to set off.`,
         );
@@ -208,7 +210,7 @@ export async function performAction(
             ...state.tripPrefs,
             minArrivalSocPct: value,
           });
-          patchJourney({min_arrival_soc_pct: value});
+          patchJourney({ min_arrival_soc_pct: value });
           return done(`Your arrival reserve is now ${value}%.`);
         }
         if (
@@ -219,7 +221,7 @@ export async function performAction(
             ...state.tripPrefs,
             strategy: value,
           });
-          patchJourney({strategy: value});
+          patchJourney({ strategy: value });
           return done(`Your route priority is now ${value}.`);
         }
         if (!assistantStore.get().settings.rememberPreferences) {
@@ -229,7 +231,7 @@ export async function performAction(
             );
           }
           assistantStore.set(s => ({
-            settings: {...s.settings, rememberPreferences: true},
+            settings: { ...s.settings, rememberPreferences: true },
           }));
         }
         if (!savePreference(key, String(value))) {

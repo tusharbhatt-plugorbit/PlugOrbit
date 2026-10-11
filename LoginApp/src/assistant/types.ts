@@ -1,4 +1,4 @@
-import type {IconName} from '../ui/iconData';
+import type { IconName } from '../ui/iconData';
 
 /**
  * Vocabulary shared by every part of Orbit Assist. The wire types mirror
@@ -38,7 +38,7 @@ export type ToolCall = {
   input: Record<string, unknown>;
 };
 
-export type ToolResultPayload = ToolEnvelope & {tool_use_id: string};
+export type ToolResultPayload = ToolEnvelope & { tool_use_id: string };
 
 // ------------------------------------------------------------------ actions ---
 
@@ -97,18 +97,18 @@ export type SourceInfo = {
 };
 
 export type StreamEvent =
-  | {type: 'session'; session_id: string; turn_id: string; resumed: boolean}
-  | {type: 'text'; delta: string}
-  | {type: 'memory'; patch: Record<string, unknown>}
-  | {type: 'tool_requests'; turn_id: string; calls: ToolCall[]}
-  | {type: 'actions'; actions: AssistantAction[]}
+  | { type: 'session'; session_id: string; turn_id: string; resumed: boolean }
+  | { type: 'text'; delta: string }
+  | { type: 'memory'; patch: Record<string, unknown> }
+  | { type: 'tool_requests'; turn_id: string; calls: ToolCall[] }
+  | { type: 'actions'; actions: AssistantAction[] }
   | {
       type: 'done';
       outcome: string;
       usage: UsageInfo;
       sources: SourceInfo[];
     }
-  | {type: 'error'; code: string; message: string; retryable: boolean};
+  | { type: 'error'; code: string; message: string; retryable: boolean };
 
 // --------------------------------------------------------------- conversation ---
 
@@ -156,6 +156,7 @@ export type FallbackLink = {
     | 'SmartDrive'
     | 'SmartDriveStop'
     | 'Vehicles'
+    | 'ActiveSession'
     | 'ManualSoc';
 };
 

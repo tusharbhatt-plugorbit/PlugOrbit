@@ -354,6 +354,23 @@ test('submitting from the keyboard while a code is being sent does not send twic
   expect(textsOf(renderer)).toContain('Enter your code');
 });
 
+test('two submissions in the same render send only one verification code', async () => {
+  const send = deferred<unknown>();
+  mockBackend({ send: () => send.promise });
+  const renderer = await renderApp();
+  await pressByText(renderer, 'Get started');
+  await typeIdentifier(renderer, 'name@example.com');
+  const submit = findPressable(renderer, 'Send verification code').props.onPress;
+  await ReactTestRenderer.act(async () => {
+    submit();
+    submit();
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  send.resolve(jsonResponse(200, sendBody()));
+  await flush();
+  expect(textsOf(renderer)).toContain('Enter your code');
+});
+
 test('a failing request that outlives the screen does not alert either', async () => {
   const send = deferred<unknown>();
   mockBackend({

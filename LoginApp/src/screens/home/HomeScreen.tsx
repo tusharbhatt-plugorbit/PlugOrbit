@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -8,21 +8,21 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {resumeSession} from '../../app/initialStack';
-import {billFor} from '../../domain/sessionBill';
-import {applyFilters, rankOrganic} from '../../domain/rules';
-import {describeSocSource} from '../../domain/socEstimate';
-import {timeAgo} from '../../domain/trust';
-import {useNearbyStations} from '../../hooks/useNearbyStations';
-import {RUNS_ON_DEMO_DATA} from '../../services';
-import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
-import {assistModeOf} from '../../intelligence/types';
-import {idleStatus, tripStatus} from '../../intelligence/status';
-import {useNavigation} from '../../navigation/NavigationContext';
-import type {RouteName} from '../../navigation/params';
-import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
-import {colors, elevation, radii, sizes, spacing, type} from '../../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { resumeSession } from '../../app/initialStack';
+import { billFor } from '../../domain/sessionBill';
+import { applyFilters, rankOrganic } from '../../domain/rules';
+import { describeSocSource } from '../../domain/socEstimate';
+import { timeAgo } from '../../domain/trust';
+import { useNearbyStations } from '../../hooks/useNearbyStations';
+import { RUNS_ON_DEMO_DATA } from '../../services';
+import { DEFAULT_SMART_DRIVE_CONFIG } from '../../intelligence/config';
+import { assistModeOf } from '../../intelligence/types';
+import { idleStatus, tripStatus } from '../../intelligence/status';
+import { useNavigation } from '../../navigation/NavigationContext';
+import type { RouteName } from '../../navigation/params';
+import { selectActiveVehicle, selectTrip, useApp } from '../../store/appStore';
+import { colors, elevation, radii, sizes, spacing, type } from '../../theme';
 import {
   Card,
   CardSkeleton,
@@ -40,9 +40,12 @@ import {
   useNow,
   vehicleName,
 } from '../../ui';
-import {BrandLogo} from '../../ui/BrandLogo';
-import {BatteryBar} from '../../ui/battery';
-import {KeyboardAvoider, KeyboardAwareScrollView} from '../../ui/KeyboardAware';
+import { BrandLogo } from '../../ui/BrandLogo';
+import { BatteryBar } from '../../ui/battery';
+import {
+  KeyboardAvoider,
+  KeyboardAwareScrollView,
+} from '../../ui/KeyboardAware';
 
 /**
  * Home: the driver's control centre. Where the car stands, where to next, what
@@ -78,7 +81,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const status = trip
     ? tripStatus(trip)
-    : idleStatus({soc, vehicle, reservePct: reserve, criticalPct: critical});
+    : idleStatus({ soc, vehicle, reservePct: reserve, criticalPct: critical });
   const low = !trip && status.tone === 'alert';
   const needsSetup = !vehicle || soc === null;
 
@@ -103,19 +106,19 @@ export default function HomeScreen(): React.JSX.Element {
 
   const planJourney = () => {
     const toLabel = destination.trim();
-    go('SmartDrive', toLabel ? {toLabel} : undefined);
+    go('SmartDrive', toLabel ? { toLabel } : undefined);
   };
 
   // Orbit Assist: one status, and the one thing to do about it.
   const assist = trip
-    ? {pill: 'Active', tone: 'lime' as const, cta: 'Open trip'}
+    ? { pill: 'Active', tone: 'lime' as const, cta: 'Open trip' }
     : !assistOn
-    ? {pill: 'Off', tone: 'slate' as const, cta: 'Turn on'}
+    ? { pill: 'Off', tone: 'slate' as const, cta: 'Turn on' }
     : needsSetup
-    ? {pill: 'Setup needed', tone: 'amber' as const, cta: 'Set up'}
+    ? { pill: 'Setup needed', tone: 'amber' as const, cta: 'Set up' }
     : low
-    ? {pill: 'Battery low', tone: 'danger' as const, cta: 'Find chargers'}
-    : {pill: 'Ready', tone: 'slate' as const, cta: 'Plan a journey'};
+    ? { pill: 'Battery low', tone: 'danger' as const, cta: 'Find chargers' }
+    : { pill: 'Ready', tone: 'slate' as const, cta: 'Plan a journey' };
   const openAssist = () => {
     if (!vehicle) {
       go('VehicleSetup');
@@ -156,11 +159,12 @@ export default function HomeScreen(): React.JSX.Element {
             </Text>
             <Pressable
               onPress={() => go('Map')}
-              hitSlop={{top: 12, bottom: 12, left: 4, right: 12}}
+              hitSlop={{ top: 12, bottom: 12, left: 4, right: 12 }}
               accessibilityRole="button"
               accessibilityLabel={`Location: ${where.text}. Open the charger map`}
               testID="location-indicator"
-              style={styles.where}>
+              style={styles.where}
+            >
               <View style={[styles.whereDot, where.ok && styles.whereDotOn]} />
               <Text style={styles.whereText} numberOfLines={1}>
                 {where.text}
@@ -174,7 +178,8 @@ export default function HomeScreen(): React.JSX.Element {
               unread ? 'Notifications, unread' : 'Notifications'
             }
             testID="open-notifications"
-            style={styles.headerBtn}>
+            style={styles.headerBtn}
+          >
             <Icon name="bell" size={22} color="#FFFFFF" />
             {unread && <View style={styles.unread} />}
           </Pressable>
@@ -183,7 +188,8 @@ export default function HomeScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel="Profile"
             testID="open-profile"
-            style={styles.headerBtn}>
+            style={styles.headerBtn}
+          >
             <View style={styles.avatar}>
               <Icon name="user" size={18} color={colors.ink} />
             </View>
@@ -201,7 +207,8 @@ export default function HomeScreen(): React.JSX.Element {
                 onRefresh={nearby.refresh}
                 tintColor={colors.limeDark}
               />
-            }>
+            }
+          >
             <View style={styles.column}>
               {low && (
                 <Notice
@@ -275,14 +282,16 @@ export default function HomeScreen(): React.JSX.Element {
                           <Text
                             style={styles.soc}
                             maxFontSizeMultiplier={1.2}
-                            accessibilityLabel={`Battery ${soc} percent`}>
+                            accessibilityLabel={`Battery ${soc} percent`}
+                          >
                             {soc}
                             <Text style={styles.socUnit}>%</Text>
                           </Text>
                           <View style={styles.socSide}>
                             <Text
                               style={styles.range}
-                              maxFontSizeMultiplier={1.2}>
+                              maxFontSizeMultiplier={1.2}
+                            >
                               {rangeKm !== null ? `~${rangeKm} km` : ''}
                             </Text>
                             <Text style={styles.rangeLabel}>est. range</Text>
@@ -307,10 +316,11 @@ export default function HomeScreen(): React.JSX.Element {
                             onPress={() => resumeSession(nav)}
                             accessibilityRole="button"
                             accessibilityLabel={`Charging at ${charging.stationName}, ${chargingPct} percent. Open session`}
-                            style={({pressed}) => [
+                            style={({ pressed }) => [
                               styles.chargingRow,
                               pressed && styles.pressed,
-                            ]}>
+                            ]}
+                          >
                             <Icon
                               name="zap"
                               size={16}
@@ -374,39 +384,6 @@ export default function HomeScreen(): React.JSX.Element {
                 </View>
               </Card>
 
-              {/* ---- Orbit Assist ---- */}
-              <Card tone="lime" testID="orbit-assist-panel">
-                <View style={styles.gap}>
-                  <View style={styles.assistHead}>
-                    <View style={styles.assistIcon}>
-                      <Icon name="sparkles" size={18} color={colors.lime} />
-                    </View>
-                    <Text style={styles.assistTitle}>Orbit Assist</Text>
-                    <Pill label={assist.pill} tone={assist.tone} />
-                  </View>
-                  <View>
-                    <Text style={styles.assistHeadline}>{status.headline}</Text>
-                    <Text style={styles.assistDetail}>{status.detail}</Text>
-                    <TextButton
-                      label={`Mode: ${MODE_LABEL[assistMode]} • Change`}
-                      onPress={() => go('TripPreferences')}
-                    />
-                  </View>
-                  <PrimaryButton
-                    label={assist.cta}
-                    icon={trip ? 'arrow-right' : 'sparkles'}
-                    compact
-                    onPress={openAssist}
-                  />
-                  <SecondaryButton
-                    label="Talk to Orbit"
-                    icon="mic"
-                    compact
-                    onPress={() => go('Assistant', {listen: true})}
-                  />
-                </View>
-              </Card>
-
               {/* ---- Everything else, one tap away ---- */}
               <View style={styles.group}>
                 <SectionTitle compact title="Quick actions" />
@@ -439,18 +416,52 @@ export default function HomeScreen(): React.JSX.Element {
                   <Tile
                     icon="sparkles"
                     label="Orbit Assist"
-                    onPress={() => go('SmartDrive')}
+                    onPress={() => go('Assistant')}
                   />
                 </View>
               </View>
+
+              {/* ---- Orbit Assist ---- */}
+              <Card tone="lime" testID="orbit-assist-panel">
+                <View style={styles.gap}>
+                  <View style={styles.assistHead}>
+                    <View style={styles.assistIcon}>
+                      <Icon name="sparkles" size={18} color={colors.lime} />
+                    </View>
+                    <Text style={styles.assistTitle}>Orbit Assist</Text>
+                    <Pill label={assist.pill} tone={assist.tone} />
+                  </View>
+                  <View>
+                    <Text style={styles.assistHeadline}>{status.headline}</Text>
+                    <Text style={styles.assistDetail}>{status.detail}</Text>
+                    <TextButton
+                      label={`Mode: ${MODE_LABEL[assistMode]} • Change`}
+                      onPress={() => go('TripPreferences')}
+                    />
+                  </View>
+                  <PrimaryButton
+                    label={assist.cta}
+                    icon={trip ? 'arrow-right' : 'sparkles'}
+                    compact
+                    onPress={openAssist}
+                  />
+                  <SecondaryButton
+                    label="Talk to Orbit"
+                    icon="mic"
+                    compact
+                    onPress={() => go('Assistant', { listen: true })}
+                  />
+                </View>
+              </Card>
 
               {/* ---- Recent trip ---- */}
               {recentTrip ? (
                 <View style={styles.group}>
                   <SectionTitle compact title="Recent trip" />
                   <Card
-                    onPress={() => go('SmartDrive', {toLabel: recentTrip.to})}
-                    accessibilityLabel={`${recentTrip.from} to ${recentTrip.to}. Plan this trip again`}>
+                    onPress={() => go('SmartDrive', { toLabel: recentTrip.to })}
+                    accessibilityLabel={`${recentTrip.from} to ${recentTrip.to}. Plan this trip again`}
+                  >
                     <View style={styles.tripRow}>
                       <View style={styles.flex}>
                         <Text style={styles.tripTitle} numberOfLines={1}>
@@ -478,7 +489,8 @@ export default function HomeScreen(): React.JSX.Element {
                         toLabel: savedRoutes[0].toLabel,
                       })
                     }
-                    accessibilityLabel={`${savedRoutes[0].fromLabel} to ${savedRoutes[0].toLabel}. Open the route planner`}>
+                    accessibilityLabel={`${savedRoutes[0].fromLabel} to ${savedRoutes[0].toLabel}. Open the route planner`}
+                  >
                     <View style={styles.tripRow}>
                       <View style={styles.flex}>
                         <Text style={styles.tripTitle} numberOfLines={1}>
@@ -506,7 +518,7 @@ export default function HomeScreen(): React.JSX.Element {
                   nearest={nearest}
                   vehicleKnown={!!vehicle}
                   now={now}
-                  onOpen={id => go('StationDetail', {stationId: id})}
+                  onOpen={id => go('StationDetail', { stationId: id })}
                   onMap={() => go('Map')}
                 />
               </View>
@@ -521,24 +533,24 @@ export default function HomeScreen(): React.JSX.Element {
 type Nearby = ReturnType<typeof useNearbyStations>;
 
 /** What to say about where the phone is, without pretending to know more. */
-function locationLabel(n: Nearby): {text: string; ok: boolean} {
+function locationLabel(n: Nearby): { text: string; ok: boolean } {
   const kind = n.notice?.kind;
   if (
     kind === 'location-denied' ||
     kind === 'location-unavailable' ||
     kind === 'location-no-fix'
   ) {
-    return {text: 'Location off', ok: false};
+    return { text: 'Location off', ok: false };
   }
   if (kind === 'demo-area') {
-    return {text: 'Demo area: New Delhi', ok: false};
+    return { text: 'Demo area: New Delhi', ok: false };
   }
   if (n.phase === 'locating') {
-    return {text: 'Finding you…', ok: false};
+    return { text: 'Finding you…', ok: false };
   }
   return n.userLocation
-    ? {text: 'Near you', ok: true}
-    : {text: 'Location unknown', ok: false};
+    ? { text: 'Near you', ok: true }
+    : { text: 'Location unknown', ok: false };
 }
 
 function NearbyCharger({
@@ -634,12 +646,13 @@ function Tile({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      android_ripple={{color: 'rgba(15,23,42,0.08)'}}
-      style={({pressed}) => [
+      android_ripple={{ color: 'rgba(15,23,42,0.08)' }}
+      style={({ pressed }) => [
         styles.tile,
         elevation(1),
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.tileIcon}>
         <Icon name={icon} size={20} color={colors.limeDark} />
       </View>
@@ -651,8 +664,8 @@ function Tile({
 }
 
 const styles = StyleSheet.create({
-  flex: {flex: 1},
-  safe: {flex: 1, backgroundColor: colors.bg},
+  flex: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -661,8 +674,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
-  headerText: {flex: 1, minWidth: 0},
-  wordmark: {...type.heading, color: '#FFFFFF', letterSpacing: 0.3},
+  headerText: { flex: 1, minWidth: 0 },
+  wordmark: { ...type.heading, color: '#FFFFFF', letterSpacing: 0.3 },
   where: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -677,8 +690,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.amberOnDark,
   },
-  whereDotOn: {backgroundColor: colors.lime},
-  whereText: {...type.caption, color: colors.chipText, flexShrink: 1},
+  whereDotOn: { backgroundColor: colors.lime },
+  whereText: { ...type.caption, color: colors.chipText, flexShrink: 1 },
   headerBtn: {
     width: sizes.tap,
     height: sizes.tap,
@@ -723,14 +736,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.lg,
   },
-  gap: {gap: spacing.md},
-  group: {gap: spacing.sm},
-  pressed: {opacity: 0.85},
+  gap: { gap: spacing.md },
+  group: { gap: spacing.sm },
+  pressed: { opacity: 0.85 },
 
-  darkTitle: {...type.title, color: '#FFFFFF'},
-  darkBody: {...type.body, color: colors.chipText, lineHeight: 20},
-  darkMeta: {...type.caption, color: colors.placeholder, flexShrink: 1},
-  carRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
+  darkTitle: { ...type.title, color: '#FFFFFF' },
+  darkBody: { ...type.body, color: colors.chipText, lineHeight: 20 },
+  darkMeta: { ...type.caption, color: colors.placeholder, flexShrink: 1 },
+  carRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   carIcon: {
     width: 44,
     height: 44,
@@ -744,11 +757,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
-  soc: {...type.hero, color: '#FFFFFF'},
-  socUnit: {fontSize: 26, fontWeight: '800', color: colors.chipText},
-  socSide: {alignItems: 'flex-end', paddingBottom: 8},
-  range: {...type.heading, fontSize: 20, color: colors.lime},
-  rangeLabel: {...type.caption, color: colors.placeholder},
+  soc: { ...type.hero, color: '#FFFFFF' },
+  socUnit: { fontSize: 26, fontWeight: '800', color: colors.chipText },
+  socSide: { alignItems: 'flex-end', paddingBottom: 8 },
+  range: { ...type.heading, fontSize: 20, color: colors.lime },
+  rangeLabel: { ...type.caption, color: colors.placeholder },
   sourceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -764,13 +777,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.lime,
   },
-  chargingText: {...type.bodyStrong, color: colors.ink, flex: 1},
-  cardActions: {flexDirection: 'row', gap: spacing.sm},
-  cardAction: {flex: 1},
+  chargingText: { ...type.bodyStrong, color: colors.ink, flex: 1 },
+  cardActions: { flexDirection: 'row', gap: spacing.sm },
+  cardAction: { flex: 1 },
 
-  cardTitle: {...type.heading, fontSize: 18, color: colors.ink},
+  cardTitle: { ...type.heading, fontSize: 18, color: colors.ink },
 
-  assistHead: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  assistHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   assistIcon: {
     width: 32,
     height: 32,
@@ -779,8 +792,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  assistTitle: {...type.heading, color: colors.ink, flex: 1},
-  assistHeadline: {...type.bodyStrong, fontSize: 16, color: colors.ink},
+  assistTitle: { ...type.heading, color: colors.ink, flex: 1 },
+  assistHeadline: { ...type.bodyStrong, fontSize: 16, color: colors.ink },
   assistDetail: {
     ...type.body,
     color: colors.inkSoft,
@@ -788,7 +801,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  grid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md},
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   tile: {
     flexGrow: 1,
     flexBasis: '30%',
@@ -809,10 +822,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileLabel: {...type.label, color: colors.ink, textAlign: 'center'},
+  tileLabel: { ...type.label, color: colors.ink, textAlign: 'center' },
 
-  tripRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
-  tripTitle: {...type.heading, color: colors.ink},
-  tripMeta: {...type.caption, color: colors.muted, marginTop: 2},
-  tripAction: {...type.label, color: colors.limeDark},
+  tripRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  tripTitle: { ...type.heading, color: colors.ink },
+  tripMeta: { ...type.caption, color: colors.muted, marginTop: 2 },
+  tripAction: { ...type.label, color: colors.limeDark },
 });

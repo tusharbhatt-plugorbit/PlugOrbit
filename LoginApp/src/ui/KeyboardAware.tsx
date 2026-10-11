@@ -57,9 +57,9 @@ type ViewInstance = React.ComponentRef<typeof View>;
 type ScrollInstance = React.ComponentRef<typeof ScrollView>;
 
 function frameOf(
-  c: {height: number; screenY: number} | undefined | null,
+  c: { height: number; screenY: number } | undefined | null,
 ): KeyboardFrame | null {
-  return c && c.height > 0 ? {top: c.screenY, height: c.height} : null;
+  return c && c.height > 0 ? { top: c.screenY, height: c.height } : null;
 }
 
 /** Where the keyboard is right now, for a component that mounts while it is open. */
@@ -100,10 +100,10 @@ export function notifyInputFocused(
 
 /* --------------------------------------------------------------- measuring -- */
 
-type Measured = {top: number; height: number};
+type Measured = { top: number; height: number };
 
 function measureOnScreen(
-  node: {measure?: (cb: (...n: number[]) => void) => void} | null | undefined,
+  node: { measure?: (cb: (...n: number[]) => void) => void } | null | undefined,
 ): Promise<Measured | null> {
   return new Promise(resolve => {
     if (!node || typeof node.measure !== 'function') {
@@ -114,7 +114,7 @@ function measureOnScreen(
       node.measure((_x, _y, _w, h, _px, py) => {
         resolve(
           Number.isFinite(py) && Number.isFinite(h)
-            ? {top: py, height: h}
+            ? { top: py, height: h }
             : null,
         );
       });
@@ -133,7 +133,7 @@ type AvoiderProps = {
 };
 
 /** Wrap a whole screen (content + pinned footer). Fills its parent. */
-export function KeyboardAvoider({children, style, testID}: AvoiderProps) {
+export function KeyboardAvoider({ children, style, testID }: AvoiderProps) {
   const ref = useRef<ViewInstance>(null);
   const frame = useRef<KeyboardFrame | null>(currentFrame());
   const alive = useRef(true);
@@ -160,7 +160,7 @@ export function KeyboardAvoider({children, style, testID}: AvoiderProps) {
       const duration = e.duration && e.duration > 10 ? e.duration : 250;
       LayoutAnimation.configureNext({
         duration,
-        update: {duration, type: 'keyboard'},
+        update: { duration, type: 'keyboard' },
       });
     };
     const show = Keyboard.addListener(showEvent(), (e: KeyboardEvent) => {
@@ -191,7 +191,8 @@ export function KeyboardAvoider({children, style, testID}: AvoiderProps) {
       // The outer frame does not change when the padding does, so this cannot
       // loop; it re-measures when the OS resizes the window after the event.
       onLayout={() => frame.current && recompute()}
-      style={[styles.fill, style, {paddingBottom: overlap}]}>
+      style={[styles.fill, style, { paddingBottom: overlap }]}
+    >
       {children}
     </View>
   );
@@ -203,7 +204,7 @@ export function KeyboardAvoider({children, style, testID}: AvoiderProps) {
 export const KeyboardAwareScrollView = forwardRef<
   ScrollInstance,
   ScrollViewProps
->(function KeyboardAwareScrollViewInner({onScroll, ...rest}, forwarded) {
+>(function KeyboardAwareScrollViewInner({ onScroll, ...rest }, forwarded) {
   const id = useId();
   const scroll = useRef<ScrollInstance>(null);
   const offset = useRef(0);
@@ -214,7 +215,7 @@ export const KeyboardAwareScrollView = forwardRef<
   const reveal = useCallback(async () => {
     const kb = keyboard.current;
     const state = TextInput.State as unknown as {
-      currentlyFocusedInput?: () => {measure?: never} | null;
+      currentlyFocusedInput?: () => { measure?: never } | null;
     };
     const input = kb ? state.currentlyFocusedInput?.() : null;
     // Another scroll view's field (a sheet over this screen) is not ours.
@@ -241,7 +242,7 @@ export const KeyboardAwareScrollView = forwardRef<
         top: field.top,
         bottom: field.top + field.height + focusExtraBelow,
       },
-      {top: view.top, bottom: Math.min(view.top + view.height, kb.top)},
+      { top: view.top, bottom: Math.min(view.top + view.height, kb.top) },
     );
     if (delta !== 0) {
       scroll.current?.scrollTo({
@@ -269,12 +270,15 @@ export const KeyboardAwareScrollView = forwardRef<
       focusExtraBelow = 0;
     });
     focusListeners.add(schedule);
-    const pending = timers.current;
+    if (keyboard.current) {
+      schedule();
+    }
     return () => {
       show.remove();
       hide.remove();
       focusListeners.delete(schedule);
-      pending.forEach(clearTimeout);
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
     };
   }, [schedule]);
 
@@ -297,4 +301,4 @@ export const KeyboardAwareScrollView = forwardRef<
   );
 });
 
-const styles = StyleSheet.create({fill: {flex: 1}});
+const styles = StyleSheet.create({ fill: { flex: 1 } });

@@ -5,12 +5,12 @@
  */
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Modal, Switch, Text, TextInput} from 'react-native';
-import {GatewayError} from '../../src/assistant/gateway';
-import {resetAssistantRuntime} from '../../src/assistant/runtime';
-import {assistantStore, updateSettings} from '../../src/assistant/store';
-import {DEFAULT_SETTINGS} from '../../src/assistant/types';
-import {appStore} from '../../src/store/appStore';
+import { Modal, Switch, Text, TextInput } from 'react-native';
+import { GatewayError } from '../../src/assistant/gateway';
+import { resetAssistantRuntime } from '../../src/assistant/runtime';
+import { assistantStore, updateSettings } from '../../src/assistant/store';
+import { DEFAULT_SETTINGS } from '../../src/assistant/types';
+import { appStore } from '../../src/store/appStore';
 import {
   done,
   makeRig,
@@ -18,12 +18,12 @@ import {
   text,
   type Rig,
 } from '../../src/dev/assistantFakes';
-import {ROUTE_FIXTURES} from '../../src/dev/fixtures';
-import {TestApp, probe, seedSignedIn} from '../../src/dev/testHarness';
-import type {RouteName, TabName} from '../../src/navigation/params';
-import {createMemoryStorage, setStorage} from '../../src/store/storage';
+import { ROUTE_FIXTURES } from '../../src/dev/fixtures';
+import { TestApp, probe, seedSignedIn } from '../../src/dev/testHarness';
+import type { RouteName, TabName } from '../../src/navigation/params';
+import { createMemoryStorage, setStorage } from '../../src/store/storage';
 
-const {act} = ReactTestRenderer;
+const { act } = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const flush = async () => {
@@ -129,7 +129,7 @@ afterAll(() => jest.useRealTimers());
 
 beforeEach(() => {
   setStorage(createMemoryStorage());
-  seedSignedIn({soc: 60});
+  seedSignedIn({ soc: 60 });
   rig = makeRig();
   resetAssistantRuntime(rig.controller);
 });
@@ -144,10 +144,10 @@ afterEach(async () => {
 describe('signing out', () => {
   test('leaves nothing of the conversation, memory or consent for the next person', async () => {
     rig.gateway.scripts = [[session('s5'), text('Hi.'), done()]];
-    updateSettings({rememberPreferences: true, voiceLanguage: 'hi'});
+    updateSettings({ rememberPreferences: true, voiceLanguage: 'hi' });
     assistantStore.set({
-      journey: {destination: 'Jaipur', updated_at: Date.now()},
-      preferences: [{key: 'prioritise', value: 'cost', savedAt: 1}],
+      journey: { destination: 'Jaipur', updated_at: Date.now() },
+      preferences: [{ key: 'prioritise', value: 'cost', savedAt: 1 }],
     });
     await open('Home', true);
     await act(async () => {
@@ -155,7 +155,7 @@ describe('signing out', () => {
     });
     expect(assistantStore.get().messages.length).toBeGreaterThan(0);
     await act(async () => {
-      appStore.set({signedIn: false}); // what Sign out does
+      appStore.set({ signedIn: false }); // what Sign out does
       mounted.splice(0).forEach(m => m.unmount()); // the signed-in app goes away
     });
     await flush();
@@ -170,22 +170,19 @@ describe('signing out', () => {
 
 describe('consent', () => {
   test('nothing can be sent until the driver turns the AI on', async () => {
-    assistantStore.set(s => ({settings: {...s.settings, aiConsentAt: null}}));
+    assistantStore.set(s => ({
+      settings: { ...s.settings, aiConsentAt: null },
+    }));
     const r = await open('Assistant');
     expect(allText(r)).toContain('Turn on Orbit’s AI');
     expect(allText(r)).toMatch(/never records or keeps your voice/);
     expect(allText(r)).toMatch(/Google or Apple/);
-    const input = r.root.find(
+    const inputs = r.root.findAll(
       n =>
         n.props.accessibilityLabel === 'Type a message to Orbit' &&
         n.type === TextInput,
     );
-    expect(input.props.editable).toBe(false);
-    expect(
-      r.root.find(
-        n => n.props.accessibilityLabel === 'Microphone not available',
-      ).props.onPress,
-    ).toBeUndefined();
+    expect(inputs).toHaveLength(0);
     await press(r, 'Turn on');
     expect(assistantStore.get().settings.aiConsentAt).not.toBeNull();
     expect(allText(r)).toContain('Where are we going?');
@@ -207,7 +204,7 @@ describe('the conversation', () => {
               kind: 'start_journey',
               label: 'Start trip to Jaipur',
               detail: 'Plans the charging for your trip.',
-              params: {destination: 'Jaipur'},
+              params: { destination: 'Jaipur' },
               status: 'pending_approval',
             },
           ],
@@ -226,7 +223,9 @@ describe('the conversation', () => {
     ];
     const r = await open('Assistant');
     await typeAndSend(r, 'Take me to Jaipur');
-    expect(rig.gateway.bodies[0]).toMatchObject({message: 'Take me to Jaipur'});
+    expect(rig.gateway.bodies[0]).toMatchObject({
+      message: 'Take me to Jaipur',
+    });
     const t = allText(r);
     expect(t).toContain('Take me to Jaipur');
     expect(t).toContain('I can plan that. Want me to set it up?');
@@ -261,7 +260,7 @@ describe('the conversation', () => {
               id: 'a1',
               kind: 'switch_charger',
               label: 'Switch charger',
-              params: {station_id: 'x'},
+              params: { station_id: 'x' },
               status: 'pending_approval',
             },
           ],
@@ -334,8 +333,12 @@ describe('the microphone', () => {
     expect(allText(r)).toContain('Jaipur jaana hai');
     rig.recognizer.finalOnStop = 'Jaipur jaana hai';
     await press(r, 'Stop listening and send');
-    expect(rig.gateway.bodies[0]).toMatchObject({message: 'Jaipur jaana hai'});
-    expect(rig.gateway.bodies[0].context).toMatchObject({input_mode: 'voice'});
+    expect(rig.gateway.bodies[0]).toMatchObject({
+      message: 'Jaipur jaana hai',
+    });
+    expect(rig.gateway.bodies[0].context).toMatchObject({
+      input_mode: 'voice',
+    });
   });
 
   test('a refused microphone is explained, with a way to fix it', async () => {
@@ -427,10 +430,10 @@ describe('settings', () => {
   });
 
   test('saved preferences can be seen, forgotten, and erased', async () => {
-    updateSettings({rememberPreferences: true});
+    updateSettings({ rememberPreferences: true });
     assistantStore.set({
-      preferences: [{key: 'prioritise', value: 'cost', savedAt: Date.now()}],
-      journey: {destination: 'Jaipur', updated_at: Date.now()},
+      preferences: [{ key: 'prioritise', value: 'cost', savedAt: Date.now() }],
+      journey: { destination: 'Jaipur', updated_at: Date.now() },
     });
     const r = await open('Assistant');
     await press(r, 'Assistant settings');
@@ -438,7 +441,7 @@ describe('settings', () => {
     await press(r, 'Forget');
     expect(assistantStore.get().preferences).toEqual([]);
     assistantStore.set({
-      preferences: [{key: 'strategy', value: 'cheapest', savedAt: 1}],
+      preferences: [{ key: 'strategy', value: 'cheapest', savedAt: 1 }],
     });
     await press(r, 'Erase everything Orbit keeps');
     expect(assistantStore.get().preferences).toEqual([]);
@@ -448,7 +451,7 @@ describe('settings', () => {
 
 describe('driving mode', () => {
   test('shows a large microphone and no typing', async () => {
-    updateSettings({drivingMode: true});
+    updateSettings({ drivingMode: true });
     rig.gateway.scripts = [
       [session(), text('You have enough battery.'), done()],
     ];
@@ -548,7 +551,7 @@ describe('the floating assistant and its sheet', () => {
   });
 
   test('driving mode in the sheet is a big microphone only', async () => {
-    updateSettings({drivingMode: true});
+    updateSettings({ drivingMode: true });
     const r = await open('Map');
     await press(r, 'Open Orbit Assist');
     expect(openSheet(r).findAllByType(TextInput)).toHaveLength(0);

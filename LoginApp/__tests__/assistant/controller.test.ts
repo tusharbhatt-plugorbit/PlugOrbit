@@ -1,4 +1,4 @@
-import {GatewayError} from '../../src/assistant/gateway';
+import { GatewayError } from '../../src/assistant/gateway';
 import {
   assistantStore,
   clearJourney,
@@ -16,6 +16,28 @@ import {
 } from '../../src/dev/assistantFakes';
 
 jest.useFakeTimers();
+
+test('a permission response cannot start the microphone after backgrounding', async () => {
+  const rig = makeRig();
+  rig.permissions.state = 'unknown';
+  let allow!: (state: 'granted') => void;
+  rig.permissions.requestMicrophone = () =>
+    new Promise(resolve => {
+      allow = resolve;
+    });
+  const listening = rig.controller.startListening();
+  await flush();
+  await rig.controller.onBackground();
+  allow('granted');
+  await listening;
+  expect(rig.store.get().phase).toBe('idle');
+  expect(rig.recognizer.started).toBe(0);
+  rig.controller.onForeground();
+  rig.permissions.state = 'granted';
+  await rig.controller.startListening();
+  expect(rig.store.get().phase).toBe('listening');
+  await rig.controller.interrupt();
+});
 
 const last = (rig: ReturnType<typeof makeRig>) =>
   rig.store.get().messages[rig.store.get().messages.length - 1];
@@ -44,7 +66,7 @@ describe('a typed question', () => {
   });
 
   it('is refused until the driver has agreed to AI use', async () => {
-    const rig = makeRig({consent: false});
+    const rig = makeRig({ consent: false });
     expect(await rig.controller.send('hello')).toBe(false);
     expect(rig.gateway.bodies).toHaveLength(0);
     expect(rig.store.get().messages).toHaveLength(0);
@@ -78,7 +100,7 @@ describe('a typed question', () => {
       response_style: 'detailed',
       driving_mode: true,
       demo_data: true,
-      journey: {destination: 'Jaipur', min_arrival_soc_pct: 20},
+      journey: { destination: 'Jaipur', min_arrival_soc_pct: 20 },
     });
     expect(first.context.local_time).toMatch(
       /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/,
@@ -108,7 +130,7 @@ describe('a typed question', () => {
   it('forgets a journey the driver has not mentioned for hours', async () => {
     const rig = makeRig();
     assistantStore.set({
-      journey: {destination: 'Jaipur', updated_at: Date.now() - 7 * 3600_000},
+      journey: { destination: 'Jaipur', updated_at: Date.now() - 7 * 3600_000 },
     });
     rig.gateway.scripts = [[session(), text('Hi.'), done()]];
     await rig.controller.send('hello');
@@ -117,14 +139,14 @@ describe('a typed question', () => {
 
   it('only shares remembered preferences while the driver allows it', async () => {
     const rig = makeRig();
-    updateSettings({rememberPreferences: true});
+    updateSettings({ rememberPreferences: true });
     savePreference('prioritise', 'cost');
     rig.gateway.scripts = [
       [session(), text('a'), done()],
       [session(), text('b'), done()],
     ];
     await rig.controller.send('one');
-    updateSettings({rememberPreferences: false});
+    updateSettings({ rememberPreferences: false });
     await rig.controller.send('two');
     expect(
       (rig.gateway.bodies[0] as any).context.remembered_preferences,
@@ -144,8 +166,8 @@ describe('tools on the phone', () => {
         text('Checking. '),
         toolRequests(
           't9',
-          {id: 'c1', name: 'get_battery_level', input: {}},
-          {id: 'c2', name: 'get_vehicle_status', input: {}},
+          { id: 'c1', name: 'get_battery_level', input: {} },
+          { id: 'c2', name: 'get_vehicle_status', input: {} },
         ),
       ],
       [
@@ -168,7 +190,7 @@ describe('tools on the phone', () => {
       'get_vehicle_status',
     ]);
     const second = rig.gateway.bodies[1] as any;
-    expect(second).toMatchObject({session_id: 's1', turn_id: 't9'});
+    expect(second).toMatchObject({ session_id: 's1', turn_id: 't9' });
     expect(
       second.tool_results.map((r: any) => [r.tool_use_id, r.status]),
     ).toEqual([
@@ -186,7 +208,7 @@ describe('tools on the phone', () => {
 
   it('stops looping after a bounded number of rounds', async () => {
     const rig = makeRig();
-    rig.gateway.scripts = Array.from({length: 12}, (_, i) => [
+    rig.gateway.scripts = Array.from({ length: 12 }, (_, i) => [
       toolRequests(`t${i}`, {
         id: `c${i}`,
         name: 'get_battery_level',
@@ -225,7 +247,7 @@ describe('tools on the phone', () => {
     rig.gateway.scripts = [
       [
         session(),
-        {type: 'memory', patch: {clear: true}},
+        { type: 'memory', patch: { clear: true } },
         text('Cleared.'),
         done(),
       ],
@@ -271,7 +293,7 @@ describe('speaking', () => {
 
   it('speaks typed questions only in driving mode', async () => {
     const rig = makeRig();
-    updateSettings({drivingMode: true});
+    updateSettings({ drivingMode: true });
     rig.gateway.scripts = [[session(), text('Yes, one stop.'), done()]];
     await rig.controller.send('stops?');
     await flush();
@@ -280,12 +302,12 @@ describe('speaking', () => {
 
   it('never speaks in text-only mode or while muted', async () => {
     const rig = makeRig();
-    updateSettings({textOnly: true});
+    updateSettings({ textOnly: true });
     rig.gateway.scripts = [[session(), text('Hello there.'), done()]];
     await rig.controller.send('hi', 'voice');
     await flush();
     expect(rig.synthesizer.spoken).toHaveLength(0);
-    updateSettings({textOnly: false, muted: true});
+    updateSettings({ textOnly: false, muted: true });
     rig.gateway.scripts = [[session(), text('Hello again.'), done()]];
     await rig.controller.send('hi', 'voice');
     await flush();
@@ -298,13 +320,13 @@ describe('speaking', () => {
       [session(), text('Take the Neemrana stop.'), done()],
     ];
     await rig.controller.send('where?');
-    updateSettings({muted: true});
+    updateSettings({ muted: true });
     await rig.controller.replay();
     await flush();
     expect(rig.synthesizer.spoken.map(s => s.text)).toEqual([
       'Take the Neemrana stop.',
     ]);
-    updateSettings({textOnly: true});
+    updateSettings({ textOnly: true });
     await rig.controller.replay();
     await flush();
     expect(rig.synthesizer.spoken).toHaveLength(1);
@@ -384,7 +406,7 @@ describe('interruption', () => {
       onEvent(text('LATE WORDS')); // arrives after the interruption
       onEvent(done());
     };
-    const rig = makeRig({gateway});
+    const rig = makeRig({ gateway });
     const pending = rig.controller.send('arrival?');
     await flush();
     expect(last(rig).text).toBe('You will arrive with ');
@@ -449,7 +471,10 @@ describe('microphone', () => {
     jest.advanceTimersByTime(1500); // the pause ends the utterance
     await flush(12);
     const user = rig.store.get().messages.find(m => m.role === 'user')!;
-    expect(user).toMatchObject({text: 'Orbit Jaipur jaana hai', via: 'voice'});
+    expect(user).toMatchObject({
+      text: 'Orbit Jaipur jaana hai',
+      via: 'voice',
+    });
     expect(rig.recognizer.stopped).toBe(1);
     expect(rig.synthesizer.spoken.length).toBeGreaterThan(0); // spoken because it was a voice question
   });
@@ -468,7 +493,7 @@ describe('microphone', () => {
 
   it('uses a Hindi recognizer for Hindi and Hinglish', async () => {
     const rig = makeRig();
-    updateSettings({voiceLanguage: 'hi'});
+    updateSettings({ voiceLanguage: 'hi' });
     await rig.controller.startListening();
     expect(rig.recognizer.locale).toBe('hi-IN');
   });
@@ -495,7 +520,7 @@ describe('microphone', () => {
     expect(rig.permissions.requests).toBe(1);
     expect(rig.recognizer.started).toBe(0);
     expect(rig.store.get().microphone).toBe('denied');
-    expect(last(rig)).toMatchObject({role: 'notice', kind: 'mic_permission'});
+    expect(last(rig)).toMatchObject({ role: 'notice', kind: 'mic_permission' });
     expect(last(rig).text).toMatch(/microphone/i);
     expect(rig.store.get().phase).toBe('idle');
   });
@@ -524,7 +549,7 @@ describe('microphone', () => {
   });
 
   it('falls back to typing when the speech module is not in the build', async () => {
-    const rig = makeRig({noVoice: true});
+    const rig = makeRig({ noVoice: true });
     await rig.controller.startListening();
     expect(last(rig).text).toMatch(/type/i);
     rig.gateway.scripts = [[session(), text('Typed answers work.'), done()]];
@@ -545,7 +570,7 @@ describe('microphone', () => {
   });
 
   it('does not listen before the driver has agreed to AI use', async () => {
-    const rig = makeRig({consent: false});
+    const rig = makeRig({ consent: false });
     await rig.controller.startListening();
     expect(rig.recognizer.started).toBe(0);
   });
@@ -573,7 +598,7 @@ describe('when things go wrong', () => {
   it('tells the driver how long to wait when rate limited', async () => {
     const rig = makeRig();
     rig.gateway.scripts = [
-      new GatewayError('RATE_LIMITED', 'x', {retryAfter: 12}),
+      new GatewayError('RATE_LIMITED', 'x', { retryAfter: 12 }),
     ];
     await rig.controller.send('again');
     expect(last(rig).error).toMatch(/12 seconds/);
@@ -605,9 +630,9 @@ describe('when things go wrong', () => {
 
   it('starts a fresh conversation once if the server forgot this one', async () => {
     const rig = makeRig();
-    assistantStore.set({sessionId: 'stale'});
+    assistantStore.set({ sessionId: 'stale' });
     rig.gateway.scripts = [
-      new GatewayError('SESSION_LOST', 'gone', {status: 404}),
+      new GatewayError('SESSION_LOST', 'gone', { status: 404 }),
       [session('fresh'), text('Here you go.'), done()],
     ];
     await rig.controller.send('where were we');
@@ -665,7 +690,7 @@ describe('actions the driver approves', () => {
           id: 'a1',
           kind: 'start_journey' as const,
           label: 'Start trip to Jaipur',
-          params: {destination: 'Jaipur'},
+          params: { destination: 'Jaipur' },
           status,
         },
       ],
@@ -677,7 +702,9 @@ describe('actions the driver approves', () => {
     const rig = makeRig();
     rig.gateway.scripts = [withAction()];
     await rig.controller.send('take me to Jaipur');
-    expect(last(rig).actions?.[0]).toMatchObject({status: 'pending_approval'});
+    expect(last(rig).actions?.[0]).toMatchObject({
+      status: 'pending_approval',
+    });
     expect(rig.performed).toEqual([]);
   });
 
@@ -800,8 +827,8 @@ describe('notices Orbit raises on its own', () => {
 
   it('stays silent in text-only mode but still shows the notice', async () => {
     const rig = makeRig();
-    updateSettings({textOnly: true});
-    rig.controller.notice('Plan changed.', {kind: 'plan_changed'});
+    updateSettings({ textOnly: true });
+    rig.controller.notice('Plan changed.', { kind: 'plan_changed' });
     await flush();
     expect(rig.synthesizer.spoken).toHaveLength(0);
     expect(last(rig).text).toBe('Plan changed.');

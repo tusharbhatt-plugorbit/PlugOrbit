@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityActionEvent,
   LayoutChangeEvent,
@@ -20,8 +20,8 @@ import {
   spacing,
   type,
 } from '../theme';
-import {Icon, IconName} from './Icon';
-import {notifyInputFocused, useScrollOwner} from './KeyboardAware';
+import { Icon, IconName } from './Icon';
+import { notifyInputFocused, useScrollOwner } from './KeyboardAware';
 
 /** Light-surface text input in the Login field style (52px, 12px radius, 1.5px border). */
 export function TextField({
@@ -48,7 +48,8 @@ export function TextField({
           multiline && styles.fieldMulti,
           focused && styles.fieldFocused,
           !!error && styles.fieldError,
-        ]}>
+        ]}
+      >
         {icon && <Icon name={icon} size={18} color={colors.muted} />}
         <TextInput
           {...rest}
@@ -77,7 +78,13 @@ export function TextField({
         />
       </View>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text
+          style={styles.error}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          {error}
+        </Text>
       ) : helper ? (
         <Text style={styles.helper}>{helper}</Text>
       ) : null}
@@ -145,7 +152,7 @@ export function ToggleRow({
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
-        trackColor={{false: '#CBD5E1', true: colors.lime}}
+        trackColor={{ false: '#CBD5E1', true: colors.lime }}
         thumbColor="#FFFFFF"
         ios_backgroundColor="#CBD5E1"
         accessibilityLabel={title}
@@ -160,7 +167,7 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
 }: {
-  options: ReadonlyArray<{value: T; label: string}>;
+  options: ReadonlyArray<{ value: T; label: string }>;
   value: T;
   onChange: (v: T) => void;
 }) {
@@ -173,11 +180,13 @@ export function SegmentedControl<T extends string>({
             key={o.value}
             onPress={() => onChange(o.value)}
             accessibilityRole="tab"
-            accessibilityState={{selected: active}}
+            accessibilityState={{ selected: active }}
             hitSlop={slopFor(38)}
-            style={[styles.segmentItem, active && styles.segmentActive]}>
+            style={[styles.segmentItem, active && styles.segmentActive]}
+          >
             <Text
-              style={[styles.segmentText, active && styles.segmentTextActive]}>
+              style={[styles.segmentText, active && styles.segmentTextActive]}
+            >
               {o.label}
             </Text>
           </Pressable>
@@ -203,13 +212,14 @@ export function Chip({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityState={{selected: !!selected}}
+      accessibilityState={{ selected: !!selected }}
       hitSlop={slopFor(sizes.chip)}
-      style={({pressed}) => [
+      style={({ pressed }) => [
         styles.chip,
         selected && styles.chipSelected,
-        pressed && {opacity: 0.85},
-      ]}>
+        pressed && { opacity: 0.85 },
+      ]}
+    >
       {icon && (
         <Icon
           name={icon}
@@ -282,20 +292,26 @@ export function PercentSlider({
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={label}
-      accessibilityValue={{min, max, now: value, text: `${value} percent`}}
-      accessibilityActions={[{name: 'increment'}, {name: 'decrement'}]}
-      onAccessibilityAction={onAction}>
+      accessibilityValue={{ min, max, now: value, text: `${value} percent` }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={onAction}
+    >
       <View
         style={styles.sliderHit}
         onLayout={(e: LayoutChangeEvent) => {
           width.current = e.nativeEvent.layout.width;
         }}
-        {...responder.panHandlers}>
+        {...responder.panHandlers}
+      >
         <View style={styles.sliderTrack} pointerEvents="none">
-          <View style={[styles.sliderFill, {width: `${ratio * 100}%`}]} />
+          <View style={[styles.sliderFill, { width: `${ratio * 100}%` }]} />
         </View>
         <View
-          style={[styles.sliderThumb, elevation(2), {left: `${ratio * 100}%`}]}
+          style={[
+            styles.sliderThumb,
+            elevation(2),
+            { left: `${ratio * 100}%` },
+          ]}
           pointerEvents="none"
         />
       </View>
@@ -327,19 +343,22 @@ export function Stepper({
         onPress={() => onChange(Math.max(min, value - step))}
         accessibilityRole="button"
         accessibilityLabel={`Decrease ${label}`}
-        style={styles.stepBtn}>
+        style={styles.stepBtn}
+      >
         <Icon name="minus" size={18} color={colors.ink} />
       </Pressable>
       <Text
         style={styles.stepValue}
-        accessibilityLabel={`${label} ${format ? format(value) : value}`}>
+        accessibilityLabel={`${label} ${format ? format(value) : value}`}
+      >
         {format ? format(value) : value}
       </Text>
       <Pressable
         onPress={() => onChange(Math.min(max, value + step))}
         accessibilityRole="button"
         accessibilityLabel={`Increase ${label}`}
-        style={styles.stepBtn}>
+        style={styles.stepBtn}
+      >
         <Icon name="plus" size={18} color={colors.ink} />
       </Pressable>
     </View>
@@ -347,8 +366,8 @@ export function Stepper({
 }
 
 const styles = StyleSheet.create({
-  fieldWrap: {gap: 6},
-  label: {...type.label, color: colors.ink},
+  fieldWrap: { gap: 6 },
+  label: { ...type.label, color: colors.ink },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -361,9 +380,9 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     borderRadius: 12,
   },
-  fieldMulti: {minHeight: 120, alignItems: 'flex-start', paddingTop: 12},
-  fieldFocused: {borderColor: colors.limeDark},
-  fieldError: {borderColor: colors.danger},
+  fieldMulti: { minHeight: 120, alignItems: 'flex-start', paddingTop: 12 },
+  fieldFocused: { borderColor: colors.limeDark },
+  fieldError: { borderColor: colors.danger },
   input: {
     flex: 1,
     minWidth: 0,
@@ -373,14 +392,14 @@ const styles = StyleSheet.create({
   },
   // Android pads text for font ascent/descent by default, which sits it low in
   // the box and makes it look misaligned next to the icon; centre it explicitly.
-  inputSingle: {includeFontPadding: false, textAlignVertical: 'center'},
+  inputSingle: { includeFontPadding: false, textAlignVertical: 'center' },
   inputMulti: {
     minHeight: 94,
     includeFontPadding: false,
     textAlignVertical: 'top',
   },
-  helper: {...type.caption, color: colors.muted},
-  error: {...type.caption, color: colors.danger, fontWeight: '700'},
+  helper: { ...type.caption, color: colors.muted },
+  error: { ...type.caption, color: colors.danger, fontWeight: '700' },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -409,9 +428,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  toggleText: {flex: 1},
-  toggleTitle: {...type.bodyStrong, color: colors.ink},
-  toggleSub: {...type.caption, color: colors.muted, marginTop: 2},
+  toggleText: { flex: 1 },
+  toggleTitle: { ...type.bodyStrong, color: colors.ink },
+  toggleSub: { ...type.caption, color: colors.muted, marginTop: 2 },
   segment: {
     flexDirection: 'row',
     backgroundColor: colors.slateSoft,
@@ -427,14 +446,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  segmentActive: {backgroundColor: colors.bg},
+  segmentActive: { backgroundColor: colors.bg },
   segmentText: {
     textAlign: 'center',
     flexShrink: 1,
     ...type.label,
     color: colors.inkSoft,
   },
-  segmentTextActive: {color: '#FFFFFF'},
+  segmentTextActive: { color: '#FFFFFF' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -448,22 +467,22 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     backgroundColor: colors.surface,
   },
-  chipSelected: {backgroundColor: colors.lime, borderColor: colors.lime},
+  chipSelected: { backgroundColor: colors.lime, borderColor: colors.lime },
   chipText: {
     flexShrink: 1,
     ...type.label,
     color: colors.inkSoft,
     fontWeight: '600',
   },
-  chipTextSelected: {color: colors.ink, fontWeight: '800'},
-  sliderHit: {height: 44, justifyContent: 'center'},
+  chipTextSelected: { color: colors.ink, fontWeight: '800' },
+  sliderHit: { height: 44, justifyContent: 'center' },
   sliderTrack: {
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.slateSoft,
     overflow: 'hidden',
   },
-  sliderFill: {height: '100%', backgroundColor: colors.lime},
+  sliderFill: { height: '100%', backgroundColor: colors.lime },
   sliderThumb: {
     position: 'absolute',
     width: 28,
@@ -475,7 +494,7 @@ const styles = StyleSheet.create({
     borderColor: colors.bg,
     top: 8,
   },
-  stepper: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stepBtn: {
     width: sizes.tap,
     height: sizes.tap,

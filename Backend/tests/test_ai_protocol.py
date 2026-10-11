@@ -107,7 +107,7 @@ def test_what_the_app_really_sends_is_accepted_and_drives_the_same_conversation(
 @pytest.mark.skipif(not (FIXTURES / "device_tool_results.json").exists(), reason="record device_tool_results.json from the Jest tools test first")
 def test_every_result_the_real_device_tools_produce_passes_the_gateways_validation():
     """The gateway rejects unknown fields and oversize text; the app's tools must never trip that."""
-    results = json.loads((FIXTURES / "device_tool_results.json").read_text())
+    results = json.loads((FIXTURES / "device_tool_results.json").read_text(encoding="utf-8"))
     assert len(results) >= 15
     for name, variants in results.items():
         for i, result in enumerate(variants):

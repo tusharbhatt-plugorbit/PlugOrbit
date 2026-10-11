@@ -6,9 +6,10 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import {Animated, BackHandler, Easing, StyleSheet, View} from 'react-native';
-import {colors} from '../theme';
-import {useKeyboardVisible} from '../ui/useKeyboardVisible';
+import { Animated, BackHandler, Easing, StyleSheet, View } from 'react-native';
+import { colors } from '../theme';
+import { useKeyboardVisible } from '../ui/useKeyboardVisible';
+import { useReducedMotion } from '../ui/useReducedMotion';
 import {
   EntryContext,
   Navigation,
@@ -16,7 +17,7 @@ import {
   NavigationState,
   NavigationStateContext,
 } from './NavigationContext';
-import {NavArgs, RouteName, TabName, isTab} from './params';
+import { NavArgs, RouteName, TabName, isTab } from './params';
 
 export type RouteEntry = {
   key: string;
@@ -45,14 +46,14 @@ type State = {
 };
 
 type Action =
-  | {type: 'push'; name: RouteName; params: unknown}
-  | {type: 'replace'; name: RouteName; params: unknown}
-  | {type: 'pop'}
-  | {type: 'popToTop'}
-  | {type: 'popTo'; name: RouteName}
-  | {type: 'reset'; name: RouteName; params: unknown}
-  | {type: 'tab'; tab: TabName}
-  | {type: 'doneLeaving'; key: string};
+  | { type: 'push'; name: RouteName; params: unknown }
+  | { type: 'replace'; name: RouteName; params: unknown }
+  | { type: 'pop' }
+  | { type: 'popToTop' }
+  | { type: 'popTo'; name: RouteName }
+  | { type: 'reset'; name: RouteName; params: unknown }
+  | { type: 'tab'; tab: TabName }
+  | { type: 'doneLeaving'; key: string };
 
 function entry(
   state: State,
@@ -60,14 +61,14 @@ function entry(
   params: unknown,
 ): [RouteEntry, number] {
   const counter = state.counter + 1;
-  return [{key: `${name}-${counter}`, name, params}, counter];
+  return [{ key: `${name}-${counter}`, name, params }, counter];
 }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'push': {
       if (isTab(action.name)) {
-        return reducer(state, {type: 'tab', tab: action.name});
+        return reducer(state, { type: 'tab', tab: action.name });
       }
       const top = state.stack[state.stack.length - 1];
       // Ignore accidental double-taps that would push the same screen twice.
@@ -79,28 +80,28 @@ function reducer(state: State, action: Action): State {
         return state;
       }
       const [e, counter] = entry(state, action.name, action.params);
-      return {...state, stack: [...state.stack, e], counter, leaving: null};
+      return { ...state, stack: [...state.stack, e], counter, leaving: null };
     }
     case 'replace': {
       if (isTab(action.name)) {
-        return reducer(state, {type: 'tab', tab: action.name});
+        return reducer(state, { type: 'tab', tab: action.name });
       }
       const [e, counter] = entry(state, action.name, action.params);
       const stack = state.stack.length ? [...state.stack.slice(0, -1), e] : [e];
-      return {...state, stack, counter, leaving: null};
+      return { ...state, stack, counter, leaving: null };
     }
     case 'pop': {
       if (state.stack.length === 0) {
         return state;
       }
       const leaving = state.stack[state.stack.length - 1];
-      return {...state, stack: state.stack.slice(0, -1), leaving};
+      return { ...state, stack: state.stack.slice(0, -1), leaving };
     }
     case 'popToTop': {
       if (state.stack.length === 0) {
         return state;
       }
-      return {...state, stack: [], leaving: null};
+      return { ...state, stack: [], leaving: null };
     }
     case 'popTo': {
       let idx = -1;
@@ -113,7 +114,7 @@ function reducer(state: State, action: Action): State {
       if (idx < 0) {
         return state;
       }
-      return {...state, stack: state.stack.slice(0, idx + 1), leaving: null};
+      return { ...state, stack: state.stack.slice(0, idx + 1), leaving: null };
     }
     case 'reset': {
       if (isTab(action.name)) {
@@ -128,7 +129,7 @@ function reducer(state: State, action: Action): State {
         };
       }
       const [e, counter] = entry(state, action.name, action.params);
-      return {...state, stack: [e], counter, leaving: null};
+      return { ...state, stack: [e], counter, leaving: null };
     }
     case 'tab':
       return {
@@ -142,7 +143,7 @@ function reducer(state: State, action: Action): State {
       };
     case 'doneLeaving':
       return state.leaving?.key === action.key
-        ? {...state, leaving: null}
+        ? { ...state, leaving: null }
         : state;
     default:
       return state;
@@ -152,7 +153,7 @@ function reducer(state: State, action: Action): State {
 type Props = {
   registry: Registry;
   initialTab?: TabName;
-  initialStack?: ReadonlyArray<{name: RouteName; params?: unknown}>;
+  initialStack?: ReadonlyArray<{ name: RouteName; params?: unknown }>;
   /** Rendered over the active screen when the route asks for it. */
   renderTabBar: (props: {
     tab: TabName;
@@ -174,7 +175,7 @@ function Host({
   onLeft,
   hidden,
 }: {
-  entryValue: RouteEntry & {focused: boolean};
+  entryValue: RouteEntry & { focused: boolean };
   config: RouteConfig;
   animateIn: boolean;
   leaving: boolean;
@@ -182,28 +183,29 @@ function Host({
   hidden: boolean;
 }) {
   const progress = useRef(new Animated.Value(animateIn ? 0 : 1)).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (animateIn) {
       Animated.timing(progress, {
         toValue: 1,
-        duration: DURATION,
+        duration: reducedMotion ? 0 : DURATION,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
     }
-  }, [animateIn, progress]);
+  }, [animateIn, progress, reducedMotion]);
 
   useEffect(() => {
     if (leaving) {
       Animated.timing(progress, {
         toValue: 0,
-        duration: DURATION - 40,
+        duration: reducedMotion ? 0 : DURATION - 40,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
-      }).start(({finished}) => finished && onLeft());
+      }).start(({ finished }) => finished && onLeft());
     }
-  }, [leaving, progress, onLeft]);
+  }, [leaving, progress, onLeft, reducedMotion]);
 
   const Component = config.component;
   return (
@@ -227,14 +229,16 @@ function Host({
       testID={`screen-${entryValue.key}`}
       pointerEvents={entryValue.focused ? 'auto' : 'none'}
       accessibilityElementsHidden={hidden}
-      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}>
+      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
+    >
       <EntryContext.Provider
         value={{
           key: entryValue.key,
           name: entryValue.name,
           params: entryValue.params,
           focused: entryValue.focused && !leaving,
-        }}>
+        }}
+      >
         <Component />
       </EntryContext.Provider>
     </Animated.View>
@@ -272,23 +276,23 @@ export function AppNavigator({
   const navigation = useMemo<Navigation>(
     () => ({
       navigate: (name, ...args) =>
-        dispatch({type: 'push', name, params: args[0]}),
+        dispatch({ type: 'push', name, params: args[0] }),
       replace: (name, ...args) =>
-        dispatch({type: 'replace', name, params: args[0]}),
-      goBack: () => dispatch({type: 'pop'}),
+        dispatch({ type: 'replace', name, params: args[0] }),
+      goBack: () => dispatch({ type: 'pop' }),
       canGoBack: () => stateRef.current.stack.length > 0,
-      popToTop: () => dispatch({type: 'popToTop'}),
+      popToTop: () => dispatch({ type: 'popToTop' }),
       reset: (name, ...args) =>
-        dispatch({type: 'reset', name, params: args[0]}),
+        dispatch({ type: 'reset', name, params: args[0] }),
       popTo: name => {
         const s = stateRef.current;
         const found = s.stack.slice(0, -1).some(e => e.name === name);
         if (found) {
-          dispatch({type: 'popTo', name});
+          dispatch({ type: 'popTo', name });
         }
         return found;
       },
-      switchTab: tab => dispatch({type: 'tab', tab}),
+      switchTab: tab => dispatch({ type: 'tab', tab }),
     }),
     [],
   );
@@ -304,11 +308,11 @@ export function AppNavigator({
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       const s = stateRef.current;
       if (s.stack.length > 0) {
-        dispatch({type: 'pop'});
+        dispatch({ type: 'pop' });
         return true;
       }
       if (s.tab !== 'Home') {
-        dispatch({type: 'tab', tab: 'Home'});
+        dispatch({ type: 'tab', tab: 'Home' });
         return true;
       }
       return false;
@@ -319,14 +323,14 @@ export function AppNavigator({
   const top = state.stack[state.stack.length - 1];
   const visibleName: RouteName = top ? top.name : state.tab;
   const navState = useMemo<NavigationState>(
-    () => ({tab: state.tab, current: visibleName, depth: state.stack.length}),
+    () => ({ tab: state.tab, current: visibleName, depth: state.stack.length }),
     [state.tab, visibleName, state.stack.length],
   );
 
   const showTabBar = top ? !!registry[top.name]?.tabBar : true;
 
   const onLeft = useCallback(
-    (key: string) => dispatch({type: 'doneLeaving', key}),
+    (key: string) => dispatch({ type: 'doneLeaving', key }),
     [],
   );
 
@@ -364,7 +368,7 @@ export function AppNavigator({
               return (
                 <Host
                   key={e.key}
-                  entryValue={{...e, focused: isTop}}
+                  entryValue={{ ...e, focused: isTop }}
                   config={registry[e.name]}
                   animateIn={animateIn}
                   leaving={false}
@@ -376,7 +380,7 @@ export function AppNavigator({
             {state.leaving && (
               <Host
                 key={`${state.leaving.key}-leaving`}
-                entryValue={{...state.leaving, focused: false}}
+                entryValue={{ ...state.leaving, focused: false }}
                 config={registry[state.leaving.name]}
                 animateIn={false}
                 leaving
@@ -389,7 +393,7 @@ export function AppNavigator({
             !keyboardVisible &&
             renderTabBar({
               tab: (top && registry[top.name]?.tab) || state.tab,
-              onSelect: tab => dispatch({type: 'tab', tab}),
+              onSelect: tab => dispatch({ type: 'tab', tab }),
             })}
           {overlay}
         </View>
@@ -400,11 +404,11 @@ export function AppNavigator({
 
 function noop() {}
 
-export type {NavArgs};
+export type { NavArgs };
 
 const styles = StyleSheet.create({
-  root: {flex: 1, backgroundColor: colors.bg},
-  screens: {flex: 1},
-  host: {backgroundColor: colors.bg},
-  hidden: {display: 'none'},
+  root: { flex: 1, backgroundColor: colors.bg },
+  screens: { flex: 1 },
+  host: { backgroundColor: colors.bg },
+  hidden: { display: 'none' },
 });

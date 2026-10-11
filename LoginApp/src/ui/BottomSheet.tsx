@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -8,10 +8,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {colors, radii, sizes, spacing, type} from '../theme';
-import {Icon} from './Icon';
-import {KeyboardAvoider, KeyboardAwareScrollView} from './KeyboardAware';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, radii, sizes, spacing, type } from '../theme';
+import { Icon } from './Icon';
+import { KeyboardAvoider, KeyboardAwareScrollView } from './KeyboardAware';
+import { useReducedMotion } from './useReducedMotion';
 
 type Props = {
   visible: boolean;
@@ -36,16 +37,19 @@ export function BottomSheet({
   testID,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(progress, {
+    const animation = Animated.timing(progress, {
       toValue: visible ? 1 : 0,
-      duration: 220,
+      duration: reducedMotion ? 0 : 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start();
-  }, [visible, progress]);
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [visible, progress, reducedMotion]);
 
   return (
     <Modal
@@ -53,9 +57,10 @@ export function BottomSheet({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={dismissable ? onClose : undefined}>
+      onRequestClose={dismissable ? onClose : undefined}
+    >
       <KeyboardAvoider style={styles.root} testID={testID}>
-        <Animated.View style={[styles.scrim, {opacity: progress}]}>
+        <Animated.View style={[styles.scrim, { opacity: progress }]}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={dismissable ? onClose : undefined}
@@ -77,7 +82,8 @@ export function BottomSheet({
                 },
               ],
             },
-          ]}>
+          ]}
+        >
           <View style={styles.grabber} />
           {title ? (
             <View style={styles.titleRow}>
@@ -90,7 +96,8 @@ export function BottomSheet({
                   hitSlop={12}
                   accessibilityRole="button"
                   accessibilityLabel="Close"
-                  style={styles.close}>
+                  style={styles.close}
+                >
                   <Icon name="x" size={16} color={colors.ink} />
                 </Pressable>
               )}
@@ -99,7 +106,8 @@ export function BottomSheet({
           <KeyboardAwareScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+          >
             {children}
           </KeyboardAwareScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
@@ -110,8 +118,8 @@ export function BottomSheet({
 }
 
 const styles = StyleSheet.create({
-  root: {flex: 1, justifyContent: 'flex-end'},
-  scrim: {...StyleSheet.absoluteFill, backgroundColor: colors.scrim},
+  root: { flex: 1, justifyContent: 'flex-end' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
   sheet: {
     flexShrink: 1,
     backgroundColor: colors.surface,
@@ -138,7 +146,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  title: {...type.h1, color: colors.ink, flex: 1},
+  title: { ...type.h1, color: colors.ink, flex: 1 },
   close: {
     width: 44,
     height: 44,
@@ -147,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scroll: {flexGrow: 0, flexShrink: 1, minHeight: 0},
-  scrollContent: {paddingBottom: spacing.md, gap: spacing.md},
-  footer: {paddingTop: spacing.sm, gap: spacing.sm},
+  scroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
+  scrollContent: { paddingBottom: spacing.md, gap: spacing.md },
+  footer: { paddingTop: spacing.sm, gap: spacing.sm },
 });

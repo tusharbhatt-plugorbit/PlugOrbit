@@ -1,34 +1,37 @@
-import {NdjsonParser} from '../../src/assistant/ndjson';
-import {Endpointer} from '../../src/assistant/voice/endpointing';
-import {SpeechPipeline} from '../../src/assistant/voice/pipeline';
-import {SentenceSplitter} from '../../src/assistant/voice/sentences';
+import { NdjsonParser } from '../../src/assistant/ndjson';
+import { Endpointer } from '../../src/assistant/voice/endpointing';
+import { SpeechPipeline } from '../../src/assistant/voice/pipeline';
+import { SentenceSplitter } from '../../src/assistant/voice/sentences';
 import {
   hasDevanagari,
   localeFor,
   speakable,
 } from '../../src/assistant/voice/speakable';
-import {FakeSynth, flush} from '../../src/dev/assistantFakes';
+import { FakeSynth, flush } from '../../src/dev/assistantFakes';
 
 describe('NdjsonParser', () => {
   it('parses lines split anywhere across chunks', () => {
     const p = new NdjsonParser();
-    const line = JSON.stringify({type: 'text', delta: 'नमस्ते'}) + '\n';
+    const line = JSON.stringify({ type: 'text', delta: 'नमस्ते' }) + '\n';
     const out: unknown[] = [];
     for (const ch of [line.slice(0, 7), line.slice(7, 19), line.slice(19)]) {
       out.push(...p.push(ch));
     }
-    expect(out).toEqual([{type: 'text', delta: 'नमस्ते'}]);
+    expect(out).toEqual([{ type: 'text', delta: 'नमस्ते' }]);
   });
 
   it('skips a garbled line and keeps going', () => {
     const p = new NdjsonParser();
-    expect(p.push('{"a":1}\nnot json\n{"b":2}\n')).toEqual([{a: 1}, {b: 2}]);
+    expect(p.push('{"a":1}\nnot json\n{"b":2}\n')).toEqual([
+      { a: 1 },
+      { b: 2 },
+    ]);
   });
 
   it('flushes a last line with no newline', () => {
     const p = new NdjsonParser();
-    expect(p.push('{"a":1}\n{"b":2}')).toEqual([{a: 1}]);
-    expect(p.flush()).toEqual([{b: 2}]);
+    expect(p.push('{"a":1}\n{"b":2}')).toEqual([{ a: 1 }]);
+    expect(p.flush()).toEqual([{ b: 2 }]);
     expect(p.flush()).toEqual([]);
   });
 });
@@ -150,6 +153,27 @@ describe('Endpointer', () => {
 });
 
 describe('SpeechPipeline', () => {
+  it('recovers from a rejected native speech promise without losing queued speech', async () => {
+    const synth = new FakeSynth();
+    const original = synth.speak.bind(synth);
+    let calls = 0;
+    synth.speak = async (text, options) => {
+      if (calls++ === 0) {
+        throw new Error('audio engine disconnected');
+      }
+      return original(text, options);
+    };
+    const audio = { beginSpeaking: jest.fn(), endSpeaking: jest.fn() };
+    const pipeline = new SpeechPipeline(synth, audio, {
+      onSpeaking: jest.fn(),
+    });
+    pipeline.enqueue('First sentence.');
+    pipeline.enqueue('Still available in text and speech.');
+    await pipeline.whenIdle();
+    expect(synth.spoken).toHaveLength(1);
+    expect(pipeline.busy).toBe(false);
+    expect(audio.endSpeaking).toHaveBeenCalledTimes(1);
+  });
   const audio = () => ({
     begun: 0,
     ended: 0,
@@ -188,7 +212,9 @@ describe('SpeechPipeline', () => {
 
   it('ignores text with nothing to say', async () => {
     const synth = new FakeSynth();
-    const p = new SpeechPipeline(synth, audio(), {onSpeaking: () => undefined});
+    const p = new SpeechPipeline(synth, audio(), {
+      onSpeaking: () => undefined,
+    });
     p.enqueue('  **  ', 'm1');
     expect(synth.spoken).toEqual([]);
     expect(p.busy).toBe(false);
@@ -198,7 +224,7 @@ describe('SpeechPipeline', () => {
     const synth = new FakeSynth();
     synth.manual = true;
     const a = audio();
-    const p = new SpeechPipeline(synth, a, {onSpeaking: () => undefined});
+    const p = new SpeechPipeline(synth, a, { onSpeaking: () => undefined });
     p.enqueue('Talking for a while.', 'm1');
     p.enqueue('Never spoken.', 'm1');
     await flush();
@@ -213,7 +239,9 @@ describe('SpeechPipeline', () => {
   it('can speak again straight after a stop', async () => {
     const synth = new FakeSynth();
     synth.manual = true;
-    const p = new SpeechPipeline(synth, audio(), {onSpeaking: () => undefined});
+    const p = new SpeechPipeline(synth, audio(), {
+      onSpeaking: () => undefined,
+    });
     p.enqueue('Old words.', 'm1');
     await flush();
     const stopping = p.stop();
@@ -229,7 +257,9 @@ describe('SpeechPipeline', () => {
   it('drops the rest of an answer if the OS cancels it (a call came in)', async () => {
     const synth = new FakeSynth();
     synth.manual = true;
-    const p = new SpeechPipeline(synth, audio(), {onSpeaking: () => undefined});
+    const p = new SpeechPipeline(synth, audio(), {
+      onSpeaking: () => undefined,
+    });
     p.enqueue('First part.', 'm1');
     p.enqueue('Second part.', 'm1');
     await flush();
@@ -246,7 +276,9 @@ describe('SpeechPipeline', () => {
       await original(text, o);
       return n++ === 0 ? 'error' : 'done';
     };
-    const p = new SpeechPipeline(synth, audio(), {onSpeaking: () => undefined});
+    const p = new SpeechPipeline(synth, audio(), {
+      onSpeaking: () => undefined,
+    });
     p.enqueue('Fails.', 'm1');
     p.enqueue('Still spoken.', 'm1');
     await p.whenIdle();

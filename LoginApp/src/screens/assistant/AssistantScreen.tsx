@@ -1,8 +1,8 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
-import {updateSettings} from '../../assistant/store';
-import {useRoute} from '../../navigation/NavigationContext';
-import {colors, radii, spacing, type} from '../../theme';
+import React, { useEffect, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { updateSettings } from '../../assistant/store';
+import { useRoute } from '../../navigation/NavigationContext';
+import { colors, radii, spacing, type } from '../../theme';
 import {
   ActionCard,
   BottomSheet,
@@ -20,8 +20,8 @@ import {
   SecondaryButton,
   VoiceOrb,
 } from '../../ui';
-import {AssistantSettings} from './AssistantSettings';
-import {DrivingMode} from './DrivingMode';
+import { AssistantSettings } from './AssistantSettings';
+import { DrivingMode } from './DrivingMode';
 import {
   AssistantView,
   needsMemoryConsent,
@@ -46,7 +46,7 @@ export function Conversation({
   view: AssistantView;
   messages?: AssistantView['messages'];
 }) {
-  const {assistant, settings} = view;
+  const { assistant, settings } = view;
   return (
     <>
       {messages.map(m => (
@@ -83,7 +83,7 @@ export function Conversation({
  * Orb + one live line: what Orbit is doing, or what it is hearing. While idle and
  * healthy it stays out of the way (the microphone says the same thing).
  */
-export function VoiceStage({view}: {view: AssistantView}) {
+export function VoiceStage({ view }: { view: AssistantView }) {
   const trouble =
     view.gateway.health === 'offline' ||
     view.gateway.health === 'signed_out' ||
@@ -99,7 +99,8 @@ export function VoiceStage({view}: {view: AssistantView}) {
         <Text
           style={styles.stageStatus}
           accessibilityLiveRegion="polite"
-          numberOfLines={3}>
+          numberOfLines={3}
+        >
           {statusText(view)}
         </Text>
       </View>
@@ -109,8 +110,8 @@ export function VoiceStage({view}: {view: AssistantView}) {
 
 export default function AssistantScreen() {
   const view = useAssistantView();
-  const {params} = useRoute<'Assistant'>();
-  const {assistant, settings, nav} = view;
+  const { params } = useRoute<'Assistant'>();
+  const { assistant, settings, nav } = view;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   useAssistantOpened(true);
@@ -131,7 +132,9 @@ export default function AssistantScreen() {
 
   const lastLength = view.messages[view.messages.length - 1]?.text.length ?? 0;
   useEffect(() => {
-    scroll.current?.scrollToEnd({animated: true});
+    if (view.messages.length > 0) {
+      scroll.current?.scrollToEnd({ animated: true });
+    }
   }, [view.messages.length, lastLength]);
 
   const end = async () => {
@@ -148,7 +151,7 @@ export default function AssistantScreen() {
           view={view}
           onExit={async () => {
             await assistant.interrupt();
-            updateSettings({drivingMode: false});
+            updateSettings({ drivingMode: false });
           }}
           onEnd={end}
         />
@@ -171,45 +174,48 @@ export default function AssistantScreen() {
           />
         }
         footer={
-          <View style={styles.footer}>
-            <Composer
-              onSend={view.send}
-              disabled={!view.consented}
-              placeholder={
-                view.consented ? 'Type to Orbit' : 'Turn on Orbit’s AI first'
-              }
-            />
-            <View style={styles.controls}>
-              <RoundAction
-                icon={
-                  settings.muted || settings.textOnly ? 'volume-x' : 'volume2'
+          !view.consented ? undefined : (
+            <View style={styles.footer}>
+              <Composer
+                onSend={view.send}
+                disabled={!view.consented}
+                placeholder={
+                  view.consented ? 'Type to Orbit' : 'Turn on Orbit’s AI first'
                 }
-                label={settings.muted ? 'Unmute Orbit' : 'Mute Orbit'}
-                active={settings.muted || settings.textOnly}
-                disabled={settings.textOnly}
-                onPress={() => assistant.setMuted(!settings.muted)}
               />
-              <RoundAction
-                icon="circle-stop"
-                label="Stop talking"
-                disabled={!busy}
-                onPress={() => assistant.interrupt()}
-              />
-              <MicButton
-                phase={view.phase}
-                disabled={!view.canListen}
-                onPress={view.toggleMic}
-              />
-              <RoundAction
-                icon="rotate-ccw"
-                label="Hear the last answer again"
-                disabled={!view.canSpeak || view.messages.length === 0}
-                onPress={() => assistant.replay()}
-              />
-              <RoundAction icon="x" label="End conversation" onPress={end} />
+              <View style={styles.controls}>
+                <RoundAction
+                  icon={
+                    settings.muted || settings.textOnly ? 'volume-x' : 'volume2'
+                  }
+                  label={settings.muted ? 'Unmute Orbit' : 'Mute Orbit'}
+                  active={settings.muted || settings.textOnly}
+                  disabled={settings.textOnly}
+                  onPress={() => assistant.setMuted(!settings.muted)}
+                />
+                <RoundAction
+                  icon="circle-stop"
+                  label="Stop talking"
+                  disabled={!busy}
+                  onPress={() => assistant.interrupt()}
+                />
+                <MicButton
+                  phase={view.phase}
+                  disabled={!view.canListen}
+                  onPress={view.toggleMic}
+                />
+                <RoundAction
+                  icon="rotate-ccw"
+                  label="Hear the last answer again"
+                  disabled={!view.canSpeak || view.messages.length === 0}
+                  onPress={() => assistant.replay()}
+                />
+                <RoundAction icon="x" label="End conversation" onPress={end} />
+              </View>
             </View>
-          </View>
-        }>
+          )
+        }
+      >
         <View style={styles.context}>
           {view.context.map(c => (
             <ContextChip key={c.text} icon={c.icon} text={c.text} />
@@ -221,7 +227,8 @@ export default function AssistantScreen() {
           style={styles.flex}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+        >
           {!view.consented ? (
             <ConsentCard onAccept={() => assistant.grantConsent()} />
           ) : empty ? (
@@ -267,7 +274,8 @@ export default function AssistantScreen() {
       <BottomSheet
         visible={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        title="Assistant settings">
+        title="Assistant settings"
+      >
         <AssistantSettings onOpenPhoneSettings={view.openPhoneSettings} />
       </BottomSheet>
     </>
@@ -275,19 +283,19 @@ export default function AssistantScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: {flex: 1},
+  flex: { flex: 1 },
   context: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  list: {gap: spacing.md, paddingVertical: spacing.sm, flexGrow: 1},
-  item: {gap: spacing.sm},
-  intro: {gap: spacing.md, paddingVertical: spacing.md},
-  introTitle: {...type.h1, color: colors.ink},
-  introBody: {...type.body, color: colors.inkSoft, lineHeight: 20},
-  chips: {flexDirection: 'column', alignItems: 'flex-start', gap: spacing.sm},
+  list: { gap: spacing.md, paddingVertical: spacing.sm, flexGrow: 1 },
+  item: { gap: spacing.sm },
+  intro: { gap: spacing.md, paddingVertical: spacing.md },
+  introTitle: { ...type.h1, color: colors.ink },
+  introBody: { ...type.body, color: colors.inkSoft, lineHeight: 20 },
+  chips: { flexDirection: 'column', alignItems: 'flex-start', gap: spacing.sm },
   stage: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,10 +306,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginTop: spacing.sm,
   },
-  stageText: {flex: 1, gap: 2},
-  stageKicker: {...type.micro, color: colors.lime},
-  stageStatus: {...type.bodyStrong, color: colors.surface},
-  footer: {gap: spacing.md},
+  stageText: { flex: 1, gap: 2 },
+  stageKicker: { ...type.micro, color: colors.lime },
+  stageStatus: { ...type.bodyStrong, color: colors.surface },
+  footer: { gap: spacing.md },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',

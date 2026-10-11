@@ -1,16 +1,16 @@
-import {useEffect} from 'react';
-import {AppState as RNAppState} from 'react-native';
-import {resolveOrigin} from '../hooks/useDiscoverStations';
-import {useNavigation} from '../navigation/NavigationContext';
-import type {Navigation} from '../navigation/NavigationContext';
-import {LocationError} from '../services/location';
-import {RUNS_ON_DEMO_DATA, useServices} from '../services';
-import type {Services} from '../services/types';
-import {appStore} from '../store/appStore';
-import {performAction} from './actions';
-import {AssistantController} from './controller';
-import {createGateway} from './gateway';
-import {startProactive} from './proactive';
+import { useEffect } from 'react';
+import { AppState as RNAppState } from 'react-native';
+import { resolveOrigin } from '../hooks/useDiscoverStations';
+import { useNavigation } from '../navigation/NavigationContext';
+import type { Navigation } from '../navigation/NavigationContext';
+import { LocationError } from '../services/location';
+import { RUNS_ON_DEMO_DATA, useServices } from '../services';
+import type { Services } from '../services/types';
+import { appStore } from '../store/appStore';
+import { performAction } from './actions';
+import { AssistantController } from './controller';
+import { createGateway } from './gateway';
+import { startProactive } from './proactive';
 import {
   activePreferences,
   assistantStore,
@@ -19,11 +19,11 @@ import {
   freshJourney,
   hydrateAssistantStore,
 } from './store';
-import {createToolRunner} from './tools';
-import type {ToolDeps} from './tools';
-import {DEFAULT_SETTINGS} from './types';
-import type {ToolEnvelope} from './types';
-import {createNativeVoice} from './voice/native';
+import { createToolRunner } from './tools';
+import type { ToolDeps } from './tools';
+import { DEFAULT_SETTINGS } from './types';
+import type { ToolEnvelope } from './types';
+import { createNativeVoice } from './voice/native';
 
 /**
  * Wiring. One controller lives for the life of the app; it is created on first
@@ -31,7 +31,7 @@ import {createNativeVoice} from './voice/native';
  * (mounted once, headless) gives it the app's services and navigation.
  */
 
-const attached: {services: Services | null; nav: Navigation | null} = {
+const attached: { services: Services | null; nav: Navigation | null } = {
   services: null,
   nav: null,
 };
@@ -63,7 +63,7 @@ function toolDeps(): ToolDeps {
           'Location is not available.',
         );
       }
-      return {coords: where.userLocation, outsideDemoArea: where.demoArea};
+      return { coords: where.userLocation, outsideDemoArea: where.demoArea };
     },
   };
 }
@@ -89,7 +89,7 @@ export function getAssistant(): AssistantController {
       performAction: (action, options) =>
         performAction(
           action,
-          {tools: toolDeps(), getNav: () => attached.nav},
+          { tools: toolDeps(), getNav: () => attached.nav },
           options,
         ),
     });
@@ -127,12 +127,14 @@ export function AssistantBridge(): null {
         return;
       }
       assistant.refreshVoice();
-      stop = startProactive(assistant, {demo: RUNS_ON_DEMO_DATA});
+      stop = startProactive(assistant, { demo: RUNS_ON_DEMO_DATA });
     });
     const sub = RNAppState.addEventListener('change', next => {
       if (next !== 'active') {
         assistant.onBackground();
         flushAssistantStore();
+      } else {
+        assistant.onForeground();
       }
     });
     return () => {
@@ -145,7 +147,7 @@ export function AssistantBridge(): null {
         // not inherit a conversation, a journey, remembered preferences or an AI consent.
         assistant.clearHistory();
         eraseAssistantData();
-        assistantStore.set({settings: DEFAULT_SETTINGS});
+        assistantStore.set({ settings: DEFAULT_SETTINGS });
       }
     };
   }, []);

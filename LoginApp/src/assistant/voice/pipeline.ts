@@ -1,5 +1,5 @@
-import type {AudioSessionPort, SpeechSynthesizerPort} from './ports';
-import {localeFor, speakable} from './speakable';
+import type { AudioSessionPort, SpeechSynthesizerPort } from './ports';
+import { localeFor, speakable } from './speakable';
 
 /**
  * Speaks sentences one after another, in order, and can be cut off instantly.
@@ -7,7 +7,7 @@ import {localeFor, speakable} from './speakable';
  * talking and restored when it stops, whatever the reason it stopped.
  */
 export class SpeechPipeline {
-  private queue: Array<{text: string; id: string | null}> = [];
+  private queue: Array<{ text: string; id: string | null }> = [];
   private running = false;
   private generation = 0;
   private idleWaiters: Array<() => void> = [];
@@ -30,7 +30,7 @@ export class SpeechPipeline {
     if (!clean) {
       return;
     }
-    this.queue.push({text: clean, id});
+    this.queue.push({ text: clean, id });
     if (!this.running) {
       this.drain(this.generation);
     }
@@ -64,10 +64,12 @@ export class SpeechPipeline {
           current = next.id;
           this.hooks.onSpeaking(current, true);
         }
-        const result = await this.synth.speak(next.text, {
-          locale: localeFor(next.text),
-          rate: this.hooks.rate,
-        });
+        const result = await this.synth
+          .speak(next.text, {
+            locale: localeFor(next.text),
+            rate: this.hooks.rate,
+          })
+          .catch(() => 'error' as const);
         if (result === 'cancelled') {
           // Stopped by us (generation moved on) or by the OS, e.g. a phone call or
           // another app taking audio focus. Either way the rest of the answer is not

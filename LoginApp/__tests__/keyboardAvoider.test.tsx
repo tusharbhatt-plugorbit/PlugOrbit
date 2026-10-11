@@ -7,71 +7,72 @@ import {
   Text,
   View,
 } from 'react-native';
-import Renderer, {act} from 'react-test-renderer';
+import Renderer, { act } from 'react-test-renderer';
 import {
   KeyboardAvoider,
   KeyboardAwareScrollView,
+  notifyInputFocused,
 } from '../src/ui/KeyboardAware';
-import {keyboardOverlap, scrollDeltaToReveal} from '../src/ui/keyboardMath';
+import { keyboardOverlap, scrollDeltaToReveal } from '../src/ui/keyboardMath';
 
 describe('keyboardOverlap', () => {
-  const kb = {top: 360, height: 280};
+  const kb = { top: 360, height: 280 };
 
   test('a view that runs to the bottom of an un-resized window is covered by the whole keyboard', () => {
-    expect(keyboardOverlap({top: 0, height: 640}, kb)).toBe(280);
+    expect(keyboardOverlap({ top: 0, height: 640 }, kb)).toBe(280);
   });
 
   test('a window already resized above the keyboard is not compensated again', () => {
     // adjustResize: the view now ends where the keyboard starts.
-    expect(keyboardOverlap({top: 0, height: 360}, kb)).toBe(0);
+    expect(keyboardOverlap({ top: 0, height: 360 }, kb)).toBe(0);
   });
 
   test('only the covered part counts', () => {
-    expect(keyboardOverlap({top: 100, height: 400}, kb)).toBe(140);
+    expect(keyboardOverlap({ top: 100, height: 400 }, kb)).toBe(140);
   });
 
   test('a view that ends above the keyboard needs nothing', () => {
-    expect(keyboardOverlap({top: 0, height: 200}, kb)).toBe(0);
+    expect(keyboardOverlap({ top: 0, height: 200 }, kb)).toBe(0);
   });
 
   test('no keyboard, or a zero-height one, needs nothing', () => {
-    expect(keyboardOverlap({top: 0, height: 640}, null)).toBe(0);
-    expect(keyboardOverlap({top: 0, height: 640}, {top: 640, height: 0})).toBe(
-      0,
-    );
+    expect(keyboardOverlap({ top: 0, height: 640 }, null)).toBe(0);
+    expect(
+      keyboardOverlap({ top: 0, height: 640 }, { top: 640, height: 0 }),
+    ).toBe(0);
   });
 
   test('never more than the keyboard itself', () => {
-    expect(keyboardOverlap({top: 0, height: 2000}, kb)).toBe(280);
+    expect(keyboardOverlap({ top: 0, height: 2000 }, kb)).toBe(280);
   });
 });
 
 describe('scrollDeltaToReveal', () => {
-  const visible = {top: 100, bottom: 400};
+  const visible = { top: 100, bottom: 400 };
 
   test('a field already in view does not scroll', () => {
-    expect(scrollDeltaToReveal({top: 200, bottom: 252}, visible)).toBe(0);
+    expect(scrollDeltaToReveal({ top: 200, bottom: 252 }, visible)).toBe(0);
   });
 
   test('a field under the keyboard scrolls down by what is hidden plus margin', () => {
-    expect(scrollDeltaToReveal({top: 380, bottom: 432}, visible)).toBe(48);
+    expect(scrollDeltaToReveal({ top: 380, bottom: 432 }, visible)).toBe(48);
   });
 
   test('a field above the top scrolls up', () => {
-    expect(scrollDeltaToReveal({top: 90, bottom: 142}, visible)).toBe(-26);
+    expect(scrollDeltaToReveal({ top: 90, bottom: 142 }, visible)).toBe(-26);
   });
 
   test('a field taller than the visible area shows its start', () => {
-    expect(scrollDeltaToReveal({top: 300, bottom: 800}, visible)).toBe(184);
+    expect(scrollDeltaToReveal({ top: 300, bottom: 800 }, visible)).toBe(184);
   });
 });
 
-type Frame = {top: number; height: number};
+type Frame = { top: number; height: number };
 
 describe.each(['android', 'ios'] as const)(
   'KeyboardAvoider on %s',
   platform => {
-    let os: {restore: () => void};
+    let os: { restore: () => void };
     let events: Map<string, (e?: unknown) => void>;
     let spy: jest.SpyInstance;
     let frame: Frame;
@@ -82,7 +83,7 @@ describe.each(['android', 'ios'] as const)(
     const hide = platform === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const emitShow = (height: number, screenY: number) =>
       act(async () => {
-        events.get(show)!({endCoordinates: {height, screenY}, duration: 0});
+        events.get(show)!({ endCoordinates: { height, screenY }, duration: 0 });
       });
     const avoiderNode = () =>
       app.root.findAllByType(View).find(v => v.props.collapsable === false)!;
@@ -97,9 +98,9 @@ describe.each(['android', 'ios'] as const)(
         cb: (e?: unknown) => void,
       ) => {
         events.set(name, cb);
-        return {remove: jest.fn()};
+        return { remove: jest.fn() };
       }) as never);
-      frame = {top: 0, height: 640};
+      frame = { top: 0, height: 640 };
       await act(async () => {
         app = Renderer.create(
           <KeyboardAvoider>
@@ -127,7 +128,7 @@ describe.each(['android', 'ios'] as const)(
     });
 
     test('adds nothing when the window was already resized above the keyboard', async () => {
-      frame = {top: 0, height: 360};
+      frame = { top: 0, height: 360 };
       await emitShow(280, 360);
       expect(padding()).toBe(0);
     });
@@ -137,7 +138,7 @@ describe.each(['android', 'ios'] as const)(
       expect(padding()).toBe(280);
       await act(async () => {
         events.get(hide)!({
-          endCoordinates: {height: 0, screenY: 640},
+          endCoordinates: { height: 0, screenY: 640 },
           duration: 0,
         });
       });
@@ -152,7 +153,7 @@ describe.each(['android', 'ios'] as const)(
 
     test('stops listening when it unmounts', async () => {
       const remove = jest.fn();
-      spy.mockImplementation((() => ({remove})) as never);
+      spy.mockImplementation((() => ({ remove })) as never);
       let other!: Renderer.ReactTestRenderer;
       await act(async () => {
         other = Renderer.create(<KeyboardAvoider />);
@@ -164,6 +165,34 @@ describe.each(['android', 'ios'] as const)(
 );
 
 describe('KeyboardAwareScrollView', () => {
+  test('cancels pending focus measurements when a form unmounts', async () => {
+    jest.useFakeTimers();
+    let app!: Renderer.ReactTestRenderer;
+    const scheduled = jest.spyOn(global, 'setTimeout');
+    const cleared = jest.spyOn(global, 'clearTimeout');
+    try {
+      await act(async () => {
+        app = Renderer.create(<KeyboardAwareScrollView />);
+      });
+      await act(async () => {
+        notifyInputFocused();
+      });
+      const focusTimers = scheduled.mock.calls.flatMap((call, index) =>
+        call[1] === 60 || call[1] === 320
+          ? [scheduled.mock.results[index].value]
+          : [],
+      );
+      expect(focusTimers).toHaveLength(2);
+      await act(async () => app.unmount());
+      focusTimers.forEach(timer =>
+        expect(cleared.mock.calls.some(call => call[0] === timer)).toBe(true),
+      );
+    } finally {
+      scheduled.mockRestore();
+      cleared.mockRestore();
+      jest.useRealTimers();
+    }
+  });
   test('is still a ScrollView that keeps taps and drag-dismiss behaviour', async () => {
     let app!: Renderer.ReactTestRenderer;
     await act(async () => {

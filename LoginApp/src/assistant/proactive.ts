@@ -1,10 +1,10 @@
-import {computeSessionMetrics} from '../domain/charging';
-import type {AppNotification} from '../domain/types';
-import type {Store} from '../store/createStore';
-import {AppState, appStore} from '../store/appStore';
-import type {AssistantController} from './controller';
-import {assistantStore, markProactive, patchJourney} from './store';
-import type {FallbackLink} from './types';
+import { computeSessionMetrics } from '../domain/charging';
+import type { AppNotification } from '../domain/types';
+import type { Store } from '../store/createStore';
+import { AppState, appStore } from '../store/appStore';
+import type { AssistantController } from './controller';
+import { assistantStore, markProactive, patchJourney } from './store';
+import type { FallbackLink } from './types';
 
 /**
  * Orbit raises its own hand, sparingly.
@@ -43,29 +43,33 @@ export type Verdict = 'speak' | 'show' | 'skip';
 /** Pure policy: what to do with one engine notification. */
 export function judge(
   n: AppNotification,
-  ctx: {seen: Record<string, number>; spokenAt: readonly number[]; now: number},
-): {verdict: Verdict; key: string} {
+  ctx: {
+    seen: Record<string, number>;
+    spokenAt: readonly number[];
+    now: number;
+  },
+): { verdict: Verdict; key: string } {
   const level = n.level ?? 'info';
   const key = `${level}|${n.title}|${n.body}`;
   if (ctx.now - n.at > MAX_AGE_MS) {
-    return {verdict: 'skip', key};
+    return { verdict: 'skip', key };
   }
   const last = ctx.seen[key];
   if (last !== undefined && ctx.now - last < COOLDOWN_MS[level]) {
-    return {verdict: 'skip', key};
+    return { verdict: 'skip', key };
   }
   if (!SPOKEN_LEVELS.has(level)) {
-    return {verdict: 'show', key};
+    return { verdict: 'show', key };
   }
   const recent = ctx.spokenAt.filter(t => ctx.now - t < 3_600_000).length;
   if (level !== 'critical' && recent >= MAX_SPOKEN_PER_HOUR) {
-    return {verdict: 'show', key};
+    return { verdict: 'show', key };
   }
-  return {verdict: 'speak', key};
+  return { verdict: 'speak', key };
 }
 
 const TRIP_LINKS: Record<string, FallbackLink> = {
-  SmartDrive: {label: 'Open trip', icon: 'route', route: 'SmartDrive'},
+  SmartDrive: { label: 'Open trip', icon: 'route', route: 'SmartDrive' },
   SmartDriveStop: {
     label: 'See the stop',
     icon: 'plug-zap',
@@ -105,7 +109,7 @@ export function startProactive(
         return; // the driver has not turned Orbit on: the engine's own in-app alerts are enough
       }
       const at = now();
-      const {verdict, key} = judge(n, {
+      const { verdict, key } = judge(n, {
         seen: assistantStore.get().proactiveSeen,
         spokenAt,
         now: at,
@@ -140,7 +144,7 @@ export function startProactive(
     }
     // A journey the driver started becomes what the assistant remembers.
     patchJourney(
-      {destination: trip.destination.label, origin: trip.origin.label},
+      { destination: trip.destination.label, origin: trip.origin.label },
       now(),
     );
     const replaced = before && before.monitoringState !== 'ended';
@@ -182,7 +186,7 @@ export function startProactive(
           kind: 'charging_complete',
           speak: true,
           fallbacks: [
-            {label: 'Open session', icon: 'zap', route: 'SmartDrive'},
+            { label: 'Open session', icon: 'zap', route: 'ActiveSession' },
           ],
         },
       );

@@ -1,10 +1,10 @@
-import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
-import {buildOutcome} from '../../intelligence/analytics';
-import {driveMinutes} from '../../intelligence/battery';
-import {answerQuestion} from '../../intelligence/explain';
-import {createTrip, processEvent} from '../../intelligence/monitor';
-import {assistModeOf} from '../../intelligence/types';
-import {leansOf, profileFromPrefs} from '../../intelligence/preferences';
+import { DEFAULT_SMART_DRIVE_CONFIG } from '../../intelligence/config';
+import { buildOutcome } from '../../intelligence/analytics';
+import { driveMinutes } from '../../intelligence/battery';
+import { answerQuestion } from '../../intelligence/explain';
+import { createTrip, processEvent } from '../../intelligence/monitor';
+import { assistModeOf } from '../../intelligence/types';
+import { leansOf, profileFromPrefs } from '../../intelligence/preferences';
 import type {
   ActiveTrip,
   NotificationDraft,
@@ -13,8 +13,8 @@ import type {
   TripUpdate,
   World,
 } from '../../intelligence/types';
-import type {AppNotification, Station} from '../../domain/types';
-import {appStore, getActiveVehicle} from '../../store/appStore';
+import type { AppNotification, Station } from '../../domain/types';
+import { appStore, getActiveVehicle } from '../../store/appStore';
 import {
   dismissSuggestion,
   recordChoice,
@@ -22,16 +22,16 @@ import {
   setSmartDrivePrefs,
   setTrip,
 } from '../../store/smartDriveActions';
-import type {SmartDriveDemo, SmartDriveService} from '../types';
-import {ApiError, OfflineError} from '../types';
-import {buildStations, findPlace} from './data';
-import {pathBetween} from './routeService';
-import {guard, uid} from './runtime';
+import type { SmartDriveDemo, SmartDriveService } from '../types';
+import { ApiError, OfflineError } from '../types';
+import { buildStations, findPlace } from './data';
+import { pathBetween } from './routeService';
+import { guard, uid } from './runtime';
 
 /** Longest single hop of a simulated drive, so messages arrive in order. */
 const HOP_KM = 6;
 
-type Overlay = {status: 'occupied' | 'offline'; queue: number};
+type Overlay = { status: 'occupied' | 'offline'; queue: number };
 
 // Presenter overlays on top of the mock chargers. In memory on purpose: a
 // restart is a fresh, calm world.
@@ -47,9 +47,9 @@ function applyOverlays(stations: Station[], now: number): Station[] {
     }
     return {
       ...s,
-      connectors: s.connectors.map(c => ({...c, status: o.status})),
-      statusFeed: {source: 'operator_feed', updatedAt: now - 4000},
-      ...(o.queue > 0 ? {queueLength: o.queue} : {}),
+      connectors: s.connectors.map(c => ({ ...c, status: o.status })),
+      statusFeed: { source: 'operator_feed', updatedAt: now - 4000 },
+      ...(o.queue > 0 ? { queueLength: o.queue } : {}),
     };
   });
 }
@@ -62,9 +62,9 @@ function applyOverlays(stations: Station[], now: number): Station[] {
  */
 function worldAt(now: number, offline: boolean): World {
   if (offline && lastWorld) {
-    return {...lastWorld, now};
+    return { ...lastWorld, now };
   }
-  const world = {now, stations: applyOverlays(buildStations(now), now)};
+  const world = { now, stations: applyOverlays(buildStations(now), now) };
   lastWorld = world;
   return world;
 }
@@ -107,13 +107,13 @@ function toAppNotification(d: NotificationDraft): AppNotification {
     read: false,
     level: d.level,
     source: 'smart_drive',
-    target: {route: STOP_KINDS.has(d.kind) ? 'SmartDriveStop' : 'SmartDrive'},
+    target: { route: STOP_KINDS.has(d.kind) ? 'SmartDriveStop' : 'SmartDrive' },
   };
 }
 
 /** Save the new trip state, the notifications, and keep the battery in step. */
 function commit(update: TripUpdate): void {
-  const {trip} = update;
+  const { trip } = update;
   appStore.set(s => {
     const battery = trip.simulated
       ? {
@@ -123,7 +123,7 @@ function commit(update: TripUpdate): void {
         }
       : s.battery;
     return {
-      smartDrive: {...s.smartDrive, trip},
+      smartDrive: { ...s.smartDrive, trip },
       battery,
       notifications: [
         ...update.notifications.map(toAppNotification),
@@ -177,10 +177,10 @@ async function syncNetwork(trip: ActiveTrip): Promise<ActiveTrip> {
   }
   const at = tripNow(trip);
   if (!reachable && trip.network === 'online') {
-    return run(trip, {type: 'NETWORK_LOST', at}).trip;
+    return run(trip, { type: 'NETWORK_LOST', at }).trip;
   }
   if (reachable && trip.network === 'offline') {
-    return run(trip, {type: 'NETWORK_RESTORED', at}).trip;
+    return run(trip, { type: 'NETWORK_RESTORED', at }).trip;
   }
   return trip;
 }
@@ -247,7 +247,7 @@ export function createSmartDriveService(): SmartDriveService {
       combined = merge(combined, update);
       trip = update.trip;
     }
-    return combined ?? {trip, notifications: [], decisions: [], events: []};
+    return combined ?? { trip, notifications: [], decisions: [], events: [] };
   };
 
   const demo: SmartDriveDemo = {
@@ -257,8 +257,8 @@ export function createSmartDriveService(): SmartDriveService {
       if (!id) {
         throw new ApiError('No charger is planned yet.');
       }
-      overlays.set(id, {status: 'occupied', queue});
-      return run(trip, {type: 'TICK', at: tripNow(trip)});
+      overlays.set(id, { status: 'occupied', queue });
+      return run(trip, { type: 'TICK', at: tripNow(trip) });
     },
     async takeOffline(stationId) {
       const trip = currentTrip();
@@ -266,8 +266,8 @@ export function createSmartDriveService(): SmartDriveService {
       if (!id) {
         throw new ApiError('No charger is planned yet.');
       }
-      overlays.set(id, {status: 'offline', queue: 0});
-      return run(trip, {type: 'TICK', at: tripNow(trip)});
+      overlays.set(id, { status: 'offline', queue: 0 });
+      return run(trip, { type: 'TICK', at: tripNow(trip) });
     },
     async driveToStop() {
       const trip = currentTrip();
@@ -284,7 +284,7 @@ export function createSmartDriveService(): SmartDriveService {
         return null;
       }
       const synced = await syncNetwork(trip);
-      return {trip: synced, notifications: [], decisions: [], events: []};
+      return { trip: synced, notifications: [], decisions: [], events: [] };
     },
     reset() {
       overlays.clear();
@@ -314,13 +314,19 @@ export function createSmartDriveService(): SmartDriveService {
         throw new ApiError('Start and destination are the same place.');
       }
       demo.reset();
-      const prefs = appStore.get().tripPrefs;
+      const prefs = {
+        ...appStore.get().tripPrefs,
+        ...(input.reservePct !== undefined
+          ? { minArrivalSocPct: input.reservePct }
+          : {}),
+        ...(input.strategy !== undefined ? { strategy: input.strategy } : {}),
+      };
       const now = Date.now();
       const trip = createTrip({
         tripId: uid('trip'),
         vehicle,
-        origin: {label: from.name, coords: from.coords},
-        destination: {label: to.name, coords: to.coords},
+        origin: { label: from.name, coords: from.coords },
+        destination: { label: to.name, coords: to.coords },
         polyline: pathBetween(from.coords, to.coords),
         startSoc,
         now,
@@ -343,9 +349,9 @@ export function createSmartDriveService(): SmartDriveService {
       const trip = currentTrip();
       await guard(200);
       if (trip.phase !== 'ready') {
-        return {trip, notifications: [], decisions: [], events: []};
+        return { trip, notifications: [], decisions: [], events: [] };
       }
-      return run(trip, {type: 'TRIP_STARTED', at: tripNow(trip)});
+      return run(trip, { type: 'TRIP_STARTED', at: tripNow(trip) });
     },
 
     async tick() {
@@ -357,14 +363,14 @@ export function createSmartDriveService(): SmartDriveService {
         return null;
       }
       const trip = await syncNetwork(existing);
-      return run(trip, {type: 'TICK', at: tripNow(trip)});
+      return run(trip, { type: 'TICK', at: tripNow(trip) });
     },
 
     advance,
 
     async report(event) {
       const trip = currentTrip();
-      return run(trip, {...event, at: tripNow(trip)} as TripEvent);
+      return run(trip, { ...event, at: tripNow(trip) } as TripEvent);
     },
 
     async switchTo(stationId) {
@@ -422,21 +428,21 @@ export function createSmartDriveService(): SmartDriveService {
 
     async setEnabled(enabled) {
       await guard(100);
-      setSmartDrivePrefs({enabled});
+      setSmartDrivePrefs({ enabled });
       const trip = appStore.get().smartDrive.trip;
       if (trip && trip.monitoringState !== 'ended') {
-        setTrip({...trip, smartDriveEnabled: enabled});
+        setTrip({ ...trip, smartDriveEnabled: enabled });
       }
     },
 
     async setVerbosity(verbosity) {
       await guard(100);
-      setSmartDrivePrefs({verbosity});
+      setSmartDrivePrefs({ verbosity });
     },
 
     async setMode(mode) {
       await guard(100);
-      setSmartDrivePrefs({mode});
+      setSmartDrivePrefs({ mode });
     },
 
     async dismissSuggestion(id) {
@@ -460,7 +466,7 @@ export function createSmartDriveService(): SmartDriveService {
           .history.find(h => h.stationName === stationName);
         outcome = buildOutcome(
           trip,
-          {costInr: spent ? spent.costInr : null},
+          { costInr: spent ? spent.costInr : null },
           trip.endedAt ?? tripNow(trip),
         );
         saveOutcome(outcome);

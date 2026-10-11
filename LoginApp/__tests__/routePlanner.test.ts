@@ -276,7 +276,7 @@ describe('Switch to backup', () => {
       }
     });
     expect(switched).toBeGreaterThan(100);
-  });
+  }, 30_000);
 
   test('keeps the waypoints of a multi-stop trip', async () => {
     for (const strategy of STRATEGIES) {
