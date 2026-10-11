@@ -4,7 +4,9 @@ This is the contract every screen is built against. Read it before touching a sc
 
 ## 1. Visual rule (non-negotiable)
 
-Login/Welcome and Home are approved. Every other screen reuses *exactly* their language:
+> **Update:** Welcome, sign-in and Home were redesigned (see `REDESIGN_REPORT.md`); the language below is unchanged and still applies to every screen. The old "Login and Home are approved, do not redesign" instruction is superseded.
+
+Every screen reuses *exactly* this language:
 
 * Frame: `Screen` (dark `colors.bg` header with back arrow, centred 18/700 title, logo tile; light `colors.body` rounded-top body).
 * Colours/spacing/radii/type come only from `src/theme.ts` (`colors`, `spacing`, `radii`, `sizes`, `type`, `elevation()`).
@@ -42,6 +44,7 @@ const focused = useIsFocused();         // false while a screen is kept alive un
 
 * All routes/params are declared in `params.ts`. Params are typed; pass exactly those.
 * Tab roots: Home, Trips, Charge, Activity, Profile. `nav.navigate('Trips')` switches tab.
+* **Home is the driver dashboard; the charger map is the `Map` route** (a stack route that keeps the tab bar with Home highlighted). Anything that means "show me the map" navigates to `Map`, not `Home`. `reset('Home')` ends a flow on the dashboard.
 * `nav.reset('Home')` ends a flow (receipt/feedback/onboarding done).
 * Screens stay mounted underneath: pause timers/polling when `!useIsFocused()`; never put side effects in render.
 * Hardware back is handled by the navigator.
@@ -106,7 +109,13 @@ Query options: `route`, `params` (URL-encoded JSON), `session=active|payment_due
 `click=Label1|Label2` (clicks by accessible name / text, in order, before the screenshot). The web preview uses a fake map and the same mock services as the app.
 Reference layouts (information hierarchy only): `/tmp/claude-0/-home-user-PlugOrbit/0f7584b7-4273-5ae7-83d2-96022426ee59/scratchpad/refpack/mobile/NN_*.png`.
 
-## 9. Conventions
+## 9. Keyboard and forms
+
+Do not use `KeyboardAvoidingView`. `Screen`, `BottomSheet` and the sign-in screens use `KeyboardAvoider` (pads by the keyboard's *measured* overlap, 0 if the OS already resized the window) and `KeyboardAwareScrollView` (scrolls the focused field into view). `TextField` already reports focus to the enclosing scroll view; a custom `TextInput` inside one should call `notifyInputFocused(useScrollOwner())` from `onFocus`. The maths is in `src/ui/keyboardMath.ts` with unit tests.
+
+Money-moving handlers (pay, retry, start charging) guard with a `useRef` set synchronously: two taps in one frame both see stale React state.
+
+## 10. Conventions
 
 * TypeScript strict; no `any` (use the domain types).
 * Prettier flags above; single quotes, no bracket spacing.

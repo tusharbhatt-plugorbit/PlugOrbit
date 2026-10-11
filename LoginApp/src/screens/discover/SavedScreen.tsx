@@ -79,7 +79,7 @@ function StationsTab() {
           icon: 'search',
           onPress: () => nav.navigate('StationList'),
         }}
-        secondary={{label: 'Open the map', onPress: () => nav.navigate('Home')}}
+        secondary={{label: 'Open the map', onPress: () => nav.navigate('Map')}}
       />
     );
   }

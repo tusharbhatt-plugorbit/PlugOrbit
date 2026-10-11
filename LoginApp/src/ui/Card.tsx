@@ -67,12 +67,15 @@ export function Card({
 export function SectionTitle({
   title,
   action,
+  compact = false,
 }: {
   title: string;
   action?: React.ReactNode;
+  /** No outer margins: the parent spaces the heading (a gapped column). */
+  compact?: boolean;
 }) {
   return (
-    <View style={styles.sectionRow}>
+    <View style={[styles.sectionRow, compact && styles.sectionRowCompact]}>
       <Text style={styles.section} accessibilityRole="header">
         {title}
       </Text>
@@ -208,6 +211,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
+  sectionRowCompact: {marginTop: 0, marginBottom: 0},
   section: {...type.heading, color: colors.ink},
   row: {
     flexDirection: 'row',

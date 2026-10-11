@@ -14,6 +14,13 @@ import type {Services} from './types';
 
 export * from './types';
 
+/**
+ * True while the services are the mock layer: chargers, their availability and
+ * the simulated drive are sample data, not an operator feed or a GPS. Screens use
+ * it to say so. Set it to false only when real services replace createMockServices.
+ */
+export const RUNS_ON_DEMO_DATA = true;
+
 /** All services backed by the mock layer. Swap per service for a real backend. */
 export function createMockServices(): Services {
   return {

@@ -26,6 +26,14 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **Google location + Maps + Places (nearby chargers)** with separate keys, see
   the README.
 
+## Redesign pass (Orbit Assist, dashboard, keyboard)
+
+A later pass (branch `claude/lucid-allen-5zvsxs`) redesigned sign-in and Home, fixed
+keyboard handling, added Orbit Assist modes, and fixed two integrity bugs. Everything
+is in [`REDESIGN_REPORT.md`](REDESIGN_REPORT.md); Orbit Assist's capability map is in
+[`ORBIT_ASSIST.md`](ORBIT_ASSIST.md). Counts quoted elsewhere in this file predate it
+(now 47 suites, 787 tests).
+
 ## Smart Drive (automated charging co-pilot)
 
 Added on the `Automated_App_mode` branch. Full reference:

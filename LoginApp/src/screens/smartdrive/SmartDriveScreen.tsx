@@ -2,18 +2,21 @@ import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {PHRASES, kmLabel, pctLabel} from '../../intelligence/copy';
+import {assistModeOf} from '../../intelligence/types';
 import {tripStatus} from '../../intelligence/status';
 import type {ActiveTrip, TripUpdate} from '../../intelligence/types';
 import {
   useIsActiveRef,
   useNavigation,
+  useRoute,
 } from '../../navigation/NavigationContext';
-import {useServices} from '../../services';
+import {RUNS_ON_DEMO_DATA, useServices} from '../../services';
 import {openDirections} from '../../services/directions';
 import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
 import {formatClock} from '../../utils/format';
 import {
+  AssistModeSelector,
   Card,
   ChangeBanner,
   CopilotLog,
@@ -37,7 +40,7 @@ import {
 import {PlaceField} from '../../ui/PlaceField';
 
 /**
- * Smart Drive. Before a trip it asks one question, "Where are we going?". During
+ * Orbit Assist. Before a trip it asks one question, "Where are we going?". During
  * one it is the dashboard of a co-pilot that is already handling the charging:
  * a calm status, the one stop that matters, and proof that it is watching.
  */
@@ -55,8 +58,11 @@ function TripPlanner(): React.JSX.Element {
   const vehicle = useApp(selectActiveVehicle);
   const battery = useApp(s => s.battery);
   const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
+  const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
+  const {params} = useRoute<'SmartDrive'>();
   const [from, setFrom] = useState('Delhi');
-  const [to, setTo] = useState('');
+  // Home's "Where are we going?" hands its destination over here.
+  const [to, setTo] = useState(params?.toLabel ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{title: string; body: string} | null>(
     null,
@@ -64,11 +70,11 @@ function TripPlanner(): React.JSX.Element {
 
   if (!vehicle) {
     return (
-      <Screen title="Smart Drive">
+      <Screen title="Orbit Assist">
         <EmptyState
           icon="car"
           title="Add your car first"
-          body="Smart Drive plans every charge around your battery size and the connectors your car can use."
+          body="Orbit Assist plans every charge around your battery size and the connectors your car can use."
           primary={{
             label: 'Add your EV',
             icon: 'plus',
@@ -105,12 +111,12 @@ function TripPlanner(): React.JSX.Element {
 
   return (
     <Screen
-      title="Smart Drive"
+      title="Orbit Assist"
       stack
       footer={
         <PrimaryButton
-          label="Start Smart Drive"
-          icon="sparkles"
+          label="Start journey"
+          icon="route"
           loading={busy}
           disabled={!ready}
           onPress={start}
@@ -118,14 +124,17 @@ function TripPlanner(): React.JSX.Element {
       }>
       <Text style={styles.lead}>Where are we going?</Text>
       <Card tone="dark">
-        <Text style={styles.kicker}>Smart Drive</Text>
+        <Text style={styles.kicker}>Orbit Assist</Text>
         <Text style={styles.heroTitle}>{PHRASES.tagline}</Text>
         <Text style={styles.heroBody}>
-          Tell us where you’re headed. We work out if and where you need to
-          charge, pick a stop and a backup, and watch the road so you don’t have
-          to.
+          {mode === 'guided'
+            ? 'Tell us where you’re headed. We work out if and where you need to charge and pick a stop and a backup. You decide, and we tell you what your plan needs.'
+            : 'Tell us where you’re headed. We work out if and where you need to charge, pick a stop and a backup, and keep watching so you don’t have to.'}
         </Text>
       </Card>
+
+      <SectionTitle title="How should we help?" />
+      <AssistModeSelector mode={mode} onChange={m => smartDrive.setMode(m)} />
 
       <Card>
         <View style={styles.fields}>
@@ -173,6 +182,13 @@ function TripPlanner(): React.JSX.Element {
         </View>
       </Card>
 
+      {RUNS_ON_DEMO_DATA && (
+        <Notice
+          tone="info"
+          title="Preview data"
+          body="Charger availability and your position are simulated in this version, so treat plans as a preview. Live data needs charger-operator and GPS integrations."
+        />
+      )}
       {soc === null && (
         <Notice
           tone="warn"
@@ -192,6 +208,7 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
   const active = useIsActiveRef();
   const {smartDrive} = useServices();
   const vehicle = useApp(selectActiveVehicle);
+  const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
   const now = useTripNow(trip.clockOffsetMs, 15_000);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{title: string; body: string} | null>(
@@ -330,7 +347,7 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
 
   return (
     <Screen
-      title="Smart Drive"
+      title="Orbit Assist"
       stack
       footer={
         <>
@@ -339,6 +356,8 @@ function TripDashboard({trip}: {trip: ActiveTrip}): React.JSX.Element {
               text={
                 trip.network === 'offline'
                   ? 'Offline. Your plan is saved on this phone.'
+                  : mode === 'guided'
+                  ? 'Guided: we’ll tell you what your plan needs.'
                   : stop
                   ? PHRASES.monitoringStop
                   : PHRASES.monitoringTrip

@@ -9,10 +9,15 @@ export const colors = {
   limeSoft: '#E3F6D5',
   danger: '#B42318',
   dangerSoft: '#FDE4E4',
+  // Error text on the dark raised surface (the login sheet in dark mode).
+  dangerOnDark: '#FCA5A5',
   ink: '#0F172A',
   inkSoft: '#334155',
   muted: '#58687E',
   placeholder: '#94A3B8',
+  // Placeholder on white / light inputs. `placeholder` above is the light grey for
+  // dark surfaces; on white it is only ~2.6:1, this one clears WCAG AA (4.5:1).
+  placeholderOnLight: '#58687E',
   chipBorder: '#334155',
   chipText: '#E2E8F0',
   mapBg: '#EEF1F4',

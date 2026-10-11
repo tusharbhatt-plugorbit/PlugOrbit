@@ -23,6 +23,12 @@ export type DemoState = {
   cameraDenied: boolean;
   /** Pretend no compatible chargers exist nearby. */
   noCompatible: boolean;
+  /**
+   * Let "Connect car" succeed with a sample reading. There is no real OEM or OBD
+   * integration yet, so without this the connection honestly reports it is not
+   * available. A connection made this way is flagged and labelled as a demo.
+   */
+  simulateVehicle: boolean;
 };
 
 export const DEMO_DEFAULTS: DemoState = {
@@ -34,6 +40,7 @@ export const DEMO_DEFAULTS: DemoState = {
   locationDenied: false,
   cameraDenied: false,
   noCompatible: false,
+  simulateVehicle: false,
 };
 
 export const demoStore = createStore<DemoState>(DEMO_DEFAULTS);

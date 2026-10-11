@@ -10,6 +10,7 @@ import {planCharging} from './chargingPlan';
 import {decideNotifications} from './notifications';
 import {
   ActiveTrip,
+  AssistMode,
   ChargingPlan,
   Decision,
   DriveConditions,
@@ -43,6 +44,8 @@ export type MonitorContext = {
   config: SmartDriveConfig;
   /** Quiet verbosity: only plan changes and safety alerts get through. */
   quiet?: boolean;
+  /** Guided holds back suggestions; the default, assist, does not. */
+  mode?: AssistMode;
 };
 
 export type CreateTripInput = {
@@ -507,6 +510,7 @@ export function processEvent(
     event: effective,
     config,
     quiet: ctx.quiet === true,
+    mode: ctx.mode,
     now,
   });
   const told = decisions.filter(d => d.notify && d.draft);

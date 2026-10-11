@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {billFor} from '../../domain/sessionBill';
@@ -39,6 +39,8 @@ export default function PaymentScreen(): React.JSX.Element {
   const validated = useMemo(() => methods.filter(m => m.validated), [methods]);
   const [chosen, setChosen] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  // Set synchronously: two taps in the same frame both see paying === false.
+  const inFlight = useRef(false);
   const [error, setError] = useState<{
     title: string;
     body: string;
@@ -80,9 +82,10 @@ export default function PaymentScreen(): React.JSX.Element {
   const method = validated.find(m => m.id === methodId) ?? null;
 
   const pay = async () => {
-    if (!method || paying) {
+    if (!method || paying || inFlight.current) {
       return;
     }
+    inFlight.current = true;
     setPaying(true);
     setError(null);
     try {
@@ -100,6 +103,7 @@ export default function PaymentScreen(): React.JSX.Element {
         offline: copy.kind === 'offline',
       });
       setPaying(false);
+      inFlight.current = false;
     }
   };
 

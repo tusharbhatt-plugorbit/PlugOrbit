@@ -111,7 +111,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
       stack
       footer={
         <PrimaryButton
-          label={route ? 'Open cached route' : 'Open Smart Drive'}
+          label={route ? 'Open cached route' : 'Open Orbit Assist'}
           icon={route ? 'route' : 'sparkles'}
           onPress={() => nav.navigate(route ? 'RouteResult' : 'SmartDrive')}
         />
@@ -130,7 +130,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
 
       {smart && (
         <>
-          <Text style={styles.section}>Smart Drive plan</Text>
+          <Text style={styles.section}>Orbit Assist plan</Text>
           <Card tone="lime">
             <Text style={styles.name}>{smart.subline}</Text>
             <Text style={styles.fine}>{smart.lastUpdate}</Text>

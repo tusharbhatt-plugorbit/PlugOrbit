@@ -13,6 +13,7 @@ import type {ChargingSession} from '../domain/types';
 import type {ActiveTrip} from '../intelligence/types';
 import {setTrip} from '../store/smartDriveActions';
 import {resetSmartDriveMock} from '../services/mock/smartDriveService';
+import {resetNearbyCache} from '../hooks/useNearbyStations';
 import {ScenarioDriver} from './scenarioDriver';
 
 export const NEXON = {...VEHICLE_CATALOG[0], id: 'veh-1'};
@@ -53,6 +54,7 @@ export function seedSignedIn(
   resetDemo();
   // Presenter overlays are module state; never let one test's charger fill the next's.
   resetSmartDriveMock();
+  resetNearbyCache();
   resetAppStore({
     ...seedState(now),
     hydrated: true,

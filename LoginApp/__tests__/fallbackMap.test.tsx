@@ -75,7 +75,7 @@ function lastState(): SentState {
 const calls = (what: string) =>
   (global.__WEBVIEW_JS ?? []).filter(c => c.includes(what));
 
-describe('Home without a Maps key', () => {
+describe('Map without a Maps key', () => {
   beforeAll(() => {
     jest.useFakeTimers();
   });
@@ -87,7 +87,7 @@ describe('Home without a Maps key', () => {
     seedSignedIn();
     let r!: Renderer;
     await act(async () => {
-      r = ReactTestRenderer.create(<TestApp tab="Home" />);
+      r = ReactTestRenderer.create(<TestApp tab="Profile" stack={[{name: 'Map'}]} />);
     });
     mounted.push(r);
     for (let i = 0; i < 5; i++) {

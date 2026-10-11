@@ -4,13 +4,16 @@ import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
 import {reserveKm, reserveLevel} from '../../domain/socEstimate';
 import type {RouteStrategy, TripPreferences} from '../../domain/types';
 import {suggestionsFrom} from '../../intelligence/preferences';
-import {useNavigation} from '../../navigation/NavigationContext';
+import {useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
+import {assistModeOf} from '../../intelligence/types';
 import {
+  AssistModeSelector,
   Card,
   ListCard,
+  ListRow,
   Notice,
   Pill,
   PrimaryButton,
@@ -52,6 +55,7 @@ const STRATEGY_HELP: Record<RouteStrategy, string> = {
  */
 export default function TripPreferencesScreen(): React.JSX.Element {
   const nav = useNavigation();
+  const onboarding = useRoute<'TripPreferences'>().params?.onboarding === true;
   const {preferences, smartDrive} = useServices();
   const saved = useApp(s => s.tripPrefs);
   const sd = useApp(s => s.smartDrive);
@@ -82,7 +86,12 @@ export default function TripPreferencesScreen(): React.JSX.Element {
     try {
       await preferences.setTripPreferences(draft);
       showToast('Trip preferences saved.', 'success');
-      nav.goBack();
+      // Finishing setup lands on Home; changing them later just goes back.
+      if (onboarding) {
+        nav.reset('Home');
+      } else {
+        nav.goBack();
+      }
     } catch (e) {
       setError(describeError(e, 'We couldn’t save your preferences.'));
       setSaving(false);
@@ -93,16 +102,53 @@ export default function TripPreferencesScreen(): React.JSX.Element {
     <Screen
       title="Trip preferences"
       footer={
-        <PrimaryButton
-          label={dirty ? 'Save preferences' : 'Done'}
-          icon="check"
-          loading={saving}
-          onPress={dirty ? save : nav.goBack}
-        />
+        <>
+          <PrimaryButton
+            label={
+              onboarding
+                ? dirty
+                  ? 'Save and finish'
+                  : 'Finish'
+                : dirty
+                ? 'Save preferences'
+                : 'Done'
+            }
+            icon="check"
+            loading={saving}
+            onPress={
+              dirty ? save : onboarding ? () => nav.reset('Home') : nav.goBack
+            }
+          />
+          {onboarding && (
+            <View style={styles.skip}>
+              <TextButton
+                label="Skip for now"
+                tone="muted"
+                onPress={() => nav.reset('Home')}
+              />
+            </View>
+          )}
+        </>
       }>
       <Text style={styles.lead}>
-        These guide every route and energy plan we make for you.
+        {onboarding
+          ? 'Step 3 of 3, optional. How do you like to travel? You can change all of this later in Profile.'
+          : 'These guide every route and energy plan we make for you.'}
       </Text>
+      {onboarding && (
+        <View style={styles.block}>
+          <ListCard>
+            <ListRow
+              icon="link"
+              iconTone="info"
+              title="Connect your car"
+              subtitle="Not available yet. For now you enter your battery level by hand."
+              onPress={() => nav.navigate('AutoSoc')}
+              last
+            />
+          </ListCard>
+        </View>
+      )}
 
       <View style={styles.block}>
         <Card>
@@ -164,11 +210,15 @@ export default function TripPreferencesScreen(): React.JSX.Element {
         />
       </ListCard>
 
-      <SectionTitle title="Smart Drive" />
+      <SectionTitle title="Orbit Assist" />
+      <AssistModeSelector
+        mode={assistModeOf(sd.prefs)}
+        onChange={m => smartDrive.setMode(m)}
+      />
       <ListCard>
         <ToggleRow
-          title="Smart Drive on for new trips"
-          subtitle="PlugOrbit watches your trip and handles the charging decisions."
+          title="Orbit Assist on for new trips"
+          subtitle="PlugOrbit plans your charging stops and keeps your plan up to date."
           value={sd.prefs.enabled}
           onValueChange={v => smartDrive.setEnabled(v)}
         />
@@ -254,6 +304,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   help: {...type.caption, color: colors.muted, marginTop: spacing.sm},
+  skip: {alignItems: 'center'},
   suggestBody: {
     ...type.caption,
     color: colors.inkSoft,

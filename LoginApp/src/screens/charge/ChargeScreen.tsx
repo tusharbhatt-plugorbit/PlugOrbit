@@ -228,7 +228,7 @@ export default function ChargeScreen(): React.JSX.Element {
           label="Find a charger on the map"
           icon="map"
           compact
-          onPress={() => nav.switchTab('Home')}
+          onPress={() => nav.navigate('Map')}
         />
       </View>
     </Screen>

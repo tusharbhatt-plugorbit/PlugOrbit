@@ -120,7 +120,9 @@ export default function PresenterToolsScreen(): React.JSX.Element {
       }
     } catch (e) {
       showToast(
-        e instanceof Error ? e.message : 'Couldn’t start the Smart Drive demo.',
+        e instanceof Error
+          ? e.message
+          : 'Couldn’t start the Orbit Assist demo.',
         'warn',
       );
     }
@@ -176,6 +178,11 @@ export default function PresenterToolsScreen(): React.JSX.Element {
           'noCompatible',
           'No compatible chargers',
           'Nearby searches come back empty',
+        )}
+        {flag(
+          'simulateVehicle',
+          'Simulate a connected car',
+          'Connect car returns a sample 58%, labelled “Demo reading”. Off: it says it isn’t available yet',
           true,
         )}
       </ListCard>
@@ -199,7 +206,7 @@ export default function PresenterToolsScreen(): React.JSX.Element {
         <ListRow
           icon="sparkles"
           iconTone="lime"
-          title="Smart Drive: Delhi to Jaipur at 72%"
+          title="Orbit Assist: Delhi to Jaipur at 72%"
           subtitle="Plan the trip, then drive it in the simulator"
           onPress={startSmartDriveDemo}
         />

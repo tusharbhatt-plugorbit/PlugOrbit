@@ -74,7 +74,8 @@ export default function ManualSocScreen(): React.JSX.Element {
       await vehicleService.setBattery(soc);
       showToast(`Battery set to ${soc}%.`, 'success');
       if (onboarding) {
-        nav.reset('Home');
+        // The third step is optional, and has its own Skip.
+        nav.replace('TripPreferences', {onboarding: true});
       } else {
         nav.goBack();
       }
@@ -146,7 +147,7 @@ export default function ManualSocScreen(): React.JSX.Element {
       }>
       <Text style={styles.lead}>
         {onboarding
-          ? 'Step 2 of 2. How full is your battery now?'
+          ? 'Step 2 of 3. How full is your battery now?'
           : `How full is your ${vehicle.make} ${vehicle.model} right now?`}
       </Text>
 

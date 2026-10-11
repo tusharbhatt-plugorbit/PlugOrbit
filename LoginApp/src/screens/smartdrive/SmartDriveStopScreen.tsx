@@ -71,10 +71,10 @@ export default function SmartDriveStopScreen(): React.JSX.Element {
           body={
             trip
               ? `Your battery covers the trip. ${PHRASES.noActionNeeded}`
-              : 'Start Smart Drive and we’ll pick your stop and a backup before you need them.'
+              : 'Plan a journey and we’ll pick your stop and a backup before you need them.'
           }
           primary={{
-            label: trip ? 'Back to your trip' : 'Start Smart Drive',
+            label: trip ? 'Back to your trip' : 'Plan a journey',
             icon: 'sparkles',
             onPress: () => nav.replace('SmartDrive'),
           }}

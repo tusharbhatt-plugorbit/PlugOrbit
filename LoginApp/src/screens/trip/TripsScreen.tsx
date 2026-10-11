@@ -41,21 +41,21 @@ export default function TripsScreen(): React.JSX.Element {
         <>
           <CopilotStatusCard status={tripStatus(trip)} />
           <PrimaryButton
-            label="Open Smart Drive"
+            label="Open Orbit Assist"
             icon="sparkles"
             onPress={() => nav.navigate('SmartDrive')}
           />
         </>
       ) : (
         <Card tone="lime">
-          <Text style={styles.sdKicker}>Smart Drive</Text>
+          <Text style={styles.sdKicker}>Orbit Assist</Text>
           <Text style={styles.sdTitle}>{PHRASES.tagline}</Text>
           <Text style={styles.sdBody}>
             Say where you’re going. We pick your stop and a backup, and watch
             the road so you don’t have to.
           </Text>
           <PrimaryButton
-            label="Start Smart Drive"
+            label="Plan a journey"
             icon="sparkles"
             compact
             onPress={() => nav.navigate('SmartDrive')}

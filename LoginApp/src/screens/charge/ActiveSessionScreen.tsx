@@ -100,7 +100,7 @@ export default function ActiveSessionScreen(): React.JSX.Element {
           }}
           secondary={{
             label: 'Find a charger',
-            onPress: () => nav.switchTab('Home'),
+            onPress: () => nav.navigate('Map'),
           }}
         />
       </Screen>

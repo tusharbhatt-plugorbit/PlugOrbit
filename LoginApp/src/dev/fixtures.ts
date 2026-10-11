@@ -13,6 +13,7 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
 
   VehicleSetup: undefined,
   ManualSoc: undefined,
+  Map: undefined,
   StationList: undefined,
   Filters: undefined,
   StationDetail: {stationId: 'st-chargezone-neemrana'},

@@ -557,12 +557,29 @@ export type TripOutcome = {
   copilot: {checks: number; told: number; silent: number; switched: number};
 };
 
+/**
+ * How much Orbit Assist speaks up on its own.
+ *  - `assist`: it watches the plan and tells you when something could be better
+ *    (a faster charger, a queue forming), as well as when the plan needs you.
+ *  - `guided`: it recommends and explains, and tells you only what the plan
+ *    itself needs. Suggestions wait until you open the trip and ask.
+ * Either way you approve every plan change, payment and charging start.
+ */
+export type AssistMode = 'guided' | 'assist';
+
 export type SmartDrivePrefs = {
-  /** Start trips with Smart Drive on. */
+  /** Start trips with Orbit Assist on. */
   enabled: boolean;
   /** `minimal` lets only plan changes and safety alerts through. */
   verbosity: 'calm' | 'minimal';
+  /** Absent in data saved before modes existed, which behaved as `assist`. */
+  mode?: AssistMode;
 };
+
+/** The mode in force, defaulting to the behaviour every earlier install had. */
+export function assistModeOf(prefs: {mode?: AssistMode}): AssistMode {
+  return prefs.mode ?? 'assist';
+}
 
 /** Everything Smart Drive persists. One slice of the app store. */
 export type SmartDriveState = {
@@ -579,5 +596,5 @@ export const INITIAL_SMART_DRIVE: SmartDriveState = {
   outcomes: [],
   signals: [],
   dismissed: [],
-  prefs: {enabled: true, verbosity: 'calm'},
+  prefs: {enabled: true, verbosity: 'calm', mode: 'assist'},
 };
