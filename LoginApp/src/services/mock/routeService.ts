@@ -419,12 +419,20 @@ export function createRouteService(): RouteService {
   return {
     async plan(request) {
       await guard(700);
-      return planOnce(request, new Set(), Date.now());
+      return planOnce(
+        request,
+        new Set(request.avoidStationIds ?? []),
+        Date.now(),
+      );
     },
 
     async energyPlan(request): Promise<EnergyPlan> {
       await guard(600);
-      const route = planOnce(request, new Set(), Date.now());
+      const route = planOnce(
+        request,
+        new Set(request.avoidStationIds ?? []),
+        Date.now(),
+      );
       const legs: EnergyPlan['legs'] = [
         {label: route.fromLabel, socPercent: route.startSoc, kind: 'start'},
         ...route.stops.flatMap(s => [

@@ -78,6 +78,10 @@ export type RouteParams = {
   SmartDrive: {toLabel?: string} | undefined;
   SmartDriveStop: undefined; // why this charger, what it costs, ask the co-pilot
 
+  // Orbit Assist conversation (voice and text). `listen` opens the microphone on arrival,
+  // for buttons whose whole point is "talk to Orbit"; it is never set automatically.
+  Assistant: {listen?: boolean} | undefined;
+
   // Demo
   PresenterTools: undefined;
 };

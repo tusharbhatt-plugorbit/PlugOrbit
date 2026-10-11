@@ -64,6 +64,13 @@ export default function TripsScreen(): React.JSX.Element {
         </Card>
       )}
 
+      <SecondaryButton
+        label="Talk to Orbit"
+        icon="mic"
+        compact
+        onPress={() => nav.navigate('Assistant', {listen: true})}
+      />
+
       <Card tone="dark">
         <Text style={styles.kicker}>Plan a trip</Text>
         <Text style={styles.heroTitle}>Charge only when needed</Text>

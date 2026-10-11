@@ -214,6 +214,8 @@ export type RouteRequest = {
   avoidPaidParking: boolean;
   /** Intermediate destinations for multi-stop trips. */
   via?: readonly string[];
+  /** Chargers the driver ruled out; the plan is built without them. */
+  avoidStationIds?: readonly string[];
 };
 
 // ---------------------------------------------------------------- sessions --

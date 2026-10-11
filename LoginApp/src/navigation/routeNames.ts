@@ -51,6 +51,7 @@ const NAMES: Record<RouteName, true> = {
   Privacy: true,
   SmartDrive: true,
   SmartDriveStop: true,
+  Assistant: true,
   PresenterTools: true,
 };
 

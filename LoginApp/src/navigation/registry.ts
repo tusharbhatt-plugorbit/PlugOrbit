@@ -34,6 +34,7 @@ import PlusScreen from '../screens/profile/PlusScreen';
 import PresenterToolsScreen from '../screens/profile/PresenterToolsScreen';
 import PrivacyScreen from '../screens/profile/PrivacyScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import AssistantScreen from '../screens/assistant/AssistantScreen';
 import SmartDriveScreen from '../screens/smartdrive/SmartDriveScreen';
 import SmartDriveStopScreen from '../screens/smartdrive/SmartDriveStopScreen';
 import BackupAlertScreen from '../screens/trip/BackupAlertScreen';
@@ -113,6 +114,7 @@ export const REGISTRY: Registry = {
   // Smart Drive
   SmartDrive: {component: SmartDriveScreen},
   SmartDriveStop: {component: SmartDriveStopScreen},
+  Assistant: {component: AssistantScreen},
 
   // Profile
   PaymentMethods: {component: PaymentMethodsScreen},
