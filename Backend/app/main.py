@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .ai.router import router as assistant_router
 from .config import get_settings
 from .firebase import init_firebase
 from .routes import auth, otp, users
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(otp.router)
 app.include_router(users.router)
+app.include_router(assistant_router)
 
 
 @app.get("/health", tags=["health"])
