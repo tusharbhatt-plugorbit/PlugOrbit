@@ -2,6 +2,7 @@
 Wrapper around the Firebase Auth REST API.
 """
 import logging
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import HTTPException, status
@@ -34,14 +35,23 @@ def _raise_firebase_error(resp: httpx.Response) -> None:
         raw = resp.json()["error"]["message"]
     except Exception:
         raw = "UNKNOWN"
-    if raw.startswith("API key not valid"):
-        # Our own FIREBASE_WEB_API_KEY is wrong: a server fault, not the caller's.
-        log.error("Firebase rejected FIREBASE_WEB_API_KEY: %s", raw)
+    raw = raw if isinstance(raw, str) else "UNKNOWN"
+    code = raw.split(" ")[0].split(":")[0]
+    if raw.startswith("API key not valid") or code in {
+        "API_KEY_INVALID", "CONFIGURATION_NOT_FOUND", "OPERATION_NOT_ALLOWED",
+        "CREDENTIAL_MISMATCH", "PROJECT_NUMBER_MISMATCH",
+    }:
+        # Project/key/provider configuration is a server fault, not the caller's.
+        log.error("Firebase authentication configuration was rejected (%s)", code)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "AUTH_MISCONFIGURED", "message": "Auth service is misconfigured. Try again later."},
         )
-    code = raw.split(" ")[0].split(":")[0]
+    if resp.status_code >= 500 or resp.status_code == 429:
+        raise HTTPException(
+            status_code=429 if resp.status_code == 429 else 503,
+            detail={"code": "AUTH_UNAVAILABLE", "message": "Auth service unavailable. Try again later."},
+        )
     http_status, message = _ERRORS.get(code, (400, "Authentication failed."))
     raise HTTPException(status_code=http_status, detail={"code": code, "message": message})
 
@@ -103,3 +113,11 @@ def send_password_reset(email: str) -> None:
 
 def send_email_verification(id_token: str) -> None:
     _post(f"{IDENTITY_URL}:sendOobCode", {"requestType": "VERIFY_EMAIL", "idToken": id_token})
+
+
+def sign_in_with_google(id_token: str) -> dict:
+    """Firebase validates Google's token and enforces the project's provider configuration."""
+    return _post(f"{IDENTITY_URL}:signInWithIdp", {
+        "postBody": urlencode({"id_token": id_token, "providerId": "google.com"}),
+        "requestUri": "http://localhost", "returnSecureToken": True,
+    })

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {colors, elevation, radii, spacing, type} from '../theme';
@@ -53,6 +54,9 @@ export function LocationPermissionState({
   settingsFirst = false,
   onDismiss,
 }: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const copy = COPY[kind];
   const first = settingsFirst && onOpenSettings;
   return (
@@ -114,7 +118,7 @@ export function LocationPermissionState({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   card: {
     alignSelf: 'stretch',
     backgroundColor: colors.surface,

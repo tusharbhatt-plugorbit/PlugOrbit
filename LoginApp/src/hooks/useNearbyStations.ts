@@ -94,8 +94,12 @@ function locationNotice(error: unknown): Notice {
 /**
  * Finds the device location, then loads compatible chargers around it through
  * the station service. Safe against overlapping requests and unmounting.
+ *
+ * `enabled` is false while the screen is mounted but hidden (a tab behind the
+ * current one): it neither locates nor searches then, and when it turns true again it
+ * only searches if what this screen last loaded has expired or the vehicle changed.
  */
-export function useNearbyStations(vehicle: Vehicle | null) {
+export function useNearbyStations(vehicle: Vehicle | null, enabled = true) {
   const {station: stationService} = useServices();
   const vehicleKey = vehicle?.id ?? null;
   // Start from the shared result when there is a fresh one (and then skip the first refresh).
@@ -106,6 +110,13 @@ export function useNearbyStations(vehicle: Vehicle | null) {
   });
   const abortRef = useRef<AbortController | null>(null);
   const vehicleRef = useRef(vehicle);
+  // What this screen itself last loaded (including a "Search this area" result, which
+  // the shared cache deliberately never keeps), so returning to it does not refetch.
+  const lastLoaded = useRef<{at: number; vehicleId: string | null} | null>(
+    cache && seeded.current
+      ? {at: cache.at, vehicleId: cache.vehicleId}
+      : null,
+  );
   vehicleRef.current = vehicle;
 
   const begin = useCallback((): AbortSignal => {
@@ -131,6 +142,10 @@ export function useNearbyStations(vehicle: Vehicle | null) {
         if (signal.aborted) {
           return;
         }
+        lastLoaded.current = {
+          at: Date.now(),
+          vehicleId: vehicleRef.current?.id ?? null,
+        };
         // Nothing near here, so the service looked around New Delhi instead:
         // move the search centre there and say so, as for a denied location.
         const fellBack = isDemoFallback(origin, stations);
@@ -178,6 +193,9 @@ export function useNearbyStations(vehicle: Vehicle | null) {
 
   /** Re-locate the device, then search around it. */
   const refresh = useCallback(async () => {
+    if (!enabled) {
+      return;
+    }
     const signal = begin();
     setState(s => ({...s, phase: 'locating', notice: null}));
 
@@ -205,24 +223,32 @@ export function useNearbyStations(vehicle: Vehicle | null) {
       setState(s => ({...s, userLocation: null}));
     }
     await search(origin, signal, carry, true);
-  }, [begin, search]);
+  }, [begin, search, enabled]);
 
   /** Search around an arbitrary point ("Search this area"). */
   const searchAt = useCallback(
-    (center: Coords) => search(center, begin(), null),
-    [begin, search],
+    (center: Coords) =>
+      enabled ? search(center, begin(), null) : Promise.resolve(),
+    [begin, search, enabled],
   );
 
   const vehicleId = vehicle?.id ?? null;
-  const first = useRef(true);
   useEffect(() => {
-    // First mount locates; a vehicle switch re-searches in place.
-    if (first.current) {
-      first.current = false;
-      if (!seeded.current) {
-        refresh();
-      }
+    if (!enabled) {
+      return;
+    }
+    const loaded = lastLoaded.current;
+    if (!loaded) {
+      // Nothing loaded yet: the first time shown, or hidden before its first search
+      // finished (that search was cancelled). Locate the device, then search around it.
+      refresh();
+    } else if (
+      loaded.vehicleId === vehicleId &&
+      Date.now() - loaded.at < CACHE_TTL_MS
+    ) {
+      // Back on a screen that loaded recently for this vehicle: nothing to fetch.
     } else {
+      // A vehicle switch, or an expired result: search again in place.
       // Keep the reason the search is centred where it is (e.g. the demo area).
       const kind = state.notice?.kind;
       const keep =
@@ -234,7 +260,7 @@ export function useNearbyStations(vehicle: Vehicle | null) {
     }
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleId]);
+  }, [vehicleId, enabled]);
 
   // Distances are measured from the device when known, else the search centre.
   const reference = state.userLocation ?? state.origin;

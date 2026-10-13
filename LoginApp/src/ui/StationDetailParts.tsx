@@ -1,6 +1,7 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {whyRecommended} from '../domain/discover';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { whyRecommended } from '../domain/discover';
 import {
   availableCount,
   compatibleConnectors,
@@ -14,20 +15,20 @@ import type {
   StationWithDistance,
   Vehicle,
 } from '../domain/types';
-import {colors, radii, spacing, type} from '../theme';
-import {formatDistance} from '../utils/geo';
-import {formatDuration, formatInr} from '../utils/format';
-import {ConfidenceBadge, Pill, StatusBadge, typeLabel} from './Badges';
-import {Card, KeyValue} from './Card';
-import {CheckRow, StatBlock} from './DiscoverParts';
-import {Icon} from './Icon';
+import { colors, radii, spacing, type } from '../theme';
+import { formatDistance } from '../utils/geo';
+import { formatDuration, formatInr } from '../utils/format';
+import { ConfidenceBadge, Pill, StatusBadge, typeLabel } from './Badges';
+import { Card, KeyValue } from './Card';
+import { CheckRow, StatBlock } from './DiscoverParts';
+import { Icon } from './Icon';
 import {
   PriceLine,
   ReliabilityBar,
   UnconfirmedConnectorsPill,
   healthBadge,
 } from './station';
-import {vehicleName} from './session';
+import { vehicleName } from './session';
 
 // Beyond this a "detour" is really a drive, so say so.
 const NEAR_DETOUR_KM = 25;
@@ -46,12 +47,23 @@ export function StationHero({
   favourite: boolean;
   onToggleFavourite: () => void;
 }): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const health = stationHealth(station, vehicle);
   const usable = compatibleConnectors(station, vehicle);
   const free = availableCount(station, vehicle);
   const unconfirmed = hasUnconfirmedConnectors(station);
   return (
-    <Card tone="dark" style={styles.hero} testID="station-hero">
+    <Card style={styles.hero} testID="station-hero">
+      <View>
+        <Image
+          source={require('../../assets/scenes/station-hub-v2.png')}
+          style={styles.heroPhoto}
+          resizeMode="cover"
+        />
+        <Text style={styles.illustrationLabel}>Illustrative charging hub</Text>
+      </View>
       <View style={styles.heroTop}>
         <View style={styles.heroTile}>
           <Icon name="zap" size={24} color={colors.lime} filled />
@@ -60,7 +72,7 @@ export function StationHero({
           <Text style={styles.heroName} accessibilityRole="header">
             {station.name}
           </Text>
-          <Text style={styles.heroSub} numberOfLines={2}>
+          <Text style={styles.heroSub}>
             {station.operator}
             {station.address ? ` • ${station.address}` : ''}
           </Text>
@@ -70,8 +82,9 @@ export function StationHero({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={favourite ? 'Remove from saved' : 'Save station'}
-          accessibilityState={{selected: favourite}}
-          style={styles.heart}>
+          accessibilityState={{ selected: favourite }}
+          style={styles.heart}
+        >
           <Icon
             name="heart"
             size={20}
@@ -100,7 +113,6 @@ export function StationHero({
 
       <View style={styles.heroStats}>
         <StatBlock
-          onDark
           label="Distance"
           value={formatDistance(station.distanceKm)}
           sub={
@@ -110,7 +122,6 @@ export function StationHero({
           }
         />
         <StatBlock
-          onDark
           label="Bays free"
           value={
             usable.length > 0
@@ -122,7 +133,6 @@ export function StationHero({
           sub={unconfirmed ? 'connectors unconfirmed' : 'compatible'}
         />
         <StatBlock
-          onDark
           label="Rating"
           value={
             hasRating(station) ? `★ ${station.rating.toFixed(1)}` : 'Not rated'
@@ -151,6 +161,9 @@ export function ConnectorPanel({
   connector: StationConnector;
   now: number;
 }): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const carKw = effectivePowerKw(connector, vehicle);
   const price = connector.pricePerKwh;
   return (
@@ -203,6 +216,9 @@ export function OperatorInstructionsCard({
 }: {
   station: StationWithDistance;
 }): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Card tone="warn" testID="operator-instructions">
       <View style={styles.opHead}>
@@ -233,6 +249,9 @@ export function ReasonsCard({
   vehicle: Vehicle | null;
   now: number;
 }): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const why = whyRecommended(station, vehicle, now);
   return (
     <Card testID="why-card">
@@ -274,10 +293,20 @@ export function ReasonsCard({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {flex: 1},
-  hero: {gap: spacing.md, padding: spacing.lg + 2},
-  heroTop: {flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md},
+const baseStyles = StyleSheet.create({
+  heroPhoto: { width: '100%', height: 190, borderRadius: 16 },
+  illustrationLabel: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    color: '#FFFFFF',
+    backgroundColor: '#04182FCC',
+    padding: 4,
+    fontSize: 10,
+  },
+  flex: { flex: 1 },
+  hero: { gap: spacing.md, padding: spacing.lg + 2 },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   heroTile: {
     width: 48,
     height: 48,
@@ -288,8 +317,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroName: {...type.h1, color: '#FFFFFF'},
-  heroSub: {...type.caption, color: colors.placeholder, marginTop: 2},
+  heroName: { ...type.h1, color: colors.ink },
+  heroSub: { ...type.caption, color: colors.onDarkMuted, marginTop: 2 },
   heart: {
     width: 44,
     height: 44,
@@ -310,18 +339,18 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.chipBorder,
   },
-  heroStats: {flexDirection: 'row', gap: spacing.md},
-  heroHours: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  heroHoursText: {...type.caption, color: colors.chipText},
+  heroStats: { flexDirection: 'row', gap: spacing.md },
+  heroHours: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroHoursText: { ...type.caption, color: colors.chipText },
   panelHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  panelTitle: {...type.heading, color: colors.ink, flex: 1},
-  panelTrust: {marginTop: spacing.sm, marginBottom: spacing.xs},
-  opHead: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
+  panelTitle: { ...type.heading, color: colors.ink, flex: 1 },
+  panelTrust: { marginTop: spacing.sm, marginBottom: spacing.xs },
+  opHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   opIcon: {
     width: 36,
     height: 36,
@@ -330,7 +359,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  opTitle: {...type.heading, color: colors.ink, flex: 1},
+  opTitle: { ...type.heading, color: colors.ink, flex: 1 },
   opBody: {
     ...type.body,
     color: colors.inkSoft,
@@ -343,14 +372,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     lineHeight: 18,
   },
-  reasons: {gap: spacing.md},
+  reasons: { gap: spacing.md },
   caveats: {
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
   },
-  noReasons: {...type.body, color: colors.muted, lineHeight: 20},
+  noReasons: { ...type.body, color: colors.muted, lineHeight: 20 },
   relWrap: {
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
@@ -358,5 +387,5 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     gap: spacing.sm,
   },
-  relNote: {...type.caption, color: colors.muted},
+  relNote: { ...type.caption, color: colors.muted },
 });

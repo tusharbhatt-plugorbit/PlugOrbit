@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {DEFAULT_CENTER} from '../../config/google';
@@ -20,6 +21,9 @@ import {
 
 /** 20 Feedback: did it work, how was it, and what can we confirm for the next driver. */
 export default function FeedbackScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Feedback'>();
   const {session: sessionService, station: stationService} = useServices();
@@ -213,6 +217,9 @@ function Choice({
   active: boolean;
   onPress: () => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -226,7 +233,7 @@ function Choice({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted, marginTop: -6},
   q: {...type.heading, color: colors.ink},
@@ -243,7 +250,7 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     backgroundColor: colors.surface,
   },
-  choiceOn: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  choiceOn: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   choiceText: {...type.bodyStrong, color: colors.ink},
   gap: {gap: spacing.md, marginTop: spacing.md},
   stars: {flexDirection: 'row', gap: spacing.md, marginTop: spacing.md},

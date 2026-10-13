@@ -4,13 +4,23 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { Alert, BackHandler, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import {
+  Alert,
+  BackHandler,
+  NativeModules,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+} from 'react-native';
 import App from '../App';
 import { seedSignedIn } from '../src/dev/testHarness';
 import { STORE_VERSION, appStore, resetAppStore } from '../src/store/appStore';
 import { resetDemo } from '../src/store/demoStore';
 import { createMemoryStorage, setStorage } from '../src/store/storage';
 import { resetLocalOtp } from '../src/services/otpApi';
+import { loadSession, resetSessionMemory } from '../src/services/session';
 import { hasSeenOnboarding, markOnboardingSeen } from '../src/store/onboarding';
 
 const WELCOME_HEADLINE = 'Tell us where\nyou’re going.';
@@ -196,6 +206,7 @@ beforeEach(() => {
   resetAppStore();
   resetDemo();
   resetLocalOtp();
+  resetSessionMemory();
   seenIntro = true;
   // Default: the Backend is unreachable, so the on-device code fallback runs.
   fetchMock.mockReset();
@@ -646,10 +657,21 @@ test('a verification the server cannot answer says Verification Failed', async (
   expect(otpValueOf(renderer)).toBe('');
 });
 
-test('the Backend confirms the typed code and the user is signed in', async () => {
+test('the Backend confirms the typed code and a Firebase session signs the user in', async () => {
   mockBackend({
     send: () => jsonResponse(200, sendBody()),
-    verify: () => jsonResponse(200, { verified: true, message: 'Verified.' }),
+    verify: () =>
+      jsonResponse(200, {
+        verified: true,
+        message: 'Verified.',
+        session_status: 'ready',
+        session: {
+          id_token: 'id-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          user: { uid: 'u1' },
+        },
+      }),
   });
   const renderer = await renderApp();
   await startVerify(renderer);
@@ -666,7 +688,28 @@ test('the Backend confirms the typed code and the user is signed in', async () =
     code: '123456',
   });
   expect(appStore.get().signedIn).toBe(true);
+  expect(await loadSession()).toMatchObject({ uid: 'u1' });
   expect(textsOf(renderer)).toContain('Vehicle setup');
+});
+
+test('a verified delivered code cannot sign in without a Firebase session', async () => {
+  mockBackend({
+    send: () => jsonResponse(200, sendBody()),
+    verify: () => jsonResponse(200, { verified: true, message: 'Verified.' }),
+  });
+  const renderer = await renderApp();
+  await startVerify(renderer);
+
+  await typeOtp(renderer, '123456');
+  await pressByText(renderer, 'Verify and create account');
+  for (let i = 0; i < 3; i++) {
+    await ReactTestRenderer.act(async () => {});
+  }
+
+  expect(appStore.get().signedIn).toBe(false);
+  expect(await loadSession()).toBeNull();
+  expect(textsOf(renderer)).toContain('Enter your code');
+  expect(messageOf(renderer)).toContain('sign-in could not finish');
 });
 
 test('a rate-limited send shows the Backend message and stays on the identify step', async () => {
@@ -944,5 +987,105 @@ describe('first-run introduction', () => {
     await back();
     expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
     spy.mockRestore();
+  });
+});
+
+test('standalone builds return a saved development login to welcome without losing vehicles', async () => {
+  const previousDev = (globalThis as any).__DEV__;
+  (globalThis as any).__DEV__ = false;
+  try {
+    seedSignedIn();
+    const savedVehicles = appStore.get().vehicles;
+    const renderer = await renderApp();
+    await flush();
+    expect(appStore.get().signedIn).toBe(false);
+    expect(appStore.get().vehicles).toEqual(savedVehicles);
+    expect(textsOf(renderer)).toContain(WELCOME_HEADLINE);
+  } finally {
+    (globalThis as any).__DEV__ = previousDev;
+  }
+});
+
+describe('mobile numbers on Android builds with Firebase phone verification', () => {
+  const originalOs = Platform.OS;
+  const phoneAuth = () => ({
+    sendCode: jest.fn().mockResolvedValue({ instant: false }),
+    verifyCode: jest.fn().mockResolvedValue({
+      uid: 'phone-user',
+      idToken: 'phone-id-token',
+      expiresAt: Date.now() + 3_600_000,
+    }),
+    cancel: jest.fn().mockResolvedValue(null),
+  });
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', {
+      value: 'android',
+      configurable: true,
+    });
+  });
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', {
+      value: originalOs,
+      configurable: true,
+    });
+    delete (NativeModules as any).PlugOrbitPhoneAuth;
+  });
+
+  test('signs in with a real native Firebase session and never shows a dev code', async () => {
+    const native = phoneAuth();
+    (NativeModules as any).PlugOrbitPhoneAuth = native;
+    const renderer = await renderApp();
+    await startVerify(renderer, '9876543210');
+    expect(native.sendCode).toHaveBeenCalledWith('+919876543210');
+    // Firebase sent the SMS: our Backend's OTP endpoints are not involved.
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(devCodeOf(renderer)).toBeUndefined();
+    expect(textsOf(renderer)).toContain('Sent by SMS');
+
+    await typeOtp(renderer, '123456');
+    await pressByText(renderer, 'Verify and create account');
+    for (let i = 0; i < 3; i++) {
+      await ReactTestRenderer.act(async () => {});
+    }
+    expect(native.verifyCode).toHaveBeenCalledWith('123456');
+    expect(appStore.get().signedIn).toBe(true);
+    expect(await loadSession()).toMatchObject({
+      uid: 'phone-user',
+      refreshToken: 'native-firebase-phone',
+    });
+  });
+
+  test('instant verification signs in without asking for a code', async () => {
+    const native = phoneAuth();
+    native.sendCode.mockResolvedValue({ instant: true });
+    (NativeModules as any).PlugOrbitPhoneAuth = native;
+    const renderer = await renderApp();
+    await startVerify(renderer, '9876543210');
+    for (let i = 0; i < 3; i++) {
+      await ReactTestRenderer.act(async () => {});
+    }
+    expect(native.verifyCode).toHaveBeenCalledWith('');
+    expect(appStore.get().signedIn).toBe(true);
+  });
+
+  test('an email address still goes through the Backend', async () => {
+    (NativeModules as any).PlugOrbitPhoneAuth = phoneAuth();
+    mockBackend({ send: () => jsonResponse(200, sendBody()) });
+    const renderer = await renderApp();
+    await startVerify(renderer, 'name@example.com');
+    expect(
+      (NativeModules as any).PlugOrbitPhoneAuth.sendCode,
+    ).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/auth\/otp\/send$/);
+  });
+
+  test('going back from the code step cancels the pending phone verification', async () => {
+    const native = phoneAuth();
+    (NativeModules as any).PlugOrbitPhoneAuth = native;
+    const renderer = await renderApp();
+    await startVerify(renderer, '9876543210');
+    native.cancel.mockClear();
+    await pressByText(renderer, 'Change');
+    expect(native.cancel).toHaveBeenCalled();
   });
 });

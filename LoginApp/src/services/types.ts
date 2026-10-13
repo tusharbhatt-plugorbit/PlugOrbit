@@ -141,6 +141,7 @@ export type EnergyPlan = {
 };
 
 export interface RouteService {
+  chooseStation?(route: Route, stationId: string): Promise<Route>;
   plan(request: RouteRequest): Promise<Route>;
   energyPlan(request: RouteRequest): Promise<EnergyPlan>;
   /** Re-plan a stop onto its backup; returns the updated route. */
@@ -189,6 +190,8 @@ export interface PaymentService {
 }
 
 export interface SupportService {
+  list?(): Promise<Ticket[]>;
+  get?(ticketId: string): Promise<Ticket>;
   createTicket(input: {
     category: TicketCategory;
     title: string;
@@ -214,9 +217,11 @@ export interface PreferencesService {
 
 export type StartSmartDriveInput = {
   fromLabel: string;
-  /** Device GPS origin, when the driver uses their current location. */
+  /** Device GPS origin, or the picked suggestion's position. */
   fromCoords?: import('../utils/geo').Coords;
   toLabel: string;
+  /** The picked destination suggestion's position, when it came from address search. */
+  toCoords?: import('../utils/geo').Coords;
   /** Defaults to the battery on record. */
   startSoc?: number;
   /** Per-journey overrides; never overwrite the driver's saved preferences. */

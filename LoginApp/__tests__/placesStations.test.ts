@@ -14,6 +14,7 @@ jest.mock('../src/config/google', () => ({
 jest.mock('../src/services/places', () => ({
   ...jest.requireActual('../src/services/places'),
   fetchNearbyChargers: jest.fn(),
+  fetchChargerById: jest.fn(),
 }));
 
 import Geolocation from '@react-native-community/geolocation';
@@ -37,7 +38,7 @@ import {createMockServices} from '../src/services';
 import {VEHICLE_CATALOG} from '../src/services/mock/data';
 import {clearPlacesCache} from '../src/services/mock/stationService';
 import type {Charger} from '../src/services/places';
-import {fetchNearbyChargers} from '../src/services/places';
+import {fetchNearbyChargers, fetchChargerById, PlacesError} from '../src/services/places';
 import {StationNotFoundError} from '../src/services/types';
 import {resetAppStore} from '../src/store/appStore';
 import {resetDemo} from '../src/store/demoStore';
@@ -90,6 +91,7 @@ const noEvData = charger({
 });
 
 beforeEach(() => {
+  (fetchChargerById as jest.Mock).mockRejectedValue(new PlacesError('Removed', 404));
   resetAppStore({
     ...seedState(Date.now()),
     vehicles: [nexon],
@@ -314,4 +316,14 @@ describe('a phone far from the demo chargers still finds some', () => {
     expect(data.demoArea).toBe(false);
     expect(data.userLocation).toEqual(DELHI);
   });
+});
+
+
+test('a saved Google charger is recovered by ID after restart even outside nearby search', async () => {
+  clearPlacesCache();
+  (fetchChargerById as jest.Mock).mockResolvedValue(charger());
+  const station = await services.station.get('g-ChIJabc', DELHI);
+  expect(station.id).toBe('g-ChIJabc');
+  expect(station.name).toBe('Mall EV Hub');
+  expect(fetchChargerById).toHaveBeenCalledWith('ChIJabc');
 });

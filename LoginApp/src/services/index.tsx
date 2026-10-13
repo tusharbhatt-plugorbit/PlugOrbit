@@ -1,4 +1,6 @@
 import React, {createContext, useContext, useMemo} from 'react';
+import {LIVE_SERVICES} from '../config/servicesMode';
+import {createBackendSupportService} from './support';
 import {createRouteService} from './mock/routeService';
 import {createSmartDriveService} from './mock/smartDriveService';
 import {createSessionService} from './mock/sessionService';
@@ -15,11 +17,13 @@ import type {Services} from './types';
 export * from './types';
 
 /**
- * True while the services are the mock layer: chargers, their availability and
- * the simulated drive are sample data, not an operator feed or a GPS. Screens use
- * it to say so. Set it to false only when real services replace createMockServices.
+ * True while chargers, their availability and the drive are sample data (the mock
+ * layer), not Google Places listings and real roads. Screens use it to say so. It
+ * follows the services mode (see config/servicesMode.ts). Payments, charging sessions
+ * and vehicle telemetry stay simulated in both modes until an operator integration
+ * exists; screens that show them say so.
  */
-export const RUNS_ON_DEMO_DATA = true;
+export const RUNS_ON_DEMO_DATA = !LIVE_SERVICES;
 
 /** All services backed by the mock layer. Swap per service for a real backend. */
 export function createMockServices(): Services {
@@ -36,6 +40,25 @@ export function createMockServices(): Services {
   };
 }
 
+/**
+ * What the app runs on: the mock layer, with chargers, routes, the drive and support
+ * swapped for live ones in live mode. Payments, sessions, vehicles, notifications and
+ * preferences are mock in both.
+ */
+export function createDefaultServices(live: boolean = LIVE_SERVICES): Services {
+  const mock = createMockServices();
+  if (!live) {
+    return mock;
+  }
+  return {
+    ...mock,
+    station: createStationService(true),
+    route: createRouteService(true),
+    smartDrive: createSmartDriveService(true),
+    support: createBackendSupportService(),
+  };
+}
+
 const ServicesContext = createContext<Services | null>(null);
 
 export function ServicesProvider({
@@ -45,7 +68,7 @@ export function ServicesProvider({
   services?: Services;
   children: React.ReactNode;
 }) {
-  const value = useMemo(() => services ?? createMockServices(), [services]);
+  const value = useMemo(() => services ?? createDefaultServices(), [services]);
   return (
     <ServicesContext.Provider value={value}>
       {children}

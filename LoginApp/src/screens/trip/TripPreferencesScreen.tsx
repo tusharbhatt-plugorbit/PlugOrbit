@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -54,6 +55,9 @@ const STRATEGY_HELP: Record<RouteStrategy, string> = {
  * kilometres, not just a percentage.
  */
 export default function TripPreferencesScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const onboarding = useRoute<'TripPreferences'>().params?.onboarding === true;
   const {preferences, smartDrive} = useServices();
@@ -279,7 +283,7 @@ export default function TripPreferencesScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.body, color: colors.muted},
   block: {marginTop: spacing.lg},
   head: {

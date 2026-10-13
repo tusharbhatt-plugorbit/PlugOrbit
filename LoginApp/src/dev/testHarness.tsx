@@ -99,7 +99,7 @@ export function TestApp({
   services?: Partial<Services>;
 }) {
   const merged = React.useMemo(
-    () => (services ? {...createMockServices(), ...services} : undefined),
+    () => ({...createMockServices(), ...services}),
     [services],
   );
   return (

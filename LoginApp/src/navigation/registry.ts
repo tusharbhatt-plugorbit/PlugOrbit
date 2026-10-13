@@ -1,6 +1,8 @@
 import type {Registry} from './AppNavigator';
 
 import ActivityScreen from '../screens/activity/ActivityScreen';
+import AIAssistantScreen from '../screens/activity/AIAssistantScreen';
+import ReferFriendScreen from '../screens/profile/ReferFriendScreen';
 import AlertsScreen from '../screens/activity/AlertsScreen';
 import FeedbackScreen from '../screens/activity/FeedbackScreen';
 import NotificationsScreen from '../screens/activity/NotificationsScreen';
@@ -8,6 +10,7 @@ import ReportProblemScreen from '../screens/activity/ReportProblemScreen';
 import RoadsideScreen from '../screens/activity/RoadsideScreen';
 import SessionDetailScreen from '../screens/activity/SessionDetailScreen';
 import SupportScreen from '../screens/activity/SupportScreen';
+import SupportAgentScreen from '../screens/activity/SupportAgentScreen';
 import TicketDetailScreen from '../screens/activity/TicketDetailScreen';
 import ActiveSessionScreen from '../screens/charge/ActiveSessionScreen';
 import ChargeScreen from '../screens/charge/ChargeScreen';
@@ -106,6 +109,7 @@ export const REGISTRY: Registry = {
   Feedback: {component: FeedbackScreen},
   ReportProblem: {component: ReportProblemScreen},
   Support: {component: SupportScreen, tabBar: true, tab: 'Profile'},
+  SupportAgent: {component: SupportAgentScreen},
   TicketDetail: {component: TicketDetailScreen},
   Notifications: {component: NotificationsScreen, tabBar: true, tab: 'Home'},
   Alerts: {component: AlertsScreen},
@@ -115,6 +119,9 @@ export const REGISTRY: Registry = {
   SmartDrive: {component: SmartDriveScreen},
   SmartDriveStop: {component: SmartDriveStopScreen},
   Assistant: {component: AssistantScreen},
+
+  AIAssistant: {component: AIAssistantScreen},
+  ReferFriend: {component: ReferFriendScreen},
 
   // Profile
   PaymentMethods: {component: PaymentMethodsScreen},

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -50,6 +51,9 @@ const TOGGLES: ReadonlyArray<{
  * where this build's data comes from, and a confirmed "erase my history".
  */
 export default function PrivacyScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const {preferences, vehicle} = useServices();
   const privacy = useApp(s => s.privacy);
   const linked = useApp(s => s.vehicleLink.connected);
@@ -220,7 +224,7 @@ export default function PrivacyScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.body, color: colors.muted},
   gap: {marginTop: spacing.lg},
 });

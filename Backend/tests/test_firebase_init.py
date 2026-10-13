@@ -78,7 +78,8 @@ def test_application_default_credentials_with_project_id(tmp_path, monkeypatch, 
     fb.init_firebase()
     cred, options = initialised[0]
     assert type(cred).__name__ == "ApplicationDefault"
-    assert options == {"projectId": "my-project"}
+    # httpTimeout is always passed so a stalled Google call cannot hang a request.
+    assert options == {"httpTimeout": 20, "projectId": "my-project"}
 
 
 def test_nothing_configured_starts_without_firebase(tmp_path, monkeypatch, initialised, caplog):
@@ -103,3 +104,24 @@ def test_get_db_without_initialisation_explains_the_options(monkeypatch):
     monkeypatch.setattr(firebase_admin, "_apps", {})
     with pytest.raises(RuntimeError, match="FIREBASE_CREDENTIALS_JSON"):
         fb.get_db()
+
+
+def test_service_account_project_mismatch_is_rejected(tmp_path, monkeypatch, initialised, caplog):
+    use(monkeypatch, settings(tmp_path,
+                              firebase_credentials_json=json.dumps(make_key_info("other-project")),
+                              firebase_project_id="expected-project"))
+    with caplog.at_level(logging.ERROR):
+        fb.init_firebase()
+    assert initialised == []
+    assert "does not match FIREBASE_PROJECT_ID" in caplog.text
+
+
+def test_adc_passes_explicit_custom_token_signer(tmp_path, monkeypatch, initialised):
+    use(monkeypatch, settings(tmp_path, firebase_use_adc=True, firebase_project_id="my-project",
+                              firebase_service_account_id="signer@my-project.iam.gserviceaccount.com"))
+    fb.init_firebase()
+    assert initialised[0][1] == {
+        "httpTimeout": 20,
+        "projectId": "my-project",
+        "serviceAccountId": "signer@my-project.iam.gserviceaccount.com",
+    }

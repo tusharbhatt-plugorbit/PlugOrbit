@@ -19,7 +19,7 @@ export type RouteParams = {
   Filters: undefined; // 05
   StationDetail: {stationId: string}; // 06
   Compare: {stationIds: string[]}; // 07
-  RoutePlanner: {toLabel?: string; fromLabel?: string} | undefined; // 08
+  RoutePlanner: {toLabel?: string; fromLabel?: string; fromCoords?: {latitude: number; longitude: number}; toCoords?: {latitude: number; longitude: number}} | undefined; // 08
   RouteResult: undefined; // 09 (reads the cached active route)
   BackupAlert:
     | {
@@ -45,6 +45,7 @@ export type RouteParams = {
   Feedback: {sessionId: string}; // 20
   ReportProblem: {stationId?: string; sessionId?: string} | undefined; // 21
   Support: undefined; // 22
+  SupportAgent: undefined;
   TicketDetail: {ticketId: string}; // 23
   Vehicles: undefined; // Profile > Vehicles (24)
   PaymentMethods: undefined; // Profile > Payment methods
@@ -81,6 +82,8 @@ export type RouteParams = {
   // Orbit Assist conversation (voice and text). `listen` opens the microphone on arrival,
   // for buttons whose whole point is "talk to Orbit"; it is never set automatically.
   Assistant: {listen?: boolean} | undefined;
+  AIAssistant: undefined;
+  ReferFriend: undefined;
 
   // Demo
   PresenterTools: undefined;

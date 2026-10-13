@@ -1,5 +1,6 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {
   availableCount,
   compatibleConnectors,
@@ -37,6 +38,8 @@ export const UNCONFIRMED_CONNECTORS = 'Connector type unconfirmed';
 
 /** Shown instead of "compatible" when the source doesn't list the connectors. */
 export function UnconfirmedConnectorsPill() {
+  useAppearance();
+
   return (
     <Pill label={UNCONFIRMED_CONNECTORS} tone="amber" icon="triangle-alert" />
   );
@@ -74,6 +77,9 @@ export function PriceLine({
   vehicle: Vehicle | null;
   now: number;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const price = lowestPrice(station, vehicle);
   if (price === null) {
     return (
@@ -121,6 +127,9 @@ function Fact({
   unit?: string;
   label: string;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.fact}>
       <Text style={styles.factValue} numberOfLines={1}>
@@ -146,6 +155,9 @@ export function StationFacts({
   station: StationWithDistance;
   vehicle: Vehicle | null;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   if (hasUnconfirmedConnectors(station)) {
     return <UnconfirmedConnectorsPill />;
   }
@@ -204,6 +216,8 @@ export const ChargerCard = React.memo(function ChargerCardInner({
   recommended,
   testID,
 }: CardProps) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
   const health = stationHealth(station, vehicle);
   const free = availableCount(station, vehicle);
   const compatible = isCompatible(station, vehicle);
@@ -222,7 +236,8 @@ export const ChargerCard = React.memo(function ChargerCardInner({
           : 'availability unknown'
       }`}
       testID={testID}
-      style={selected ? styles.selected : undefined}>
+      style={selected ? styles.selected : undefined}
+    >
       <View style={styles.topRow}>
         <View style={styles.titleCol}>
           {recommended && <Text style={styles.recommended}>Best nearby</Text>}
@@ -266,7 +281,8 @@ export const ChargerCard = React.memo(function ChargerCardInner({
             accessibilityLabel={
               favourite ? 'Remove from saved' : 'Save station'
             }
-            accessibilityState={{selected: !!favourite}}>
+            accessibilityState={{ selected: !!favourite }}
+          >
             <Icon
               name="heart"
               size={20}
@@ -302,29 +318,45 @@ export function MapChargerCard({
   bottom,
   best,
 }: MapCardProps) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const health = stationHealth(station, vehicle);
   // Collapsed it leaves the map visible: name, status (with how fresh it is) and
   // the Directions action. Expanded adds the figures behind them.
   const [expanded, setExpanded] = useState(false);
   useEffect(() => setExpanded(false), [station.id]);
   return (
-    <View style={[styles.mapCard, elevation(3), {bottom}]} testID="map-card">
+    <View style={[styles.mapCard, elevation(3), { bottom }]} testID="map-card">
+      <Text style={styles.mapSectionTitle}>Nearby Chargers</Text>
       <Pressable
         onPress={onDetails}
         accessibilityRole="button"
-        accessibilityLabel={`View ${station.name}`}>
-        {best && <Text style={styles.recommended}>Best nearby</Text>}
-        <Text style={styles.mapTitle} numberOfLines={2}>
-          {station.name}
-        </Text>
-        <View style={styles.statusRow}>
-          {healthBadge(health)}
-          <Text style={styles.availability} numberOfLines={1}>
-            {availabilityText(station, vehicle)}
-          </Text>
-          <Text style={styles.distance}>
-            {formatDistance(station.distanceKm)}
-          </Text>
+        accessibilityLabel={`View ${station.name}`}
+      >
+        <View style={styles.mapIdentity}>
+          <View>
+            <Image
+              source={require('../../assets/scenes/station-hub-v2.png')}
+              style={styles.mapThumbnail}
+            />
+            <Text style={styles.illustrationLabel}>Illustration</Text>
+          </View>
+          <View style={styles.titleCol}>
+            {best && <Text style={styles.recommended}>Best nearby</Text>}
+            <Text style={styles.mapTitle} numberOfLines={2}>
+              {station.name}
+            </Text>
+            <View style={styles.statusRow}>
+              {healthBadge(health)}
+              <Text style={styles.availability} numberOfLines={1}>
+                {availabilityText(station, vehicle)}
+              </Text>
+              <Text style={styles.distance}>
+                {formatDistance(station.distanceKm)}
+              </Text>
+            </View>
+          </View>
         </View>
         {expanded && <StationFacts station={station} vehicle={vehicle} />}
       </Pressable>
@@ -349,7 +381,8 @@ export function MapChargerCard({
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Close details"
-        style={styles.close}>
+        style={styles.close}
+      >
         <Icon name="x" size={14} color={colors.ink} />
       </Pressable>
       <View style={styles.mapTrust}>
@@ -378,6 +411,9 @@ export function ReliabilityBar({
   successPct: number;
   label?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const tone =
     successPct >= 90
       ? colors.limeDark
@@ -388,7 +424,8 @@ export function ReliabilityBar({
     <View
       accessible
       accessibilityLabel={`${Math.round(successPct)} percent ${label}`}
-      style={styles.rel}>
+      style={styles.rel}
+    >
       <View style={styles.relHead}>
         <Text style={styles.relValue}>{Math.round(successPct)}%</Text>
         <Text style={styles.relLabel}>{label}</Text>
@@ -397,7 +434,7 @@ export function ReliabilityBar({
         <View
           style={[
             styles.relFill,
-            {width: `${Math.min(100, successPct)}%`, backgroundColor: tone},
+            { width: `${Math.min(100, successPct)}%`, backgroundColor: tone },
           ]}
         />
       </View>
@@ -421,11 +458,15 @@ export function BackupChargerCard({
   onPress?: () => void;
   title?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const health = stationHealth(station, vehicle);
   return (
     <Card
       onPress={onPress}
-      accessibilityLabel={`${title}: ${station.name}, plus ${extraMin} minutes`}>
+      accessibilityLabel={`${title}: ${station.name}, plus ${extraMin} minutes`}
+    >
       <View style={styles.backupHead}>
         <View style={styles.backupIcon}>
           <Icon name="shield-check" size={18} color={colors.info} />
@@ -454,25 +495,25 @@ export function BackupChargerCard({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {flex: 1},
+const baseStyles = StyleSheet.create({
+  flex: { flex: 1 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  titleCol: {flex: 1},
+  titleCol: { flex: 1 },
   recommended: {
     ...type.micro,
     color: colors.limeDark,
     marginBottom: 3,
     textTransform: 'uppercase',
   },
-  name: {...type.heading, color: colors.ink},
-  line: {...type.caption, color: colors.inkSoft, marginTop: 4},
-  detour: {marginTop: spacing.md},
-  caption: {...type.caption, color: colors.muted, fontSize: 12},
+  name: { ...type.heading, color: colors.ink },
+  line: { ...type.caption, color: colors.inkSoft, marginTop: 4 },
+  detour: { marginTop: spacing.md },
+  caption: { ...type.caption, color: colors.muted, fontSize: 12 },
   trustRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -480,22 +521,22 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: spacing.sm,
   },
-  priceRow: {marginTop: spacing.xs},
+  priceRow: { marginTop: spacing.xs },
   footRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
-  selected: {borderWidth: 2, borderColor: colors.bg},
+  selected: { borderWidth: 2, borderColor: colors.bg },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  availability: {...type.label, color: colors.inkSoft, flex: 1},
-  distance: {...type.heading, color: colors.ink},
+  availability: { ...type.label, color: colors.inkSoft, flex: 1 },
+  distance: { ...type.heading, color: colors.ink },
   facts: {
     flexDirection: 'row',
     marginTop: spacing.md,
@@ -503,14 +544,25 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
   },
-  fact: {flex: 1},
-  factValue: {...type.heading, color: colors.ink},
-  factUnit: {...type.caption, color: colors.muted, fontWeight: '600'},
+  fact: { flex: 1 },
+  factValue: { ...type.heading, color: colors.ink },
+  factUnit: { ...type.caption, color: colors.muted, fontWeight: '600' },
   factLabel: {
     ...type.caption,
     color: colors.muted,
     fontSize: 11.5,
     marginTop: 2,
+  },
+  mapSectionTitle: { ...type.title, color: colors.ink, marginBottom: 10 },
+  mapIdentity: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  mapThumbnail: { width: 72, height: 72, borderRadius: 12 },
+  illustrationLabel: {
+    position: 'absolute',
+    bottom: 3,
+    left: 3,
+    fontSize: 8,
+    color: '#FFFFFF',
+    backgroundColor: '#04182FCC',
   },
   mapCard: {
     position: 'absolute',
@@ -528,7 +580,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -546,7 +598,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slateSoft,
     overflow: 'hidden',
   },
-  relFill: {height: '100%', borderRadius: 4},
+  relFill: { height: '100%', borderRadius: 4 },
   backupHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -561,5 +613,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backupTitle: {...type.label, color: colors.info, flex: 1},
+  backupTitle: { ...type.label, color: colors.info, flex: 1 },
 });

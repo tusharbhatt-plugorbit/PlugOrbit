@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import type {Vehicle} from '../domain/types';
@@ -30,6 +31,9 @@ function Stat({
   label: string;
   muted?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, muted && styles.statMuted]}>
@@ -62,6 +66,9 @@ export function VehicleSpecCard({
   footer?: React.ReactNode;
   testID?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const name = `${spec.make} ${spec.model}`;
   const connectors = spec.connectors.map(typeLabel).join(', ');
   const body = (
@@ -144,7 +151,7 @@ export function VehicleSpecCard({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,

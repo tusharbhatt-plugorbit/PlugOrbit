@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {CONFIDENCE_LABEL, waitBasisLabel, waitLabel} from '../../domain/rules';
@@ -28,6 +29,9 @@ import {ConfirmActionSheet} from '../../ui/ConfirmActionSheet';
  * single number. TODO(integration): operator queue API.
  */
 export default function QueueScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Queue'>();
   const {station: stationService} = useServices();
@@ -247,7 +251,7 @@ export default function QueueScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   lead: {...type.h1, color: colors.ink},
   sub: {...type.body, color: colors.muted},

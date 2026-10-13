@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import type {
@@ -23,6 +24,9 @@ export function SessionMetricCard({
   unit?: string;
   icon?: IconName;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.metric}
@@ -55,6 +59,9 @@ export function PaymentMethodCard({
   selected?: boolean;
   onPress?: () => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -103,6 +110,9 @@ export function SupportTicketCard({
   ticket: Ticket;
   onPress?: () => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const s = TICKET_STATUS[ticket.status];
   return (
     <Card
@@ -131,6 +141,9 @@ export function SessionRow({
   session: SessionSummary;
   onPress?: () => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Card
       onPress={onPress}
@@ -177,7 +190,7 @@ export function vehicleName(v: Vehicle): string {
   return `${v.make} ${v.model}`;
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   metric: {
     flex: 1,

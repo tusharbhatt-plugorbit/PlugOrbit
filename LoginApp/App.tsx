@@ -1,11 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {AppearanceProvider} from './src/appearance';
 import MainApp from './src/app/MainApp';
 import {AuthScreen} from './src/screens/auth/AuthScreen';
 import {OnboardingScreen} from './src/screens/auth/OnboardingScreen';
 import {SplashScreen} from './src/screens/auth/SplashScreen';
 import {WelcomeScreen} from './src/screens/auth/WelcomeScreen';
 import {ServicesProvider} from './src/services';
+import {loadSession} from './src/services/session';
 import {startCloudSync} from './src/store/cloudSync';
 import {appStore, hydrateAppStore, useApp} from './src/store/appStore';
 import {startDemoPersistence} from './src/store/demoStore';
@@ -16,9 +18,11 @@ type Screen = 'welcome' | 'onboarding' | 'login' | 'signup' | 'app';
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
-      <ServicesProvider>
-        <AppContent />
-      </ServicesProvider>
+      <AppearanceProvider>
+        <ServicesProvider>
+          <AppContent />
+        </ServicesProvider>
+      </AppearanceProvider>
     </SafeAreaProvider>
   );
 }
@@ -32,7 +36,10 @@ function AppContent(): React.JSX.Element {
   const signedIn = useApp(st => st.signedIn);
 
   useEffect(() => {
-    startDemoPersistence();
+    // Presenter switches are a development tool; a release build never persists them.
+    if (__DEV__) {
+      startDemoPersistence();
+    }
     hydrateAppStore();
     hasSeenOnboarding().then(setIntroSeen);
   }, []);
@@ -51,9 +58,25 @@ function AppContent(): React.JSX.Element {
     if (!hydrated) {
       return;
     }
-    setScreen(prev =>
-      signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev,
-    );
+    let active = true;
+    const restore = async () => {
+      // A development code cannot become a saved production login after an APK upgrade.
+      if (signedIn && !__DEV__ && !(await loadSession())) {
+        if (active) {
+          appStore.set({signedIn: false});
+        }
+        return;
+      }
+      if (active) {
+        setScreen(prev =>
+          signedIn ? 'app' : prev === null || prev === 'app' ? 'welcome' : prev,
+        );
+      }
+    };
+    restore();
+    return () => {
+      active = false;
+    };
   }, [hydrated, signedIn]);
 
   if (screen === null) {

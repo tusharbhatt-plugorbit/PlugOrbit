@@ -13,6 +13,7 @@ jest.mock('../src/config/google', () => ({
 jest.mock('../src/services/places', () => ({
   ...jest.requireActual('../src/services/places'),
   fetchNearbyChargers: jest.fn(),
+  fetchChargerById: jest.fn(),
 }));
 
 import React from 'react';
@@ -27,7 +28,11 @@ import {
 } from '../src/services/mock/stationService';
 import {clearPlacesCache} from '../src/services/mock/stationService';
 import type {Charger} from '../src/services/places';
-import {fetchNearbyChargers} from '../src/services/places';
+import {
+  PlacesError,
+  fetchChargerById,
+  fetchNearbyChargers,
+} from '../src/services/places';
 import {appStore} from '../src/store/appStore';
 import {BackupChargerCard} from '../src/ui';
 
@@ -36,6 +41,7 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const DELHI = {latitude: 28.6139, longitude: 77.209};
 const fetchMock = fetchNearbyChargers as jest.Mock;
+const byIdMock = fetchChargerById as jest.Mock;
 
 const hub: Charger = {
   id: 'ChIJabc',
@@ -139,6 +145,12 @@ beforeEach(() => {
   clearPlacesCache();
   fetchMock.mockReset();
   fetchMock.mockResolvedValue([]);
+  // A saved charger that is not in memory is looked up by its place ID; by default
+  // Google no longer knows it (404).
+  byIdMock.mockReset();
+  byIdMock.mockRejectedValue(
+    new PlacesError('The saved charger is unavailable.', 404),
+  );
 });
 
 afterEach(async () => {
@@ -287,6 +299,21 @@ describe('Google chargers open like any other', () => {
     expect(t).not.toMatch(/check your connection/i);
     await press(r, 'Find chargers');
     expect(probe.current).toBe('StationList');
+  });
+
+  test('a saved Google charger that is not in memory is looked up by its place ID', async () => {
+    byIdMock.mockResolvedValue(hub);
+    const r = await open('StationDetail', {stationId: 'g-ChIJabc'});
+    expect(byIdMock).toHaveBeenCalledWith('ChIJabc');
+    expect(texts(r)).toContain('Mall EV Hub');
+  });
+
+  test('a failed lookup (no connection) asks to retry instead of calling the charger unavailable', async () => {
+    byIdMock.mockRejectedValue(new PlacesError('Could not load the saved charger.'));
+    const r = await open('StationDetail', {stationId: 'g-gone'});
+    const t = texts(r).join('|');
+    expect(t).toContain('Couldn’t load this charger');
+    expect(t).not.toContain('This charger isn’t available right now');
   });
 
   test('Saved keeps the rest and explains the one that is missing', async () => {

@@ -49,6 +49,7 @@ export type MonitorContext = {
 };
 
 export type CreateTripInput = {
+  firstStopId?: string;
   tripId: string;
   userId?: string;
   vehicle: Vehicle;
@@ -107,7 +108,7 @@ function planLine(plan: ChargingPlan): string {
 
 /** Build a trip and its first plan. The driver has not set off yet ('ready'). */
 export function createTrip(input: CreateTripInput): ActiveTrip {
-  const path = buildPath(input.polyline);
+  const path = buildPath(input.polyline, input.simulated === false ? 1 : undefined);
   const config = input.config;
   const reservePct = input.reservePct ?? config.minimumSafetyReservePct;
   const plan = planCharging({
@@ -122,6 +123,7 @@ export function createTrip(input: CreateTripInput): ActiveTrip {
     profile: input.profile,
     preferAmenities: input.preferAmenities,
     conditions: input.conditions,
+    pinnedId: input.firstStopId,
   });
   const base: ActiveTrip = {
     tripId: input.tripId,
@@ -167,7 +169,7 @@ export function createTrip(input: CreateTripInput): ActiveTrip {
     profile: input.profile ?? 'balanced',
     preferAmenities: input.preferAmenities ?? false,
     reservePct,
-    pinnedPrimaryId: null,
+    pinnedPrimaryId: input.firstStopId ?? null,
     visitedStopIds: [],
     lastChange: null,
     session: null,
@@ -420,7 +422,7 @@ export function processEvent(
     return {trip, notifications: [], decisions: [], events: [event]};
   }
   const now = event.at;
-  const path = buildPath(trip.polyline);
+  const path = buildPath(trip.polyline, trip.simulated ? undefined : 1);
   const events: TripEvent[] = [event];
 
   let t = reduce(trip, event, path, vehicle);

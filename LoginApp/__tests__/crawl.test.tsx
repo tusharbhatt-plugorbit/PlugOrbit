@@ -211,6 +211,11 @@ const COVERED_BY_FLOW_TESTS = new Set<RouteName>(['StartCharging', 'Payment', 'P
 test('every route is reachable from a button on another screen', () => {
   const reachable = new Set<RouteName>([...TAB_ONLY, ...COVERED_BY_FLOW_TESTS]);
   reached.forEach(targets => targets.forEach(t => reachable.add(t)));
-  const unreachable = ROUTES.filter(r => !reachable.has(r));
+  // PresenterTools is intentionally absent from the driver's production profile, and
+  // SupportAgent is entered only by an authorised support agent (the Support screen
+  // shows its entry when /support/access says so; __tests__/supportAgent.test.tsx).
+  const unreachable = ROUTES.filter(
+    r => r !== 'PresenterTools' && r !== 'SupportAgent' && !reachable.has(r),
+  );
   expect(unreachable).toEqual([]);
 });

@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
 import {DEFAULT_CENTER} from '../config/google';
 import type {Coords} from '../utils/geo';
+import {getCurrentLocation} from '../services/location';
 import {resolveOrigin} from './useDiscoverStations';
 
 type UserOrigin = {
@@ -17,7 +18,7 @@ type UserOrigin = {
  * rule the list uses, so a charger shows the same distance everywhere).
  * `known` says whether you got the device's own position.
  */
-export function useUserOrigin(): UserOrigin {
+export function useUserOrigin(live = false): UserOrigin {
   const [state, setState] = useState<UserOrigin>({
     origin: DEFAULT_CENTER,
     known: false,
@@ -26,7 +27,11 @@ export function useUserOrigin(): UserOrigin {
   });
   useEffect(() => {
     let alive = true;
-    resolveOrigin(true).then(where => {
+    const request = live
+      ? getCurrentLocation().then(origin => ({origin, userLocation: origin, demoArea: false}))
+          .catch(() => ({origin: DEFAULT_CENTER, userLocation: null, demoArea: false}))
+      : resolveOrigin(true);
+    request.then(where => {
       if (alive) {
         setState({
           origin: where.origin,
@@ -39,6 +44,6 @@ export function useUserOrigin(): UserOrigin {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [live]);
   return state;
 }

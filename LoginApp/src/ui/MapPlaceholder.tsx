@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {colors, radii, spacing, type} from '../theme';
@@ -10,6 +11,9 @@ import {Icon} from './Icon';
  * and station details, so this only has to say why there is no picture.
  */
 export function MapPlaceholder({height = 200}: {height?: number}) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={[styles.wrap, {height}]}
@@ -27,7 +31,7 @@ export function MapPlaceholder({height = 200}: {height?: number}) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     borderRadius: radii.lg,
     backgroundColor: colors.mapBg,

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -26,6 +27,9 @@ import {
  * the app is closed or the network drops here.
  */
 export default function PaymentScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Payment'>();
   const {payment} = useServices();
@@ -194,7 +198,7 @@ export default function PaymentScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {alignItems: 'center', paddingVertical: spacing.lg},
   heroLabel: {...type.label, color: colors.muted},
   heroTotal: {

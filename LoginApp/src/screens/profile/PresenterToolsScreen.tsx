@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {DEMO_TIME_SCALE} from '../../domain/charging';
@@ -49,6 +50,9 @@ const SKIP: ReadonlyArray<RouteName> = ['PresenterTools'];
  * return, so a presenter can walk through the hard states on demand.
  */
 export default function PresenterToolsScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {
     session: sessionService,
@@ -307,7 +311,7 @@ export default function PresenterToolsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   label: {...type.bodyStrong, color: colors.ink},
   sub: {...type.caption, color: colors.muted, marginTop: 2},
   seg: {marginTop: spacing.md},

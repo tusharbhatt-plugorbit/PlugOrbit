@@ -25,8 +25,9 @@ import type {
 import {DEFAULT_CENTER, hasGoogleApiKey} from '../../config/google';
 import {appStore} from '../../store/appStore';
 import {demoStore} from '../../store/demoStore';
+import {buildPath, pointAt} from '../../utils/path';
 import {distanceKm, Coords} from '../../utils/geo';
-import {fetchNearbyChargers} from '../places';
+import {fetchNearbyChargers, fetchChargerById, PlacesError} from '../places';
 import type {Charger} from '../places';
 import type {StationService} from '../types';
 import {ApiError, StationNotFoundError} from '../types';
@@ -161,8 +162,8 @@ function toGoogleStation(c: Charger, fetchedAt: number): Station {
 }
 
 // Every Google station we have shown, newest last, so Details, Directions,
-// Saved, Compare and the rest can open it by id. Not persisted: after a restart
-// a saved Google charger is "not available right now" until it is found again.
+// Saved, Compare and the rest can open it by id. Cache misses are recovered
+// with a place-ID lookup, so saved chargers also open after a restart.
 const MAX_CACHED_PLACES = 120;
 const placesCache = new Map<string, Station>();
 
@@ -185,17 +186,44 @@ function rememberPlaces(stations: Station[]): void {
   }
 }
 
-async function googleStations(origin: Coords): Promise<Station[]> {
+/** Search overlapping areas along the actual road, not only the departure city. */
+export async function loadRouteStations(points: readonly Coords[]): Promise<Station[]> {
+  if (!hasGoogleApiKey) throw new ApiError('Charging station search is not configured.');
+  const path = buildPath(points);
+  const segments = Math.max(1, Math.ceil(path.totalKm / 35));
+  if (segments > 40) throw new ApiError('Split this long trip into shorter legs to search all charging stations.');
+  const origins = Array.from({length: segments + 1}, (_, i) => pointAt(path, path.totalKm * i / segments));
+  const stations = new Map<string, Station>();
+  let next = 0;
+  try {
+    await Promise.all(Array.from({length: Math.min(3, origins.length)}, async () => {
+      while (next < origins.length) {
+        const origin = origins[next++];
+        const chargers = await fetchNearbyChargers(origin, undefined, 25000);
+        chargers.forEach(c => {const station = toGoogleStation(c, Date.now()); stations.set(station.id, station);});
+      }
+    }));
+  } catch (error) {
+    throw new ApiError(error instanceof Error ? `Could not search route chargers: ${error.message}` : 'Could not search route chargers. Check your connection and retry.');
+  }
+  const results = [...stations.values()];
+  rememberPlaces(results);
+  return results;
+}
+
+export async function googleStations(origin: Coords, strict = false, radius = 25000): Promise<Station[]> {
   if (!hasGoogleApiKey) {
+    if (strict) throw new ApiError('Google station search is not configured.');
     return [];
   }
   try {
-    const chargers = await fetchNearbyChargers(origin);
+    const chargers = await fetchNearbyChargers(origin, undefined, radius);
     const now = Date.now();
     const stations = chargers.map(c => toGoogleStation(c, now));
     rememberPlaces(stations);
     return stations;
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
@@ -268,21 +296,21 @@ async function inReach(origin: Coords): Promise<StationWithDistance[]> {
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
-export function createStationService(): StationService {
+export function createStationService(live = false): StationService {
   return {
     async nearby(query: StationQuery) {
       await guard();
-      if (demoStore.get().noCompatible) {
+      if (!live && demoStore.get().noCompatible) {
         return [];
       }
-      let reachable = await inReach(query.origin);
+      let reachable = live ? (await googleStations(query.origin, true)).map(s => withDistanceTo(s, query.origin)).sort((a,b) => a.distanceKm-b.distanceKm) : await inReach(query.origin);
       // The built-in chargers are all around New Delhi. A phone far from there
       // that Google found nothing for would otherwise see an empty app, so look
       // around the demo centre instead; callers tell the driver (isDemoFallback).
       // Only when nothing at all is in reach: chargers that merely don't fit
       // the car are a real answer ("none compatible"), not a reason to move.
       if (
-        reachable.length === 0 &&
+        !live && reachable.length === 0 &&
         isOutsideDemoArea(query.origin, DEFAULT_CENTER)
       ) {
         reachable = await inReach(DEFAULT_CENTER);
@@ -294,13 +322,23 @@ export function createStationService(): StationService {
 
     async get(stationId, origin) {
       await guard(200);
+      if (live && !stationId.startsWith('g-')) throw new StationNotFoundError();
+      if (stationId.startsWith('g-') && (live || !placesCache.has(stationId)) && hasGoogleApiKey) {
+        try {
+          const charger = await fetchChargerById(stationId.slice(2));
+          rememberPlaces([toGoogleStation(charger, Date.now())]);
+        } catch (error) {
+          if (error instanceof PlacesError && error.status === 404) throw new StationNotFoundError();
+          throw error;
+        }
+      }
       return withDistanceTo(findStation(stationId), origin ?? DEFAULT_CENTER);
     },
 
     async search(text, origin, vehicle) {
       await guard(250);
       const q = text.trim().toLowerCase();
-      return loadStations()
+      return (live ? await googleStations(origin, true) : loadStations())
         .filter(
           s =>
             isCompatible(s, vehicle) &&
@@ -319,12 +357,13 @@ export function createStationService(): StationService {
     },
 
     async forecast(stationId): Promise<Forecast> {
+      if (live) throw new ApiError('An operator forecasting feed is not connected.');
       await guard(450);
       const s = findStation(stationId);
       const total = s.connectors.length;
       const freeNow = s.connectors.filter(c => c.status === 'available').length;
       const h = hash(stationId);
-      const live = s.statusFeed.source === 'operator_feed';
+      const operatorLive = s.statusFeed.source === 'operator_feed';
       const next60 = Array.from({length: 12}, (_, i) => {
         const wave = Math.sin((i + (h % 5)) / 2.2) * 0.18;
         const drift = (freeNow / Math.max(total, 1) - 0.5) * 0.3 * (1 - i / 12);
@@ -335,12 +374,13 @@ export function createStationService(): StationService {
         freeNow,
         total,
         next60,
-        confidence: live ? 'medium' : 'low',
-        basis: live ? 'history' : 'none',
+        confidence: operatorLive ? 'medium' : 'low',
+        basis: operatorLive ? 'history' : 'none',
       };
     },
 
     async community(stationId) {
+      if (live) return [];
       await guard(250);
       const now = Date.now();
       const base: CommunityUpdate[] = [
@@ -373,6 +413,7 @@ export function createStationService(): StationService {
     },
 
     async confirmStatus(stationId, kind) {
+      if (live) throw new ApiError('This action needs a connected charger operator. Contact support for assistance.');
       await guard(250);
       const labels: Record<CommunityUpdate['kind'], string> = {
         working: 'Working',
@@ -396,6 +437,7 @@ export function createStationService(): StationService {
     },
 
     async report(report) {
+      if (live) throw new ApiError('This action needs a connected charger operator. Contact support for assistance.');
       await guard(500);
       const now = Date.now();
       const number = `PO-${143 + appStore.get().tickets.length}`;
@@ -422,6 +464,7 @@ export function createStationService(): StationService {
     },
 
     async joinQueue(stationId): Promise<QueueTicket> {
+      if (live) throw new ApiError('This action needs a connected charger operator. Contact support for assistance.');
       await guard(400);
       const s = findStation(stationId);
       // The nearest charger with known connectors, and only if it's a short
@@ -459,6 +502,7 @@ export function createStationService(): StationService {
     },
 
     async reserve(stationId, arrivalAt, holdMinutes): Promise<Reservation> {
+      if (live) throw new ApiError('This action needs a connected charger operator. Contact support for assistance.');
       await guard(500);
       const s = findStation(stationId);
       if (s.integration !== 'integrated') {

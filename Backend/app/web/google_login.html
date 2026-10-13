@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PlugOrbit Google sign-in</title>
+<style>body{margin:0;background:linear-gradient(150deg,#edf3fa,#dff8f1);font:16px system-ui;color:#0f172a;display:grid;min-height:100vh;place-items:center}.card{background:#ffffffed;border:1px solid #b7c8d9;border-radius:28px;padding:32px;max-width:380px;margin:20px;box-shadow:0 20px 60px #04182f18}h1{font-size:29px}button{width:100%;padding:16px;border:0;border-radius:16px;background:#075bd8;color:white;font:700 16px system-ui}p{line-height:1.6;color:#40526c}#status{min-height:48px}button:disabled{opacity:.6}</style>
+<div class="card"><h1>Plug<span style="color:#08755f">Orbit</span></h1><h2>Sign in with Google</h2><p>Continue with your Google account. Your PlugOrbit session will connect back to the app.</p><button id="continue" disabled>Loading Google sign-in...</button><p id="status" role="status">Preparing secure Google account selection...</p><p>You can close this page after sign-in and return to PlugOrbit.</p></div>
+<script type="module" nonce="__NONCE__">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import {getAuth, GoogleAuthProvider, signInWithPopup, inMemoryPersistence, setPersistence, signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+const config=__CONFIG__, flow=__FLOW__, csrf=__CSRF__;
+const button=document.getElementById('continue'),status=document.getElementById('status');
+try {
+const auth=getAuth(initializeApp(config)); await setPersistence(auth,inMemoryPersistence);
+button.disabled=false;button.textContent='Continue with Google';status.textContent='Google will ask you to select and approve your account.';
+button.onclick=async()=>{
+button.disabled=true;status.textContent='Waiting for your Google account...';
+try {
+const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+const result=await signInWithPopup(auth,provider);
+const credential=GoogleAuthProvider.credentialFromResult(result);
+if(!credential?.idToken)throw new Error('Google did not return a sign-in token. Please retry.');
+const response=await fetch('/auth/google-browser/complete',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Flow-CSRF':csrf},body:JSON.stringify({flow_id:flow,id_token:credential.idToken})});
+const body=await response.json();if(!response.ok)throw new Error(body.detail?.message||'Could not connect your sign-in to PlugOrbit.');
+await signOut(auth).catch(()=>{});status.textContent='Signed in. Close this browser page and return to PlugOrbit.';button.textContent='Sign-in complete';
+} catch(e){status.textContent=e.code==='auth/popup-closed-by-user'?'Account selection cancelled. You can retry.':(e.message||'Google sign-in could not finish.');button.disabled=false;button.textContent='Try Google again';}
+};
+} catch(e){status.textContent='Could not prepare Google sign-in. Check your connection and reopen this page.';}
+</script></html>

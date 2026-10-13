@@ -12,7 +12,7 @@ import {
   scenarioInput,
   withStationStatus,
 } from '../../src/dev/smartDriveFixtures';
-import {buildPath} from '../../src/utils/path';
+import {buildPath, pointAt} from '../../src/utils/path';
 
 const now = noon();
 
@@ -202,6 +202,11 @@ describe('when charging is not needed', () => {
 describe('battery-critical mode', () => {
   const low = scenarioInput(now, {progressKm: 105, soc: 14});
 
+  test('still seeks a charge at critical battery even for a short destination leg', () => {
+    const plan = planCharging({...low, path: buildPath([pointAt(low.path, 105), pointAt(low.path, 106)]), progressKm: 0});
+    expect(plan.chargingRequired).toBe(true);
+  });
+
   test('engages at or below the critical level', () => {
     const plan = planCharging(low);
     expect(plan.mode).toBe('battery_critical');
@@ -333,4 +338,26 @@ test('uses the user-supplied reserve', () => {
   careful.primary &&
     expect(careful.primary.metrics.arriveSoc.low).toBeGreaterThanOrEqual(25);
   expect(NEXON_EV.id).toBe('veh-1');
+});
+
+
+describe('complete charging itinerary', () => {
+  const path = buildPath([{latitude: 28.6, longitude: 77.2}, {latitude: 19.6, longitude: 77.2}]);
+  const template = mockStations(now).find(s => s.connectors.some(c => c.type === 'CCS2'))!;
+  const stations = Array.from({length: 10}, (_, i) => ({...template, hours: '24/7', id: `leg-${i}`, name: `Charger ${i}`,
+    ...pointAt(path, 80 + i * 105), connectors: template.connectors.map(c => ({...c, id: `${c.id}-${i}`}))}));
+  test('plans every charge to the destination with no duplicated stations', () => {
+    const plan = planCharging({...scenarioInput(now), path, stations, soc: 55});
+    expect(plan.itinerary?.complete).toBe(true);
+    expect(plan.itinerary!.stops.length).toBeGreaterThan(1);
+    expect(new Set(plan.itinerary!.stops.map(s => s.station.id)).size).toBe(plan.itinerary!.stops.length);
+    expect(plan.destination.socWithPlan?.low).toBeGreaterThanOrEqual(12);
+    plan.itinerary!.stops.forEach(s => expect(s.metrics.arriveSoc.low).toBeGreaterThanOrEqual(12));
+  });
+  test('reports the gap instead of claiming a safe full journey', () => {
+    const plan = planCharging({...scenarioInput(now), path, stations: stations.slice(0, 2), soc: 55});
+    expect(plan.itinerary?.complete).toBe(false);
+    expect(plan.destination.socWithPlan).toBeNull();
+    expect(plan.routeRisk).toBe('high');
+  });
 });

@@ -36,11 +36,13 @@ each block. Examples use `feature/my-change`; replace it with your own branch na
 | `LoginApp/src/services/mock/` | Preview implementations for routes, charging, payments and other service boundaries |
 | `LoginApp/src/intelligence/` | Deterministic energy, charging recommendation and journey-monitoring logic |
 | `LoginApp/src/assistant/` | Conversation controller, tool adapters, approved actions, proactive events and native speech |
+| `LoginApp/src/appearance.tsx` | System / Light appearance: recolors themed style sheets for the dark palette |
+| `LoginApp/src/config/servicesMode.ts` | Live vs demo data (`SERVICES_MODE`, or live once a Places key is set) |
 | `LoginApp/android/`, `ios/` | Native platform projects, permissions and build configuration |
 | `LoginApp/scripts/` | Native voice compatibility patch and emulator UI QA helper |
 | `LoginApp/__tests__/` | Frontend unit, component, integration-boundary and navigation tests |
 | `Backend/app/main.py` | FastAPI application; health route and router registration |
-| `Backend/app/routes/`, `services/` | Authentication, OTP delivery, user data and Firebase-backed app-state services |
+| `Backend/app/routes/`, `services/` | Authentication (OTP, Google), OTP delivery, user data, support tickets, the help-guide chat and Firebase-backed app-state services |
 | `Backend/app/ai/` | Isolated authenticated LLM gateway, tool protocol, sessions, limits and usage estimates |
 | `Backend/tests/`, `scripts/` | Backend tests and optional live Firebase diagnostics |
 | `LoginApp/docs/` | Architecture, product behavior, assistant setup and review reports |
@@ -481,6 +483,8 @@ and delete temporary cloud records/accounts; run them only against an authorized
 - [Integration handoff and preview boundaries](LoginApp/docs/HANDOFF.md)
 - [Smart Drive engine](LoginApp/docs/SMART_DRIVE.md)
 - [Orbit Assist architecture, setup and costs](LoginApp/docs/ASSISTANT_AI.md)
+- [How the two feature branches were integrated, and what still needs a decision](LoginApp/docs/BRANCH_INTEGRATION.md)
+- [Client demo readiness checklist](DEMO_READINESS.md) and [phone testing](LoginApp/PHONE_TEST.md)
 - [UI and integration quality review](LoginApp/docs/QUALITY_REVIEW.md)
 - [Demo walkthrough](LoginApp/docs/DEMO_WALKTHROUGH.md)
 - [Product specification](LoginApp/docs/PRODUCT_SPEC.md)

@@ -19,6 +19,7 @@ function minutesOfDay(hour: string, minute: string | undefined, ap: string) {
  */
 export function openStateAt(hours: string, at: number): OpenState {
   const text = hours.trim();
+  if (/^closed(?:\s|$)|permanently closed|temporarily closed/i.test(text)) return 'closed';
   if (/24\s*\/\s*7|24\s*hours?|always open/i.test(text)) {
     return 'open';
   }

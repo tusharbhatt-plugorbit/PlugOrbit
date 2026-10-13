@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text} from 'react-native';
 import type {AlertPreferences} from '../../domain/types';
@@ -48,6 +49,9 @@ const ROWS: ReadonlyArray<{
 
 /** 29 Charging alerts. */
 export default function AlertsScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {preferences} = useServices();
   const saved = useApp(s => s.alertPrefs);
@@ -101,4 +105,4 @@ export default function AlertsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({lead: {...type.display, color: colors.ink}});
+const baseStyles = StyleSheet.create({lead: {...type.display, color: colors.ink}});

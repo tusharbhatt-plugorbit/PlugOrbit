@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useRef} from 'react';
 import {Animated, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {useDemo} from '../store/demoStore';
@@ -7,6 +8,9 @@ import {Icon, IconName} from './Icon';
 
 /** Shown on every screen while the (simulated) connection is down. */
 export function OfflineBanner({message}: {message?: string}) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const offline = useDemo(s => s.offline);
   if (!offline) {
     return null;
@@ -52,6 +56,9 @@ function Panel({
   testID,
   compact,
 }: PanelProps) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const t = PANEL_TONE[tone];
   return (
     <View
@@ -84,6 +91,8 @@ function Panel({
 }
 
 export function EmptyState(props: Omit<PanelProps, 'tone'>) {
+  useAppearance();
+
   return <Panel {...props} />;
 }
 
@@ -94,6 +103,8 @@ export function ErrorState({
   icon = 'triangle-alert',
   ...rest
 }: Partial<Omit<PanelProps, 'primary'>> & {onRetry?: () => void}) {
+  useAppearance();
+
   return (
     <Panel
       icon={icon}
@@ -111,6 +122,8 @@ export function ErrorState({
 }
 
 export function OfflineState({onRetry}: {onRetry?: () => void}) {
+  useAppearance();
+
   return (
     <Panel
       icon="wifi-off"
@@ -140,6 +153,8 @@ export function PermissionPrompt({
   onSkip?: () => void;
   onOpenSettings?: () => void;
 }) {
+  useAppearance();
+
   const copy = {
     location: {
       icon: 'map-pin' as IconName,
@@ -200,6 +215,9 @@ export function Skeleton({
   radius?: number;
   style?: ViewStyle;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const pulse = useRef(new Animated.Value(0.45)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -231,6 +249,9 @@ export function Skeleton({
 }
 
 export function CardSkeleton({lines = 3}: {lines?: number}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={[styles.skeletonCard, elevation(1)]}
@@ -250,6 +271,9 @@ export function CardSkeleton({lines = 3}: {lines?: number}) {
 }
 
 export function ListSkeleton({count = 3}: {count?: number}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.skeletonList}>
       {Array.from({length: count}, (_, i) => (
@@ -273,6 +297,9 @@ export function Notice({
   body?: string;
   action?: React.ReactNode;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const palette = {
     info: {bg: colors.infoSoft, fg: colors.info, icon: 'info' as IconName},
     warn: {
@@ -305,7 +332,7 @@ export function Notice({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   offline: {
     flexDirection: 'row',
     alignItems: 'center',

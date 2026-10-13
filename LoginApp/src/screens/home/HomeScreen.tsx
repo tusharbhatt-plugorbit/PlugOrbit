@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, { useMemo, useState } from 'react';
 import {
   Pressable,
@@ -19,7 +20,10 @@ import { RUNS_ON_DEMO_DATA } from '../../services';
 import { DEFAULT_SMART_DRIVE_CONFIG } from '../../intelligence/config';
 import { assistModeOf } from '../../intelligence/types';
 import { idleStatus, tripStatus } from '../../intelligence/status';
-import { useNavigation } from '../../navigation/NavigationContext';
+import {
+  useIsFocused,
+  useNavigation,
+} from '../../navigation/NavigationContext';
 import type { RouteName } from '../../navigation/params';
 import { selectActiveVehicle, selectTrip, useApp } from '../../store/appStore';
 import { colors, elevation, radii, sizes, spacing, type } from '../../theme';
@@ -57,6 +61,8 @@ import {
  * nearby charger comes from the same service as the map.
  */
 export default function HomeScreen(): React.JSX.Element {
+  const {colors} = useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const nav = useNavigation();
   const now = useNow(30_000);
   const vehicle = useApp(selectActiveVehicle);
@@ -71,7 +77,9 @@ export default function HomeScreen(): React.JSX.Element {
   const outcomes = useApp(s => s.smartDrive.outcomes);
   const savedRoutes = useApp(s => s.savedRoutes);
   const trip = useApp(selectTrip);
-  const nearby = useNearbyStations(vehicle);
+  // Behind another screen (onboarding, the map) Home neither locates nor searches.
+  const focused = useIsFocused();
+  const nearby = useNearbyStations(vehicle, focused);
   const [destination, setDestination] = useState('');
   // Two half-width buttons: drop their icons on the narrowest phones so labels fit on one line.
   const narrow = useWindowDimensions().width < 360;
@@ -568,6 +576,7 @@ function NearbyCharger({
   onOpen: (id: string) => void;
   onMap: () => void;
 }) {
+  const styles = useThemedStyles(baseStyles);
   const vehicle = useApp(selectActiveVehicle);
   const kind = nearby.notice?.kind;
   const locationOff =
@@ -641,6 +650,8 @@ function Tile({
   label: string;
   onPress: () => void;
 }) {
+  const {colors} = useAppearance();
+  const styles = useThemedStyles(baseStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -663,7 +674,7 @@ function Tile({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: colors.bg },
   header: {

@@ -580,3 +580,25 @@ def test_endpoints_work_without_firebase(client, monkeypatch):
         require_firebase()
     code = send(client, EMAIL).json()["dev_code"]
     assert verify(client, EMAIL, code).status_code == 200
+
+
+def test_email_implicit_tls_skips_starttls(client, settings, smtp, monkeypatch):
+    configure_email(settings)
+    settings.smtp_port = 465
+    settings.smtp_use_ssl = True
+    # Reuse the fixture's fake SMTP and accept SSL context without making a network call.
+    plain = delivery.smtplib.SMTP
+    monkeypatch.setattr(delivery.smtplib, "SMTP_SSL", lambda host, port, timeout, context: plain(host, port, timeout))
+    response = send(client, EMAIL)
+    assert response.json()["channel"] == "email"
+    assert smtp[0].port == 465
+    assert smtp[0].tls is False
+    assert smtp[0].credentials == ("sender@example.com", "app-pass")
+
+
+def test_sms_without_provider_explains_email_alternative(client, settings):
+    settings.otp_dev_fallback = False
+    response = client.post("/auth/otp/send", json={"identifier": PHONE})
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "OTP_DELIVERY_FAILED"
+    assert "Use your email" in response.json()["detail"]["message"]

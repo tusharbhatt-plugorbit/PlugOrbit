@@ -112,3 +112,16 @@ jest.mock('./src/components/QrCamera', () => {
   const {View} = require('react-native');
   return {QrCamera: props => React.createElement(View, {testID: 'qr-camera', ...props})};
 });
+// Native constants normally come from the installed APK's signing certificate.
+require('react-native').NativeModules.GoogleRequestIdentity = {
+  packageName: 'com.loginapp',
+  certificateSha1: '5E8F16062EA3CD2C4A0D547876BAA6F38CABF625',
+};
+
+// Native account picker is mocked; tests never open a user's Google account.
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {configure: jest.fn(), hasPlayServices: jest.fn(), signIn: jest.fn()},
+  isSuccessResponse: r => r?.type === 'success',
+  isErrorWithCode: e => typeof e?.code === 'string',
+  statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED', PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE'},
+}));

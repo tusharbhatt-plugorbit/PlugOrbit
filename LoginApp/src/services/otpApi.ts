@@ -42,7 +42,9 @@ export class OtpError extends Error {
   }
 }
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 45_000;
+// Firebase ADC can refresh and remotely sign the token before returning the session.
+const VERIFY_TIMEOUT_MS = 90_000;
 const OTP_LENGTH = 6;
 // Mirror the Backend defaults (otp_ttl_seconds, otp_resend_seconds, otp_max_attempts).
 const LOCAL_TTL_SECONDS = 300;
@@ -76,12 +78,14 @@ async function post(
   path: string,
   payload: unknown,
   signal?: AbortSignal,
+  timeoutMs = TIMEOUT_MS,
 ): Promise<ApiResponse | null> {
   if (signal?.aborted) {
     throw abortedError();
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {timedOut = true; controller.abort();}, timeoutMs);
   const onAbort = () => controller.abort();
   signal?.addEventListener('abort', onAbort);
 
@@ -105,6 +109,9 @@ async function post(
   }
   if (signal?.aborted) {
     throw abortedError();
+  }
+  if (timedOut && !__DEV__) {
+    throw new OtpError('TIMEOUT', 'The sign-in service took too long to respond. Please request a new code and try again.');
   }
   return response;
 }
@@ -251,7 +258,7 @@ export async function verifyOtp(
     checkLocalCode(key, local, code);
     return undefined;
   }
-  const response = await post('/auth/otp/verify', {identifier, code}, signal);
+  const response = await post('/auth/otp/verify', {identifier, code}, signal, VERIFY_TIMEOUT_MS);
   if (response) {
     const apiError = toApiError(response);
     if (apiError) {

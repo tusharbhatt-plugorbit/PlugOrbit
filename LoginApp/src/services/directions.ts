@@ -6,11 +6,15 @@ type Target = {id: string; latitude: number; longitude: number};
 // browser. No API key needed.
 // https://developers.google.com/maps/documentation/urls/get-started#directions-action
 export function directionsUrl(target: Target): string {
+  if (!Number.isFinite(target.latitude) || !Number.isFinite(target.longitude) || Math.abs(target.latitude) > 90 || Math.abs(target.longitude) > 180) {
+    throw new Error('Invalid navigation destination.');
+  }
   const destination = `${target.latitude},${target.longitude}`;
   const params = [
     'api=1',
     `destination=${encodeURIComponent(destination)}`,
     'travelmode=driving',
+    'dir_action=navigate',
   ];
   // Only Google Places ids (prefixed g-) are real place ids; mock stations aren't.
   if (target.id.startsWith('g-')) {

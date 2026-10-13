@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -52,6 +53,9 @@ const METHODS: Record<
  * stored reading says so (battery.source === 'vehicle') and the link is up.
  */
 export default function AutoSocScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {vehicle: vehicleService} = useServices();
   const link = useApp(s => s.vehicleLink);
@@ -305,7 +309,7 @@ export default function AutoSocScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   heading: {...type.display, color: colors.ink},
   lead: {...type.body, color: colors.muted, marginTop: spacing.xs},
   block: {marginTop: spacing.lg},

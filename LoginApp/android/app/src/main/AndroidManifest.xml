@@ -21,8 +21,10 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
+      android:networkSecurityConfig="@xml/network_security_config"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
       <!-- Google Maps SDK key, injected from LoginApp/.env (see app/build.gradle). -->
       <meta-data
         android:name="com.google.android.geo.API_KEY"

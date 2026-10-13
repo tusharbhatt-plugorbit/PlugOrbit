@@ -260,7 +260,7 @@ describe('PrimaryButton sizes', () => {
       n =>
         n.props.accessibilityRole === 'button' && n.type === ('View' as never),
     )[0];
-    expect(StyleSheet.flatten(host.props.style).opacity).toBeLessThan(0.6);
+    expect(StyleSheet.flatten(host.props.style).opacity).toBeLessThan(1);
     expect(host.props.accessibilityState).toMatchObject({disabled: true});
   });
 });

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
@@ -17,11 +18,16 @@ export function StationMiniMap({
   from,
   to,
   height = 200,
+  routePoints,
 }: {
   from: Coords;
   to: Coords;
   height?: number;
+  routePoints?: readonly Coords[] | null;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const ref = useRef<MapView>(null);
   const region = {
     latitude: (from.latitude + to.latitude) / 2,
@@ -38,7 +44,7 @@ export function StationMiniMap({
   }, [from.latitude, from.longitude, to.latitude, to.longitude]);
 
   if (mapsKeyMissing) {
-    return <FallbackStationMiniMap from={from} to={to} height={height} />;
+    return <FallbackStationMiniMap from={from} to={to} height={height} routePoints={routePoints} />;
   }
 
   return (
@@ -54,11 +60,11 @@ export function StationMiniMap({
         scrollEnabled={false}
         zoomEnabled={false}
         showsCompass={false}>
-        <Polyline
-          coordinates={[from, to]}
+        {routePoints !== null && <Polyline
+          coordinates={routePoints ? [...routePoints] : [from, to]}
           strokeColor={colors.bg}
           strokeWidth={4}
-        />
+        />}
         <Marker coordinate={from} anchor={{x: 0.5, y: 0.5}}>
           <View style={styles.me} />
         </Marker>
@@ -80,11 +86,16 @@ function FallbackStationMiniMap({
   from,
   to,
   height,
+  routePoints,
 }: {
   from: Coords;
   to: Coords;
   height: number;
+  routePoints?: readonly Coords[] | null;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const [broken, setBroken] = useState(false);
   const pins = useMemo<MapPin[]>(
     () => [
@@ -95,14 +106,11 @@ function FallbackStationMiniMap({
   );
   const line = useMemo(
     () => ({
-      points: [
-        [from.latitude, from.longitude],
-        [to.latitude, to.longitude],
-      ] as [number, number][],
+      points: (routePoints ?? [from, to]).map(p => [p.latitude, p.longitude] as [number, number]),
       color: colors.bg,
       width: 4,
     }),
-    [from, to],
+    [from, to, colors.bg, routePoints],
   );
   const fit = useMemo(() => [from, to], [from, to]);
 
@@ -119,7 +127,7 @@ function FallbackStationMiniMap({
         }}
         initialZoom={13}
         pins={pins}
-        route={line}
+        route={routePoints === null ? undefined : line}
         fit={fit}
         fitMaxZoom={13}
         interactive={false}
@@ -129,7 +137,7 @@ function FallbackStationMiniMap({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     borderRadius: radii.lg,
     overflow: 'hidden',

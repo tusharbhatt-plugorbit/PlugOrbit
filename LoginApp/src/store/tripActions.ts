@@ -51,6 +51,8 @@ export function toggleSavedRoute(route: Route): boolean {
     savedRoutes: [
       {
         id: `sr-${Date.now().toString(36)}`,
+        fromCoords: route.fromCoords,
+        toCoords: route.toCoords,
         fromLabel: route.fromLabel,
         toLabel: route.toLabel,
         strategy: route.strategy,

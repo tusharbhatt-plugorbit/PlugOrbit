@@ -5,7 +5,7 @@ from firebase_admin import auth
 
 from ..deps import get_bearer_token, get_current_user, require_firebase
 from ..schemas import (AuthResponse, ForgotPasswordRequest, LoginRequest, MessageResponse,
-                       RefreshRequest, SignupRequest, TokenResponse, UserOut)
+                       GoogleLoginRequest, RefreshRequest, SignupRequest, TokenResponse, UserOut)
 from ..services import firebase_auth as fb
 from ..services import users
 
@@ -95,3 +95,19 @@ def resend_verification(token: str = Depends(get_bearer_token), user: dict = Dep
 def logout(user: dict = Depends(get_current_user)):
     auth.revoke_refresh_tokens(user["uid"])
     return MessageResponse(message="Logged out.")
+
+
+@router.post("/google", response_model=AuthResponse, dependencies=[Depends(require_firebase)])
+def google_login(body: GoogleLoginRequest):
+    data = fb.sign_in_with_google(body.id_token)
+    # Never accept profile/uid values supplied by the mobile client.
+    uid = data["localId"]
+    record = auth.get_user(uid)
+    if record.disabled:
+        raise HTTPException(status_code=403, detail={"code": "USER_DISABLED", "message": "This account has been disabled."})
+    return AuthResponse(
+        id_token=data["idToken"], refresh_token=data["refreshToken"],
+        expires_in=int(data["expiresIn"]),
+        user=UserOut(uid=uid, email=record.email, name=record.display_name or "",
+                     email_verified=record.email_verified),
+    )

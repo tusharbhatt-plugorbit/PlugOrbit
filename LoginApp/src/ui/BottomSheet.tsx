@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -36,6 +37,9 @@ export function BottomSheet({
   dismissable = true,
   testID,
 }: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
@@ -117,7 +121,7 @@ export function BottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
   sheet: {

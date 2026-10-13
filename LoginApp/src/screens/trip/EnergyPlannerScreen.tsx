@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {stopCostLabel, tripCost} from '../../domain/routeCost';
@@ -60,6 +61,9 @@ function legsFor(route: Route, now: number): Leg[] {
 
 /** 28 Energy planner: the battery at every point of the trip, against your reserve. */
 export default function EnergyPlannerScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const route = useApp(s => s.activeRoute);
   const now = useNow(30_000);
@@ -172,7 +176,7 @@ export default function EnergyPlannerScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.h1, color: colors.ink},
   leg: {},
   legGap: {marginBottom: spacing.lg},

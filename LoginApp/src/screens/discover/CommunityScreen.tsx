@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -44,6 +45,9 @@ const KIND_ICON: Record<
 
 /** 36 Community updates: what drivers just saw. Always shown as user-confirmed, with age. */
 export default function CommunityScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const {params} = useRoute<'Community'>();
   const {station: stationService} = useServices();
   const now = useNow(30_000);
@@ -134,7 +138,7 @@ export default function CommunityScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted, marginTop: -6},

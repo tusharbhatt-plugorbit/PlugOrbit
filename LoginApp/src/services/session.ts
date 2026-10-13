@@ -1,3 +1,4 @@
+import {NativeModules} from 'react-native';
 import {getStorage} from '../store/storage';
 import {CloudError, errorCode, isRecord, request} from './backend';
 
@@ -139,6 +140,7 @@ export async function saveSession(session: CloudSession): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   const had = current !== null;
+  if (current?.refreshToken === 'native-firebase-phone') await NativeModules.PlugOrbitPhoneAuth?.signOut().catch(() => {});
   current = null;
   await persist(null);
   if (had) {
@@ -147,6 +149,24 @@ export async function clearSession(): Promise<void> {
 }
 
 async function refresh(session: CloudSession): Promise<CloudSession> {
+  if (session.refreshToken === 'native-firebase-phone') {
+    try {
+      const native = NativeModules.PlugOrbitPhoneAuth;
+      if (!native) throw new CloudError('NETWORK', 'Install the updated app to refresh mobile sign-in.');
+      const token = await native.getSession(session.uid);
+      if (token.uid !== session.uid || !token.idToken || !Number.isFinite(token.expiresAt) || token.expiresAt <= Date.now()) throw new CloudError('SERVER', 'Could not refresh mobile sign-in.');
+      const next = {...session, idToken: token.idToken, expiresAt: token.expiresAt};
+      if (current?.uid === session.uid) await saveSession(next);
+      return next;
+    } catch (error) {
+      const code = (error as {code?: string}).code;
+      if (['AUTH_LOST', 'ERROR_USER_DISABLED', 'ERROR_USER_NOT_FOUND', 'ERROR_USER_TOKEN_EXPIRED', 'ERROR_INVALID_USER_TOKEN'].includes(code || '')) {
+        await clearSession();
+        throw new CloudError('AUTH_LOST', 'Your session ended.');
+      }
+      throw error instanceof CloudError ? error : new CloudError('NETWORK', 'Could not refresh mobile sign-in.');
+    }
+  }
   const res = await request('POST', '/auth/refresh', {
     body: {refresh_token: session.refreshToken},
   });

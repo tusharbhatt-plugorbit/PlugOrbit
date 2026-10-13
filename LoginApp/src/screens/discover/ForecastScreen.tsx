@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {CONFIDENCE_LABEL, availabilityHeadline} from '../../domain/rules';
@@ -27,6 +28,9 @@ const BAR_H = 120;
  * TODO(integration): operator occupancy history model.
  */
 export default function ForecastScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Forecast'>();
   const now = useNow(30_000);
@@ -107,6 +111,9 @@ export default function ForecastScreen(): React.JSX.Element {
 }
 
 function Bars({forecast}: {forecast: Forecast}) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Card>
       <Text style={styles.chartTitle}>
@@ -145,6 +152,9 @@ function Bars({forecast}: {forecast: Forecast}) {
 }
 
 function Dot({color, label}: {color: string; label: string}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, {backgroundColor: color}]} />
@@ -153,7 +163,7 @@ function Dot({color, label}: {color: string; label: string}) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted, marginTop: -6},
   liveRow: {gap: spacing.sm},

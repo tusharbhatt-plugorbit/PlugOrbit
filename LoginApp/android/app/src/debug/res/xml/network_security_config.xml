@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only: plain HTTP is allowed so a phone can reach a development Backend on
+  the computer's LAN address (API_BASE_URL=http://192.168.x.x:8000) and Metro. The release
+  build uses src/main/res/xml/network_security_config.xml, which allows cleartext only to
+  the emulator/loopback addresses.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

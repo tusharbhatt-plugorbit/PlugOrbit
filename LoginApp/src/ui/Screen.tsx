@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {
   useWindowDimensions,
@@ -72,6 +73,8 @@ export function Screen({
 }: Props) {
   const {width} = useWindowDimensions();
   const gutter = width < 360 ? spacing.md : spacing.xl;
+  const {colors} = useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const nav = useNavigation();
   const {depth} = useNavigationState();
   const insets = useSafeAreaInsets();
@@ -161,7 +164,7 @@ export function Screen({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg},
   flex: {flex: 1},
   header: {

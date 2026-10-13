@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import type {AppNotification} from '../../domain/types';
@@ -26,6 +27,9 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** 37 Notifications. Tapping one marks it read and goes where it points. */
 export default function NotificationsScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {notification: service} = useServices();
   const items = useApp(s => s.notifications);
@@ -167,7 +171,7 @@ export default function NotificationsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   list: {gap: spacing.sm},
   item: {
