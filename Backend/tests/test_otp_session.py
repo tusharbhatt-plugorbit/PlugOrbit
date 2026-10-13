@@ -332,3 +332,15 @@ def test_signing_network_retry_is_bounded(client, admin, settings, google, monke
     assert sign_in(client, delivered=True).json()["session_status"] == "unavailable"
     assert len(calls) == 2
     assert not google.requests
+
+def test_expired_server_credentials_do_not_report_success(settings,monkeypatch):
+    from google.auth.exceptions import RefreshError
+    from fastapi import HTTPException
+    monkeypatch.setitem(firebase_admin._apps,"[DEFAULT]",object())
+    def fail(*args):raise RefreshError("private credential details")
+    monkeypatch.setattr(identity,"resolve_user",fail)
+    with pytest.raises(HTTPException) as error:
+        identity.open_session("email",EMAIL,code_was_exposed=False)
+    assert error.value.status_code==503
+    assert error.value.detail["code"]=="SERVER_CREDENTIALS_EXPIRED"
+    assert "private" not in error.value.detail["message"]

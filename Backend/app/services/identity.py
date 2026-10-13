@@ -10,6 +10,7 @@ Firebase client SDK, and every later request is authorised by the ID token.
 The code is single-use. A verified code only signs the app in when Firebase returns a real
 session; unavailable cloud services are reported explicitly.
 """
+from google.auth.exceptions import RefreshError
 import logging
 import secrets
 import time
@@ -115,6 +116,8 @@ def open_session(kind: str, key: str, *, code_was_exposed: bool) -> tuple[Sessio
         record = resolve_user(kind, key)
         tokens = fb.sign_in_with_custom_token(_create_custom_token(record.uid))
         user = _user_out(record, kind, key)
+    except RefreshError:
+        raise HTTPException(status_code=503, detail={"code":"SERVER_CREDENTIALS_EXPIRED", "message":"Email login cannot finish because PlugOrbit server credentials expired. Ask the administrator to renew Google authentication, then request a new code."})
     except HTTPException as exc:
         if exc.status_code == 403:
             raise  # a disabled account must not be signed in, not even locally
