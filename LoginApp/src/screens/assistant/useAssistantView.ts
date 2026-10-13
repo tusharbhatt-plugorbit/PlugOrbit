@@ -153,7 +153,7 @@ export function statusText(
     return 'Sign in to your account to use Orbit’s AI.';
   }
   if (gateway.health === 'unavailable') {
-    return 'The assistant isn’t available right now.';
+    return gateway.reason || 'The assistant isn’t available right now.';
   }
   return settings.textOnly
     ? 'Type your question.'

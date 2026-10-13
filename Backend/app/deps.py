@@ -1,3 +1,4 @@
+from google.auth.exceptions import RefreshError
 import firebase_admin
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -44,3 +45,6 @@ def get_current_user(token: str = Depends(get_bearer_token), _: None = Depends(r
                             detail={"code": "USER_DISABLED", "message": "This account has been disabled."})
     except (auth.InvalidIdTokenError, ValueError):
         raise _unauthorized("INVALID_TOKEN", "Invalid session. Please log in again.")
+
+    except RefreshError:
+        raise HTTPException(status_code=503, detail={"code":"SERVER_CREDENTIALS_EXPIRED", "message":"PlugOrbit server needs Google reauthentication. Ask the administrator to renew Firebase credentials."})

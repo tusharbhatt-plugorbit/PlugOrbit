@@ -68,6 +68,8 @@ export function describeGatewayError(e: unknown): {
 } {
   if (e instanceof GatewayError) {
     switch (e.code) {
+      case 'SERVER_CREDENTIALS':
+        return {text:e.message, health:'unavailable', fallbacks:[FALLBACK_PLANNER,FALLBACK_MAP]};
       case 'NO_SESSION':
         return {
           text: 'Orbit’s AI needs you signed in to your PlugOrbit account. The map and trip planner still work.',

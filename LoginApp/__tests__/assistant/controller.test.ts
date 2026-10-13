@@ -851,3 +851,9 @@ describe('notices Orbit raises on its own', () => {
     });
   });
 });
+
+import {statusText} from '../../src/screens/assistant/useAssistantView';
+test('availability status shows the server setup reason',()=>{
+ const rig=makeRig();
+ expect(statusText({...rig.store.get(),consented:true,gateway:{health:'unavailable',reason:'Server needs Google reauthentication.',checkedAt:0}})).toBe('Server needs Google reauthentication.');
+});

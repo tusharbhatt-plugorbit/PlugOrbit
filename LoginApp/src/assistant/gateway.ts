@@ -10,6 +10,7 @@ import type { StreamEvent } from './types';
  */
 
 export type GatewayErrorCode =
+  | 'SERVER_CREDENTIALS'
   | 'NO_SESSION' // not signed in to the cloud, so the gateway cannot know who is asking
   | 'OFFLINE' // no usable answer: no network, unreachable
   | 'TIMEOUT' // the gateway went quiet
@@ -156,6 +157,9 @@ function errorFromResponse(res: TransportResult): GatewayError {
     // not JSON
   }
   const extra = { status: res.status, retryAfter: res.retryAfter };
+  if (code === 'SERVER_CREDENTIALS_EXPIRED') {
+    return new GatewayError('SERVER_CREDENTIALS', message, extra);
+  }
   if (res.status === 401 || res.status === 403) {
     return new GatewayError('NO_SESSION', 'You need to be signed in.', extra);
   }

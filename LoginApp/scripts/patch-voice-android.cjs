@@ -47,3 +47,13 @@ dependencies {
   fs.writeFileSync(manifestPath, manifest.replace(/\s+package="[^"]*"/, ''));
   process.stdout.write(`Android compatibility applied: ${name}@${version}\n`);
 }
+
+// Bridgeless module interop preserves the Android name; JS expects Voice.
+const voiceRoot = path.dirname(require.resolve('@react-native-voice/voice/package.json'));
+const voiceJava = path.join(voiceRoot,'android','src','main','java','com','wenkesj','voice','VoiceModule.java');
+const voiceText = fs.readFileSync(voiceJava,'utf8');
+if (!voiceText.includes('return "RCTVoice";') && !voiceText.includes('return "Voice";')) {
+  throw new Error('Review VoiceModule name compatibility before upgrading.');
+}
+fs.writeFileSync(voiceJava,voiceText.replace('return "RCTVoice";','return "Voice";'));
+process.stdout.write('Android speech module name aligned with JS: Voice\n');
