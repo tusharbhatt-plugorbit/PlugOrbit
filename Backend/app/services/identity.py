@@ -7,11 +7,14 @@ mint a custom token with the Admin SDK and exchange it for ID + refresh tokens o
 Identity Toolkit REST API (the Backend already holds the Web API key). The app never needs the
 Firebase client SDK, and every later request is authorised by the ID token.
 
-Opening a session is best effort: the code is already consumed, so when Firebase is missing or
-down the caller still gets "verified" and the app signs in locally, as it did before Firebase.
+The code is single-use. A verified code only signs the app in when Firebase returns a real
+session; unavailable cloud services are reported explicitly.
 """
 import logging
 import secrets
+import time
+
+import requests
 from typing import Literal
 
 import firebase_admin
@@ -65,6 +68,39 @@ def _user_out(record, kind: str, key: str) -> UserOut:
                        name=record.display_name or "", email_verified=bool(record.email_verified))
 
 
+def _is_network_failure(error: BaseException) -> bool:
+    """Find the request failure wrapped by Google's TransportError/TokenSignError.
+
+    IAM permission/configuration errors have no requests connection/timeout cause.
+    """
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+            return True
+        pending.extend(arg for arg in current.args if isinstance(arg, BaseException))
+        pending.extend(cause for cause in (current.__cause__, current.__context__)
+                       if isinstance(cause, BaseException))
+    return False
+
+
+def _create_custom_token(uid: str) -> str:
+    # Retry signing only: do not repeat account changes or verify/consume the OTP again.
+    for attempt in range(2):
+        try:
+            return auth.create_custom_token(uid).decode("ascii")
+        except Exception as exc:
+            if attempt or not _is_network_failure(exc):
+                raise
+            log.warning("Firebase token signing connection interrupted; retrying once")
+            time.sleep(0.5)
+    raise RuntimeError("Token signing did not complete")
+
+
 def open_session(kind: str, key: str, *, code_was_exposed: bool) -> tuple[SessionStatus | None, AuthResponse | None]:
     """(status, session) for a freshly verified code. status None = Firebase is not configured
     here, which the API reports by simply omitting both fields, exactly as before Firebase."""
@@ -77,7 +113,7 @@ def open_session(kind: str, key: str, *, code_was_exposed: bool) -> tuple[Sessio
         return "dev_code", None
     try:
         record = resolve_user(kind, key)
-        tokens = fb.sign_in_with_custom_token(auth.create_custom_token(record.uid).decode("ascii"))
+        tokens = fb.sign_in_with_custom_token(_create_custom_token(record.uid))
         user = _user_out(record, kind, key)
     except HTTPException as exc:
         if exc.status_code == 403:

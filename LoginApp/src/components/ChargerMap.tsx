@@ -1,3 +1,4 @@
+import {useAppearance} from '../appearance';
 import React, {
   forwardRef,
   useCallback,
@@ -5,16 +6,16 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import {Platform, StyleSheet} from 'react-native';
-import MapView, {PROVIDER_GOOGLE, Polyline, Region} from 'react-native-maps';
-import {hasIosMapsKey, mapsKeyMissing} from '../config/google';
-import {availableCount, compatibleConnectors} from '../domain/rules';
-import type {StationWithDistance, Vehicle} from '../domain/types';
-import type {MapPin} from '../maps/osmMapHtml';
-import {colors} from '../theme';
-import type {Coords} from '../utils/geo';
+import { Platform, StyleSheet } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, Polyline, Region } from 'react-native-maps';
+import { hasIosMapsKey, mapsKeyMissing } from '../config/google';
+import { availableCount, compatibleConnectors } from '../domain/rules';
+import type { StationWithDistance, Vehicle } from '../domain/types';
+import type { MapPin } from '../maps/osmMapHtml';
+import { colors } from '../theme';
+import type { Coords } from '../utils/geo';
 import ChargerMarker from './ChargerMarker';
-import OsmMap, {OsmMapHandle} from './OsmMap';
+import OsmMap, { OsmMapHandle } from './OsmMap';
 
 export type ChargerMapHandle = {
   animateTo: (center: Coords, zoomedIn?: boolean) => void;
@@ -51,6 +52,26 @@ type Props = {
 const MAP_PROVIDER =
   Platform.OS === 'ios' && !hasIosMapsKey ? undefined : PROVIDER_GOOGLE;
 
+const DARK_MAP_STYLE = [
+          { elementType: 'geometry', stylers: [{ color: '#04182F' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#B1C3D6' }] },
+          {
+            elementType: 'labels.text.stroke',
+            stylers: [{ color: '#04182F' }],
+          },
+          {
+            featureType: 'road',
+            elementType: 'geometry',
+            stylers: [{ color: '#16334F' }],
+          },
+          {
+            featureType: 'water',
+            elementType: 'geometry',
+            stylers: [{ color: '#071323' }],
+          },
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        ];
+
 const WIDE_DELTA = 0.08; // ~9 km across
 const CLOSE_DELTA = 0.02;
 
@@ -70,15 +91,18 @@ const NativeChargerMap = forwardRef<ChargerMapHandle, Props>(
     },
     ref,
   ) {
+    const appearance=useAppearance();
     const mapRef = useRef<MapView>(null);
+    const userPanned = useRef(false);
 
     useImperativeHandle(
       ref,
       () => ({
         animateTo: (center, zoomedIn = false) => {
+          userPanned.current = false;
           const delta = zoomedIn ? CLOSE_DELTA : WIDE_DELTA;
           mapRef.current?.animateToRegion(
-            {...center, latitudeDelta: delta, longitudeDelta: delta},
+            { ...center, latitudeDelta: delta, longitudeDelta: delta },
             350,
           );
         },
@@ -87,9 +111,12 @@ const NativeChargerMap = forwardRef<ChargerMapHandle, Props>(
     );
 
     const handleRegionChange = useCallback(
-      (region: Region, details?: {isGesture?: boolean}) => {
+      (region: Region, details?: { isGesture?: boolean }) => {
         // Ignore our own animations; only user pans should offer a re-search.
-        if (details?.isGesture) {
+        // Apple Maps does not supply isGesture; onPanDrag tracks its user pans.
+        const movedByUser = details?.isGesture ?? userPanned.current;
+        userPanned.current = false;
+        if (movedByUser) {
           onCenterChange({
             latitude: region.latitude,
             longitude: region.longitude,
@@ -109,6 +136,7 @@ const NativeChargerMap = forwardRef<ChargerMapHandle, Props>(
           latitudeDelta: WIDE_DELTA,
           longitudeDelta: WIDE_DELTA,
         }}
+        customMapStyle={appearance.dark ? DARK_MAP_STYLE : []}
         showsUserLocation={showUserLocation}
         showsMyLocationButton={false}
         toolbarEnabled={false}
@@ -117,14 +145,18 @@ const NativeChargerMap = forwardRef<ChargerMapHandle, Props>(
         pitchEnabled={false}
         onPress={onDeselect}
         onMapReady={onReady}
-        onRegionChangeComplete={handleRegionChange}>
+        onPanDrag={() => {
+          userPanned.current = true;
+        }}
+        onRegionChangeComplete={handleRegionChange}
+      >
         {route && route.length > 1 && (
           <Polyline
             coordinates={route.map(p => ({
               latitude: p.latitude,
               longitude: p.longitude,
             }))}
-            strokeColor={colors.limeDark}
+            strokeColor={colors.electric}
             strokeWidth={5}
           />
         )}

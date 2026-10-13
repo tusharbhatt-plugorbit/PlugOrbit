@@ -273,3 +273,62 @@ def test_a_verified_account_is_left_untouched(client, admin, settings, google):
     admin.users[EMAIL] = record(uid="uid-1", verified=True)
     sign_in(client, delivered=True)
     assert "update" not in admin.names() and "revoke" not in admin.names()
+
+
+@pytest.mark.parametrize("failure", ["reset", "timeout"])
+def test_signing_network_failure_retries_without_recreating_user(
+        client, admin, settings, google, monkeypatch, failure):
+    import requests
+    from google.auth.exceptions import TransportError
+    from firebase_admin._token_gen import TokenSignError
+    calls = []
+    monkeypatch.setattr(identity.time, "sleep", lambda seconds: None)
+
+    def sign(uid):
+        calls.append(uid)
+        if len(calls) == 1:
+            cause = (requests.exceptions.ConnectionError("reset") if failure == "reset"
+                     else requests.exceptions.Timeout("timeout"))
+            try:
+                raise TransportError(cause)
+            except TransportError as wrapped:
+                raise TokenSignError("signing interrupted", wrapped) from wrapped
+        return b"custom-token"
+
+    monkeypatch.setattr(identity.auth, "create_custom_token", sign)
+    body = sign_in(client, delivered=True).json()
+    assert body["session_status"] == "ready"
+    assert len(calls) == 2
+    assert admin.names().count("create") == 1
+    assert len(google.requests) == 1
+
+
+def test_signing_permission_failure_is_not_retried(client, admin, settings, google, monkeypatch):
+    from google.auth.exceptions import TransportError
+    from firebase_admin._token_gen import TokenSignError
+    calls = []
+
+    def sign(uid):
+        calls.append(uid)
+        cause = TransportError("IAM permission denied")
+        raise TokenSignError("permission denied", cause) from cause
+
+    monkeypatch.setattr(identity.auth, "create_custom_token", sign)
+    assert sign_in(client, delivered=True).json()["session_status"] == "unavailable"
+    assert len(calls) == 1
+    assert not google.requests
+
+
+def test_signing_network_retry_is_bounded(client, admin, settings, google, monkeypatch):
+    import requests
+    calls = []
+    monkeypatch.setattr(identity.time, "sleep", lambda seconds: None)
+
+    def sign(uid):
+        calls.append(uid)
+        raise requests.exceptions.ConnectionError("reset")
+
+    monkeypatch.setattr(identity.auth, "create_custom_token", sign)
+    assert sign_in(client, delivered=True).json()["session_status"] == "unavailable"
+    assert len(calls) == 2
+    assert not google.requests

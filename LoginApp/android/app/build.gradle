@@ -7,6 +7,7 @@ apply plugin: "com.facebook.react"
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    extraPackagerArgs = ["--max-workers", "2"]
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
@@ -107,8 +108,19 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_OBJECT_PATH_MAX=240", "-DCMAKE_JOB_POOLS=compile=2", "-DCMAKE_JOB_POOL_COMPILE=compile", "-DCMAKE_JOB_POOL_LINK=compile"
+            }
+        }
         // Consumed by <meta-data com.google.android.geo.API_KEY> in AndroidManifest.xml.
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
+    }
+    // Keep Ninja object paths below Windows' 260-character limit.
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory file((System.getenv("LOCALAPPDATA") ?: System.getProperty("java.io.tmpdir")) + "/Temp/plugorbit-native")
+        }
     }
     signingConfigs {
         debug {
@@ -132,7 +144,30 @@ android {
     }
 }
 
+// Firebase client settings come from google-services.json (downloaded from the Firebase
+// console for the registered Android app com.loginapp). The file holds project identifiers
+// and is git-ignored, so a fresh checkout does not have it: the app still builds, but
+// Firebase features that need it (mobile-number sign-in) are unavailable until it is added.
+def firebaseConfigFile = file('google-services.json')
+if (firebaseConfigFile.exists()) {
+    def firebaseConfig = new groovy.json.JsonSlurper().parse(firebaseConfigFile)
+    def firebaseClient = firebaseConfig.client.find { it.client_info.android_client_info.package_name == 'com.loginapp' }
+    if (firebaseClient == null) throw new GradleException('google-services.json must register com.loginapp')
+    android.defaultConfig {
+        resValue 'string', 'google_app_id', firebaseClient.client_info.mobilesdk_app_id
+        resValue 'string', 'google_api_key', firebaseClient.api_key[0].current_key
+        resValue 'string', 'project_id', firebaseConfig.project_info.project_id
+        resValue 'string', 'gcm_defaultSenderId', firebaseConfig.project_info.project_number
+    }
+} else {
+    logger.warn('WARNING: LoginApp/android/app/google-services.json is missing. Building without Firebase client settings; mobile-number sign-in will not work. See LoginApp/PHONE_TEST.md.')
+}
+
 dependencies {
+    // BOM 35 uses Kotlin 2.4 metadata; this React Native build uses Kotlin 2.2.
+    implementation(platform('com.google.firebase:firebase-bom:34.4.0'))
+    implementation('com.google.firebase:firebase-auth')
+    implementation('com.google.android.gms:play-services-code-scanner:16.1.0')
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 

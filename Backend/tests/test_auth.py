@@ -145,3 +145,48 @@ def test_signup_rolls_back_the_auth_user_when_profile_write_fails(client, monkey
     assert r.status_code == 500
     assert r.json()["detail"]["code"] == "SIGNUP_FAILED"
     assert deleted == ["u1"]
+
+
+@pytest.mark.parametrize("code", ["CONFIGURATION_NOT_FOUND", "OPERATION_NOT_ALLOWED",
+                                  "CREDENTIAL_MISMATCH", "PROJECT_NUMBER_MISMATCH", "API_KEY_INVALID"])
+def test_firebase_configuration_errors_are_server_errors(client, monkeypatch, code):
+    google_replies(monkeypatch, json_reply(400, {"error": {"message": code}}))
+    r = client.post("/auth/login", json={"email": "asha@example.com", "password": "x"})
+    assert r.status_code == 503
+    assert r.json()["detail"]["code"] == "AUTH_MISCONFIGURED"
+
+
+def test_firebase_outage_is_a_server_error(client, monkeypatch):
+    google_replies(monkeypatch, lambda request: httpx.Response(503, text="Unavailable"))
+    r = client.post("/auth/login", json={"email": "asha@example.com", "password": "x"})
+    assert r.status_code == 503
+    assert r.json()["detail"]["code"] == "AUTH_UNAVAILABLE"
+
+
+def test_google_exchanges_only_token_with_firebase(client, monkeypatch):
+    import json
+    from urllib.parse import parse_qs
+    def reply(request):
+        payload = json.loads(request.content)
+        assert request.url.path.endswith("accounts:signInWithIdp")
+        assert parse_qs(payload["postBody"]) == {"id_token": ["google-token"], "providerId": ["google.com"]}
+        return httpx.Response(200, json=TOKENS)
+    google_replies(monkeypatch, reply)
+    monkeypatch.setattr(auth_routes.auth, "get_user", lambda uid: SimpleNamespace(
+        uid=uid, email="asha@example.com", display_name="Asha", email_verified=True, disabled=False))
+    r = client.post("/auth/google", json={"id_token": "google-token", "uid": "attacker-uid"})
+    assert r.status_code == 200
+    assert r.json()["user"]["uid"] == "u1"
+    assert r.json()["id_token"] == "IDT"
+
+
+def test_google_rejects_invalid_token(client, monkeypatch):
+    google_replies(monkeypatch, json_reply(400, {"error": {"message": "INVALID_IDP_RESPONSE"}}))
+    r = client.post("/auth/google", json={"id_token": "bad-token"})
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "INVALID_IDP_RESPONSE"
+
+
+def test_google_disabled_provider_is_configuration_error(client, monkeypatch):
+    google_replies(monkeypatch, json_reply(400, {"error": {"message": "OPERATION_NOT_ALLOWED"}}))
+    assert client.post("/auth/google", json={"id_token": "token"}).status_code == 503

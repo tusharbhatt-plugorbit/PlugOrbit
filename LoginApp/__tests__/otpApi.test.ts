@@ -202,7 +202,7 @@ describe('requestOtp when the Backend gives no usable answer (debug build)', () 
     );
 
     const pending = requestOtp('name@example.com');
-    jest.advanceTimersByTime(15_000);
+    jest.advanceTimersByTime(45_000);
 
     expectDeviceCode(await pending);
   });
@@ -455,4 +455,32 @@ describe('verifyOtp against the Backend', () => {
 
     expect(error.code).toBe('NETWORK');
   });
+});
+
+
+test('verification stays connected while Firebase signs a token past 15 seconds', async () => {
+  let reply!: (value: unknown) => void;
+  let requestSignal!: AbortSignal;
+  fetchMock.mockImplementation((_url: string, init: {signal: AbortSignal}) => {
+    requestSignal = init.signal;
+    return new Promise(resolve => {reply = resolve;});
+  });
+  const pending = verifyOtp('slow@example.com', '123456');
+  jest.advanceTimersByTime(20_000);
+  expect(requestSignal.aborted).toBe(false);
+  reply(jsonResponse(200, {verified: true, session_status: 'ready', session: {
+    id_token: 'ID', refresh_token: 'RT', expires_in: 3600, user: {uid: 'slow-user'},
+  }}));
+  expect((await pending)?.uid).toBe('slow-user');
+});
+
+
+test('a release verification timeout explains the slow sign-in service', async () => {
+  (globalThis as any).__DEV__ = false;
+  fetchMock.mockImplementation((_url: string, init: {signal: AbortSignal}) =>
+    new Promise((_resolve, reject) => {init.signal.addEventListener('abort', () => reject(new Error('timeout')));}));
+  const pending = verifyOtp('slow@example.com', '123456');
+  const failure = failureOf(pending);
+  jest.advanceTimersByTime(90_000);
+  expect((await failure).code).toBe('TIMEOUT');
 });

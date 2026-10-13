@@ -190,6 +190,8 @@ export type Route = {
   id: string;
   fromLabel: string;
   toLabel: string;
+  fromCoords?: {latitude: number; longitude: number};
+  toCoords?: {latitude: number; longitude: number};
   distanceKm: number;
   driveMin: number;
   startSoc: number;
@@ -197,9 +199,14 @@ export type Route = {
   safetyReservePct: number;
   strategy: RouteStrategy;
   polyline: readonly Coords[];
+  geometrySource?: "road" | "estimate";
   stops: readonly RouteStop[];
+  corridorStations?: readonly Station[];
+  chargingComplete?: boolean;
+  emergencyStationId?: string;
   /** Intermediate places of a multi-stop trip, kept so a re-plan keeps them. */
   via?: readonly string[];
+  viaCoords?: readonly ({latitude: number; longitude: number} | undefined)[];
   /** Epoch ms the route was computed; used for cache age labels. */
   computedAt: number;
 };
@@ -207,6 +214,8 @@ export type Route = {
 export type RouteRequest = {
   fromLabel: string;
   toLabel: string;
+  fromCoords?: {latitude: number; longitude: number};
+  toCoords?: {latitude: number; longitude: number};
   startSoc: number;
   strategy: RouteStrategy;
   vehicle: Vehicle;
@@ -216,6 +225,7 @@ export type RouteRequest = {
   via?: readonly string[];
   /** Chargers the driver ruled out; the plan is built without them. */
   avoidStationIds?: readonly string[];
+  viaCoords?: readonly ({latitude: number; longitude: number} | undefined)[];
 };
 
 // ---------------------------------------------------------------- sessions --
@@ -316,6 +326,7 @@ export type TicketStatus = 'open' | 'in_review' | 'resolved';
 export type TicketMessage = {
   id: string;
   from: 'user' | 'support';
+  author?: 'user' | 'orbit' | 'orbit_guide' | 'agent';
   text: string;
   at: number;
 };
@@ -399,6 +410,8 @@ export type SavedRoute = {
   id: string;
   fromLabel: string;
   toLabel: string;
+  fromCoords?: {latitude: number; longitude: number};
+  toCoords?: {latitude: number; longitude: number};
   strategy: RouteStrategy;
   savedAt: number;
 };

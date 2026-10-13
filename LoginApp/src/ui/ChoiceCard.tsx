@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {colors, elevation, radii, spacing, type} from '../theme';
@@ -25,6 +26,9 @@ export function ChoiceCard({
   onPress: () => void;
   testID?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -48,14 +52,14 @@ export function ChoiceCard({
       </View>
       <View style={[styles.radio, selected && styles.radioOn]}>
         {selected && (
-          <Icon name="check" size={14} color={colors.ink} strokeWidth={3} />
+          <Icon name="check" size={14} color={colors.onAccent} strokeWidth={3} />
         )}
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -64,9 +68,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.inputBorder,
   },
-  selected: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  selected: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   disabled: {opacity: 0.55},
   pressed: {opacity: 0.9},
   tile: {

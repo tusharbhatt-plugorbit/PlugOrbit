@@ -15,6 +15,14 @@ import {
 } from 'react-native-safe-area-context';
 import { OtpError, requestOtp, verifyOtp } from '../../services/otpApi';
 import type { OtpSendResult } from '../../services/otpApi';
+import { googleSignInAvailable } from '../../config/googleAuth';
+import { signInWithGoogle } from '../../services/googleSignIn';
+import {
+  cancelPhoneVerification,
+  hasNativePhoneAuth,
+  requestPhoneCode,
+  verifyPhoneCode,
+} from '../../services/phoneAuth';
 import { clearSession, saveSession } from '../../services/session';
 import { colors, radii, sizes, spacing, type } from '../../theme';
 import { BrandLogo } from '../../ui/BrandLogo';
@@ -37,6 +45,18 @@ import {
 } from './authLogic';
 
 type Step = 'identify' | 'verify';
+
+// Firebase sends the SMS itself on Android builds with the native module, so the
+// backend's OTP endpoints are not involved and there is nothing more to report.
+const NATIVE_SMS_RESULT: OtpSendResult = {
+  channel: 'sms',
+  delivered: true,
+  devCode: null,
+  expiresIn: 300,
+  resendIn: RESEND_SECONDS,
+  message: 'Code sent by SMS.',
+  viaLocalFallback: false,
+};
 
 type Props = {
   mode: 'login' | 'signup';
@@ -150,6 +170,7 @@ export function AuthScreen({
     setSendResult(null);
     setError(null);
     setLoading(false);
+    cancelPhoneVerification();
     return cancelPending;
   }, [mode, cancelPending]);
 
@@ -197,7 +218,24 @@ export function AuthScreen({
     const target = identifier.trim();
     const request = beginRequest();
     try {
-      const result = await requestOtp(target, request.signal);
+      const native = identifierType === 'phone' && hasNativePhoneAuth();
+      const phone = native ? await requestPhoneCode(target, request.signal) : null;
+      if (phone?.instant) {
+        // The phone verified itself (instant verification / SMS auto-retrieval).
+        const session = await verifyPhoneCode('', request.signal);
+        if (!request.isCurrent()) {
+          return;
+        }
+        await saveSession(session);
+        if (!request.isCurrent()) {
+          return;
+        }
+        onAuthenticated();
+        return;
+      }
+      const result = phone
+        ? NATIVE_SMS_RESULT
+        : await requestOtp(target, request.signal);
       if (!request.isCurrent()) {
         return;
       }
@@ -234,9 +272,21 @@ export function AuthScreen({
 
     const request = beginRequest();
     try {
-      const session = await verifyOtp(identifier.trim(), otp, request.signal);
+      const native = identifierType === 'phone' && hasNativePhoneAuth();
+      const session = native
+        ? await verifyPhoneCode(otp, request.signal)
+        : await verifyOtp(identifier.trim(), otp, request.signal);
       if (!request.isCurrent()) {
         return;
+      }
+      // A code that was really delivered must open a Firebase session. Only the
+      // development code shown on screen may sign in without one (and App.tsx drops
+      // such a login at the next launch of a release build).
+      if (!session && sendResult?.channel !== 'screen') {
+        throw new OtpError(
+          'SESSION_UNAVAILABLE',
+          'Your code was verified, but sign-in could not finish. Please request a new code and try again.',
+        );
       }
       // Keep the cloud session (or drop a stale one) before the app starts using it.
       if (session) {
@@ -263,8 +313,33 @@ export function AuthScreen({
     }
   };
 
+  const googleLogin = async () => {
+    if (pendingRef.current) {
+      return;
+    }
+    setError(null);
+    const request = beginRequest();
+    try {
+      const session = await signInWithGoogle(request.signal);
+      if (!request.isCurrent() || !session) {
+        return;
+      }
+      await saveSession(session);
+      if (request.isCurrent()) {
+        onAuthenticated();
+      }
+    } catch (e) {
+      if (request.isCurrent()) {
+        setError(authErrorMessage(e));
+      }
+    } finally {
+      request.finish();
+    }
+  };
+
   const editIdentifier = useCallback(() => {
     cancelPending();
+    cancelPhoneVerification();
     setLoading(false);
     setStep('identify');
     setOtp('');
@@ -384,6 +459,51 @@ export function AuthScreen({
               <View style={styles.column}>
                 {step === 'identify' ? (
                   <>
+                    {googleSignInAvailable ? (
+                      <>
+                        <Pressable
+                          onPress={googleLogin}
+                          disabled={loading}
+                          accessibilityRole="button"
+                          accessibilityLabel="Continue with Google"
+                          style={({ pressed }) => [
+                            styles.googleBtn,
+                            {
+                              backgroundColor: t.field,
+                              borderColor: t.fieldBorder,
+                            },
+                            pressed && styles.dim,
+                            loading && styles.dim,
+                          ]}
+                        >
+                          <View style={styles.googleMark}>
+                            <Text style={styles.googleMarkText}>G</Text>
+                          </View>
+                          <Text style={[styles.googleText, { color: t.text }]}>
+                            {isSignup
+                              ? 'Sign up with Google'
+                              : 'Log in with Google'}
+                          </Text>
+                        </Pressable>
+                        <View style={styles.orRow}>
+                          <View
+                            style={[
+                              styles.orLine,
+                              { backgroundColor: t.fieldBorder },
+                            ]}
+                          />
+                          <Text style={[styles.orText, { color: t.subtle }]}>
+                            OR
+                          </Text>
+                          <View
+                            style={[
+                              styles.orLine,
+                              { backgroundColor: t.fieldBorder },
+                            ]}
+                          />
+                        </View>
+                      </>
+                    ) : null}
                     <View style={styles.labelRow}>
                       <Text style={[styles.label, { color: t.text }]}>
                         Mobile number or email
@@ -700,6 +820,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dim: { opacity: 0.6 },
+  googleBtn: {
+    minHeight: sizes.button,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  googleMark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleMarkText: { fontSize: 15, fontWeight: '800', color: '#4285F4' },
+  googleText: { ...type.button, flexShrink: 1, textAlign: 'center' },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.lg,
+  },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  orText: { ...type.micro },
   scroll: { flexGrow: 1 },
   hero: {
     alignItems: 'center',

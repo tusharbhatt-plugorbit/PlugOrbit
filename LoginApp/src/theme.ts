@@ -5,6 +5,15 @@ export const colors = {
   bgRaised: '#131C2E',
   surface: '#FFFFFF',
   lime: '#A2F067',
+  // Text/icons drawn on a lime fill (selected chips, lime buttons). Deliberately not the
+  // same hex as `ink`: the dark appearance recolors by value, and this must stay dark
+  // while ordinary `ink` text turns light.
+  onAccent: '#0A1F0A',
+  // Selected segmented control: dark fill with light text, in light and dark appearance.
+  controlActive: '#0E1A2E',
+  onControlActive: '#FAFCFF',
+  // Secondary text on the dark header / raised surfaces (7:1 on `bg`).
+  onDarkMuted: '#ADBCD0',
   limeDark: '#33790E',
   limeSoft: '#E3F6D5',
   danger: '#B42318',
@@ -17,22 +26,27 @@ export const colors = {
   placeholder: '#94A3B8',
   // Placeholder on white / light inputs. `placeholder` above is the light grey for
   // dark surfaces; on white it is only ~2.6:1, this one clears WCAG AA (4.5:1).
-  placeholderOnLight: '#58687E',
-  chipBorder: '#334155',
+  // (A distinct value from `muted` so the dark appearance can recolor it on its own.)
+  placeholderOnLight: '#57677D',
+  // Borders of controls need 3:1 against their surface (WCAG 1.4.11).
+  chipBorder: '#64748B',
   chipText: '#E2E8F0',
   mapBg: '#EEF1F4',
   // Body of every content screen: the light, rounded-top sheet under the dark
   // header (same surface the Home map sits on).
   body: '#EEF1F4',
-  divider: '#E2E8F0',
+  divider: '#C6D2E0',
   inputBg: '#EEF2F7',
-  inputBorder: '#D5DDE8',
+  inputBorder: '#73849A',
   // Data-trust semantics. Lime = verified live; amber = estimated; blue = a
   // person confirmed it; slate = unknown. Tailwind amber/blue 700/100, the same
   // slate family the rest of the palette comes from.
   amber: '#A94C08',
   amberSoft: '#FEF3C7',
   info: '#1D4ED8',
+  // Blue accents used for selected/active states outside the data-trust semantics.
+  electric: '#0563F7',
+  cyan: '#09CBEA',
   infoSoft: '#DBEAFE',
   slateSoft: '#E2E8F0',
   // Amber for warnings on a dark surface (the light amber above is for light cards).

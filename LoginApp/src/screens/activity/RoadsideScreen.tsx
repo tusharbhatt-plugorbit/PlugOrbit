@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -49,6 +50,9 @@ const ISSUES: Issue[] = [
  * TODO(integration): roadside partner dispatch.
  */
 export default function RoadsideScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const locationDenied = useDemo(s => s.locationDenied);
   const [issue, setIssue] = useState<Issue | null>(null);
@@ -204,7 +208,7 @@ export default function RoadsideScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fine: {...type.caption, color: colors.muted, lineHeight: 18},
   center: {alignItems: 'center'},
   sent: {alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg},

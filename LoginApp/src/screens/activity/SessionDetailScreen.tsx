@@ -1,4 +1,6 @@
-import React from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useState} from 'react';
+import {exportReceipt} from '../../services/receiptExport';
 import {StyleSheet, Text, View} from 'react-native';
 import {invoiceFor} from '../../domain/charging';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
@@ -20,10 +22,22 @@ import {
 
 /** 19 Session detail: one session in full, with the way to get help or a receipt. */
 export default function SessionDetailScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'SessionDetail'>();
   const s = useApp(st => st.history.find(h => h.id === params.sessionId));
   const rated = useApp(st => st.feedbackDone.includes(params.sessionId));
+  const [saving, setSaving] = useState(false);
+  const download = async () => {
+    if (saving || !s) return;
+    setSaving(true);
+    try {if (await exportReceipt(s)) showToast('Receipt saved to the folder you selected.', 'success');}
+    catch (error) {showToast(error instanceof Error ? error.message : 'Could not save the receipt.', 'warn');}
+    finally {setSaving(false);}
+  };
+
 
   if (!s) {
     return (
@@ -50,8 +64,8 @@ export default function SessionDetailScreen(): React.JSX.Element {
         <PrimaryButton
           label="Download receipt"
           icon="file-down"
-          // TODO(integration): fetch the GST invoice PDF from the backend.
-          onPress={() => showToast('Receipt saved to your files.', 'success')}
+          loading={saving}
+          onPress={download}
         />
       }>
       <View>
@@ -149,7 +163,7 @@ export default function SessionDetailScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {...type.h1, color: colors.ink},
   sub: {...type.caption, color: colors.muted, marginTop: 4},
   fine: {...type.caption, color: colors.muted, paddingBottom: spacing.sm},

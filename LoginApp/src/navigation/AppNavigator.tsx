@@ -1,6 +1,8 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {
   ComponentType,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useReducer,
@@ -182,6 +184,9 @@ function Host({
   onLeft: () => void;
   hidden: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const progress = useRef(new Animated.Value(animateIn ? 0 : 1)).current;
   const reducedMotion = useReducedMotion();
 
@@ -207,7 +212,12 @@ function Host({
     }
   }, [leaving, progress, onLeft, reducedMotion]);
 
-  const Component = config.component;
+  const globalNavState = useContext(NavigationStateContext);
+  const frozenNavState = useRef(globalNavState);
+  if (entryValue.focused || leaving) frozenNavState.current = globalNavState;
+  const entryContext = useMemo(() => ({key: entryValue.key,name:entryValue.name,params:entryValue.params,
+    focused:entryValue.focused && !leaving}),[entryValue.key,entryValue.name,entryValue.params,entryValue.focused,leaving]);
+  const Component = useMemo(() => React.memo(config.component), [config.component]);
   return (
     <Animated.View
       style={[
@@ -231,16 +241,11 @@ function Host({
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
     >
-      <EntryContext.Provider
-        value={{
-          key: entryValue.key,
-          name: entryValue.name,
-          params: entryValue.params,
-          focused: entryValue.focused && !leaving,
-        }}
-      >
+      <NavigationStateContext.Provider value={frozenNavState.current}>
+      <EntryContext.Provider value={entryContext}>
         <Component />
       </EntryContext.Provider>
+      </NavigationStateContext.Provider>
     </Animated.View>
   );
 }
@@ -254,6 +259,8 @@ export function AppNavigator({
   navigationRef,
 }: Props): React.JSX.Element {
   const keyboardVisible = useKeyboardVisible();
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
   const [state, dispatch] = useReducer(reducer, undefined, (): State => {
     const stack = initialStack.map((e, i) => ({
       key: `${e.name}-${i + 1}`,
@@ -406,7 +413,7 @@ function noop() {}
 
 export type { NavArgs };
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screens: { flex: 1 },
   host: { backgroundColor: colors.bg },

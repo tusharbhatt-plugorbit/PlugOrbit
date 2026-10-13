@@ -1,4 +1,11 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -27,7 +34,7 @@ import {
 } from '../../domain/rules';
 import type {StationWithDistance} from '../../domain/types';
 import {useNearbyStations} from '../../hooks/useNearbyStations';
-import {useNavigation} from '../../navigation/NavigationContext';
+import {useIsFocused, useNavigation} from '../../navigation/NavigationContext';
 import {assistModeOf} from '../../intelligence/types';
 import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
 import {colors, elevation, radii, slopFor, spacing, type} from '../../theme';
@@ -41,7 +48,7 @@ import {
   VehicleSelector,
   useNow,
 } from '../../ui';
-import {Coords, distanceKm} from '../../utils/geo';
+import { Coords, distanceKm } from '../../utils/geo';
 
 type QuickFilter = 'All' | 'Fast' | 'Available' | 'Near me';
 const QUICK_FILTERS: readonly QuickFilter[] = [
@@ -69,6 +76,8 @@ const MAP_READY_TIMEOUT_MS = 15_000;
  * this is one tap away from it. The map integration itself is unchanged.
  */
 function MapScreen(): React.JSX.Element {
+  const {colors} = useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const now = useNow();
@@ -79,8 +88,10 @@ function MapScreen(): React.JSX.Element {
   const assistMode = useApp(s => assistModeOf(s.smartDrive.prefs));
   // While the assistant explains itself it has the map; the station card waits.
   const [assistOpen, setAssistOpen] = useState(false);
+  // A hidden (not focused) map neither locates nor searches; it resumes when shown.
+  const focused = useIsFocused();
   const {phase, stations, userLocation, origin, notice, refresh, searchAt} =
-    useNearbyStations(vehicle);
+    useNearbyStations(vehicle, focused);
 
   const [query, setQuery] = useState('');
   const [quick, setQuick] = useState<QuickFilter>('All');
@@ -179,7 +190,7 @@ function MapScreen(): React.JSX.Element {
 
   // Report a map that never finishes initialising (not when it is not drawn).
   useEffect(() => {
-    if (mapBroken) {
+    if (mapBroken || !focused) {
       return;
     }
     const timer = setTimeout(
@@ -187,7 +198,7 @@ function MapScreen(): React.JSX.Element {
       MAP_READY_TIMEOUT_MS,
     );
     return () => clearTimeout(timer);
-  }, [mapAttempt, mapBroken]);
+  }, [mapAttempt, mapBroken, focused]);
 
   const retryMap = useCallback(() => {
     setMapStatus('loading');
@@ -285,10 +296,10 @@ function MapScreen(): React.JSX.Element {
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() =>
-            nav.navigate('StationList', {query: query.trim()})
+            nav.navigate('StationList', { query: query.trim() })
           }
           placeholder="Search location, city or charger name"
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={colors.placeholderOnLight}
           style={styles.searchInput}
           returnKeyType="search"
           autoCorrect={false}
@@ -311,12 +322,13 @@ function MapScreen(): React.JSX.Element {
               onPress={() => setQuick(f)}
               hitSlop={slopFor(36)}
               accessibilityRole="button"
-              accessibilityState={{selected: active}}
-              style={({pressed}) => [
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => [
                 styles.chip,
                 active && styles.chipActive,
                 pressed && !active && styles.chipPressed,
-              ]}>
+              ]}
+            >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {f}
               </Text>
@@ -328,7 +340,9 @@ function MapScreen(): React.JSX.Element {
       <View style={styles.map}>
         <OfflineBanner />
         <View style={styles.flex}>
-          {mapBroken ? (
+          {!focused ? (
+            <View style={styles.flex} />
+          ) : mapBroken ? (
             <MapUnavailable
               reason="component"
               onViewList={() => nav.navigate('StationList')}
@@ -375,7 +389,8 @@ function MapScreen(): React.JSX.Element {
             {busy && (
               <View
                 style={[styles.pill, elevation(1)]}
-                accessibilityRole="alert">
+                accessibilityRole="alert"
+              >
                 <ActivityIndicator size="small" color={colors.limeDark} />
                 <Text style={styles.pillText}>
                   {phase === 'locating'
@@ -389,12 +404,13 @@ function MapScreen(): React.JSX.Element {
               <Pressable
                 onPress={searchHere}
                 accessibilityRole="button"
-                style={({pressed}) => [
+                style={({ pressed }) => [
                   styles.pill,
                   styles.pillAction,
                   elevation(1),
                   pressed && styles.pillPressed,
-                ]}>
+                ]}
+              >
                 <Text style={styles.pillText}>Search this area</Text>
               </Pressable>
             )}
@@ -402,7 +418,8 @@ function MapScreen(): React.JSX.Element {
             {mapStatus === 'failed' && !mapBroken && (
               <View
                 style={[styles.notice, elevation(1)]}
-                accessibilityRole="alert">
+                accessibilityRole="alert"
+              >
                 <Text style={styles.noticeText}>
                   {Platform.OS === 'android' && !mapsKeyMissing
                     ? 'The map is taking too long to load. Check your connection and Google Play services.'
@@ -412,7 +429,8 @@ function MapScreen(): React.JSX.Element {
                   onPress={retryMap}
                   hitSlop={14}
                   accessibilityRole="button"
-                  accessibilityLabel="Reload map">
+                  accessibilityLabel="Reload map"
+                >
                   <Text style={styles.noticeAction}>Reload</Text>
                 </Pressable>
               </View>
@@ -421,14 +439,16 @@ function MapScreen(): React.JSX.Element {
             {!busy && notice && !showPermissionCard && (
               <View
                 style={[styles.notice, elevation(1)]}
-                accessibilityRole="alert">
+                accessibilityRole="alert"
+              >
                 <Text style={styles.noticeText}>{notice.message}</Text>
                 {canRetry && (
                   <Pressable
                     onPress={retryLocation}
                     hitSlop={10}
                     accessibilityRole="button"
-                    accessibilityLabel="Try again">
+                    accessibilityLabel="Try again"
+                  >
                     <Text style={styles.noticeAction}>Retry</Text>
                   </Pressable>
                 )}
@@ -452,11 +472,12 @@ function MapScreen(): React.JSX.Element {
                 onPress={recenter}
                 accessibilityRole="button"
                 accessibilityLabel="Go to my location"
-                style={({pressed}) => [
+                style={({ pressed }) => [
                   styles.mapBtn,
                   elevation(2),
                   pressed && styles.pillPressed,
-                ]}>
+                ]}
+              >
                 <Icon name="locate-fixed" size={20} color={colors.ink} />
               </Pressable>
             )}
@@ -480,11 +501,12 @@ function MapScreen(): React.JSX.Element {
                   ? `Filters, ${activeFilters} active`
                   : 'Filters'
               }
-              style={({pressed}) => [
+              style={({ pressed }) => [
                 styles.mapBtn,
                 elevation(2),
                 pressed && styles.pillPressed,
-              ]}>
+              ]}
+            >
               <Icon name="sliders-horizontal" size={20} color={colors.ink} />
               {activeFilters > 0 && (
                 <View style={styles.filterBadge}>
@@ -508,7 +530,7 @@ function MapScreen(): React.JSX.Element {
           </View>
 
           {showPermissionCard && permissionIssue && (
-            <View style={[styles.permissionDock, {bottom: cardBottom}]}>
+            <View style={[styles.permissionDock, { bottom: cardBottom }]}>
               <LocationPermissionState
                 kind={permissionIssue}
                 onRetry={retryLocation}
@@ -530,10 +552,10 @@ function MapScreen(): React.JSX.Element {
               bottom={cardBottom}
               onClose={deselect}
               onDetails={() =>
-                nav.navigate('StationDetail', {stationId: selected.id})
+                nav.navigate('StationDetail', { stationId: selected.id })
               }
               onDirections={() =>
-                nav.navigate('Navigation', {stationId: selected.id})
+                nav.navigate('Navigation', { stationId: selected.id })
               }
             />
           ) : (
@@ -545,11 +567,12 @@ function MapScreen(): React.JSX.Element {
                 accessibilityRole="button"
                 accessibilityLabel={`View list of ${visible.length} chargers`}
                 testID="view-list"
-                style={({pressed}) => [
+                style={({ pressed }) => [
                   styles.listPill,
                   elevation(3),
                   pressed && styles.pillPressed,
-                ]}>
+                ]}
+              >
                 <Icon name="layers" size={16} color={colors.lime} />
                 <Text style={styles.listPillText}>
                   {visible.length} charger{visible.length === 1 ? '' : 's'} •
@@ -564,10 +587,11 @@ function MapScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {flex: 1},
-  safe: {flex: 1, backgroundColor: colors.bg},
+const baseStyles = StyleSheet.create({
+  flex: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.body },
   header: {
+    justifyContent: 'space-between',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
@@ -614,14 +638,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: colors.chipBorder,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: {backgroundColor: colors.lime, borderColor: colors.lime},
-  chipPressed: {backgroundColor: colors.bgRaised},
-  chipText: {color: colors.chipText, fontSize: 14, fontWeight: '600'},
-  chipTextActive: {color: colors.ink, fontWeight: '800'},
+  chipActive: {
+    backgroundColor: colors.controlActive,
+    borderColor: colors.controlActive,
+  },
+  chipPressed: { backgroundColor: colors.bgRaised },
+  chipText: { color: colors.inkSoft, fontSize: 14, fontWeight: '600' },
+  chipTextActive: { color: colors.onControlActive, fontWeight: '800' },
   map: {
     flex: 1,
     backgroundColor: colors.mapBg,
@@ -646,9 +674,9 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: radii.pill,
   },
-  pillAction: {backgroundColor: colors.lime},
-  pillPressed: {opacity: 0.85},
-  pillText: {color: colors.ink, fontSize: 13, fontWeight: '700'},
+  pillAction: { backgroundColor: colors.lime },
+  pillPressed: { opacity: 0.85 },
+  pillText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -664,7 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
   },
-  noticeAction: {color: colors.limeDark, fontSize: 13, fontWeight: '800'},
+  noticeAction: { color: colors.limeDark, fontSize: 13, fontWeight: '800' },
   mapButtons: {
     position: 'absolute',
     top: spacing.md,
@@ -693,7 +721,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterBadgeText: {...type.micro, color: colors.ink},
+  filterBadgeText: { ...type.micro, color: colors.onAccent },
   // Same slot as the charger card, which steps aside while this is showing.
   permissionDock: {
     position: 'absolute',
@@ -712,7 +740,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.bg,
   },
-  listPillText: {...type.label, color: '#FFFFFF'},
+  listPillText: { ...type.label, color: '#FFFFFF' },
 });
 
 export default MapScreen;

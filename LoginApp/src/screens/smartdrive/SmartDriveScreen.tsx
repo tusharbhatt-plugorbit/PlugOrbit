@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { describeError } from '../../domain/describeError';
@@ -41,6 +42,7 @@ import {
   useTripNow,
 } from '../../ui';
 import { PlaceField } from '../../ui/PlaceField';
+import { ChargingStopCard } from '../../ui/ChargingStopCard';
 
 /**
  * Orbit Assist. Before a trip it asks one question, "Where are we going?". During
@@ -48,13 +50,25 @@ import { PlaceField } from '../../ui/PlaceField';
  * a calm status, the one stop that matters, and proof that it is watching.
  */
 export default function SmartDriveScreen(): React.JSX.Element {
+  useAppearance();
+
   const trip = useApp(selectTrip);
-  return trip ? <TripDashboard trip={trip} /> : <TripPlanner />;
+  const [planning, setPlanning] = useState(false);
+  return trip && !planning ? <TripDashboard trip={trip} onPlanNew={() => setPlanning(true)} />
+    : <TripPlanner onPlanned={() => setPlanning(false)} onCancel={trip ? () => setPlanning(false) : undefined} />;
 }
 
 /* ----------------------------------------------------------------- planner -- */
 
-function TripPlanner(): React.JSX.Element {
+function TripPlanner({
+  onPlanned,
+  onCancel,
+}: {
+  onPlanned: () => void;
+  onCancel?: () => void;
+}): React.JSX.Element {
+  useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const { width, height } = useWindowDimensions();
   const nav = useNavigation();
   const active = useIsActiveRef();
@@ -66,6 +80,7 @@ function TripPlanner(): React.JSX.Element {
   const { params } = useRoute<'SmartDrive'>();
   const [from, setFrom] = useState('');
   const [fromCoords, setFromCoords] = useState<Coords | undefined>();
+  const [toCoords, setToCoords] = useState<Coords | undefined>();
   const [locating, setLocating] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const locationRequest = useRef(0);
@@ -143,7 +158,11 @@ function TripPlanner(): React.JSX.Element {
         fromLabel: from.trim(),
         fromCoords,
         toLabel: to.trim(),
+        toCoords,
       });
+      if (active.current) {
+        onPlanned();
+      }
     } catch (e) {
       if (active.current) {
         const copy = describeError(e, 'We couldn’t plan this trip.');
@@ -159,6 +178,7 @@ function TripPlanner(): React.JSX.Element {
   return (
     <Screen
       title="Orbit Assist"
+      onBack={onCancel}
       stack
       right={
         <IconButton
@@ -192,7 +212,10 @@ function TripPlanner(): React.JSX.Element {
               setFromCoords(undefined);
               setFrom(value);
             }}
-            placeholder={locating ? 'Finding your location…' : 'Start city'}
+            onSelect={place => setFromCoords(place.coords)}
+            placeholder={
+              locating ? 'Finding your location…' : 'Start address or city'
+            }
             icon="navigation"
           />
           <Text style={styles.locationNote} accessibilityLiveRegion="polite">
@@ -215,8 +238,9 @@ function TripPlanner(): React.JSX.Element {
           <PlaceField
             label="To"
             value={to}
-            onChangeText={setTo}
-            placeholder="Destination city"
+            onChangeText={value => {setTo(value); setToCoords(undefined);}}
+            onSelect={place => setToCoords(place.coords)}
+            placeholder="Destination address or location"
             icon="flag"
             error={
               same ? 'Start and destination are the same place.' : undefined
@@ -294,7 +318,15 @@ function TripPlanner(): React.JSX.Element {
 
 /* --------------------------------------------------------------- dashboard -- */
 
-function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
+function TripDashboard({
+  trip,
+  onPlanNew,
+}: {
+  trip: ActiveTrip;
+  onPlanNew: () => void;
+}): React.JSX.Element {
+  useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const nav = useNavigation();
   const active = useIsActiveRef();
   const { smartDrive } = useServices();
@@ -370,8 +402,11 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
     }
     switch (trip.phase) {
       case 'ready':
-        // Low on battery, the first move is the charger, not the destination.
-        return stop && plan.mode === 'battery_critical'
+        // Low on battery, or a charging gap ahead, the first move is the charger,
+        // not the destination.
+        return stop &&
+          (plan.mode === 'battery_critical' ||
+            plan.itinerary?.complete === false)
           ? {
               label: `Navigate to ${stop.station.name
                 .split('•')
@@ -467,6 +502,7 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
               label={primaryAction.label}
               icon={primaryAction.icon}
               loading={busy === 'begin' || busy === 'finish'}
+              disabled={(plan.itinerary?.complete === false && !stop) || (!__DEV__ && trip.simulated)}
               onPress={primaryAction.onPress}
             />
           )}
@@ -474,6 +510,13 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
       }
     >
       <CopilotStatusCard status={status} />
+      {trip.actuals.endSoc !== null && <>
+      <SecondaryButton label="Payment options" icon="credit-card" compact onPress={() => nav.navigate('PaymentMethods')} />
+      <Notice title="Operator payment" body="Pay through the charger operator until a payment gateway and operator billing integration are connected." />
+      <KeyValue label="Payment status" value={trip.actuals.paymentOk === true ? 'Confirmed' : trip.actuals.paymentOk === false ? 'Failed' : 'Confirm with operator'} />
+      </>}
+      <SecondaryButton label="Plan another trip" icon="route" compact onPress={onPlanNew} />
+      {!__DEV__ && trip.simulated && <Notice tone="warn" title="Replan this saved trip" body="This trip was created by the earlier sample planner. End this trip and start again to search real road chargers." />}
 
       {trip.network === 'offline' && (
         <Notice
@@ -491,12 +534,14 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
       )}
 
       <Card>
-        <Text style={styles.route}>
-          {trip.origin.label} → {trip.destination.label}
-        </Text>
+        <Text style={styles.endpointLabel}>From</Text>
+        <Text style={styles.endpoint}>{trip.origin.label}</Text>
+        <Text style={styles.endpointLabel}>To</Text>
+        <Text style={styles.endpoint}>{trip.destination.label}</Text>
         <KeyValue label="ETA" value={formatClock(trip.eta)} />
         <KeyValue label="Battery now" value={`${pctLabel(trip.currentSoC)}`} />
         <KeyValue label="Arrival without a stop" value={atArrival} />
+        {plan.itinerary && <KeyValue label="Arrival after planned charges" value={plan.itinerary.arrivalSoc ? pctLabel(plan.itinerary.arrivalSoc.expected) : "Route has a charging gap"} />}
         <KeyValue
           label="Charging needed"
           value={trip.chargingRequired ? 'Yes' : 'No'}
@@ -509,6 +554,12 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
         <JourneyBar trip={trip} />
       </Card>
 
+      {plan.itinerary && plan.itinerary.stops.length > 0 && <>
+        <SectionTitle title={`Charging stops (${plan.itinerary.stops.length})`} />
+        {plan.itinerary.stops.map((planned, index) => <ChargingStopCard key={planned.station.id} stop={planned} index={index}
+          onPress={() => nav.navigate('StationDetail', {stationId: planned.station.id})} />)}
+        {!plan.itinerary.complete && <Notice tone="danger" title="Charging gap ahead" body="The available compatible chargers do not cover the whole journey. You can navigate to the reachable first charger. Charge there, then replan or verify another charger before continuing the journey." />}
+      </>}
       <ChangeBanner
         trip={trip}
         onKeep={() => act('keep', () => smartDrive.keepOriginal())}
@@ -558,7 +609,7 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
 
       <CopilotLog trip={trip} />
 
-      {trip.simulated && !ended && (
+      {__DEV__ && trip.simulated && !ended && (
         <DemoDrive
           trip={trip}
           busy={busy}
@@ -599,6 +650,8 @@ function DemoDrive({
     quietNote?: string,
   ) => Promise<void>;
 }) {
+  useAppearance();
+  const styles = useThemedStyles(baseStyles);
   const { smartDrive } = useServices();
   const canDrive = trip.phase !== 'ready' && trip.phase !== 'charging';
   const quiet = 'Checked. Nothing you need to do.';
@@ -666,7 +719,7 @@ function DemoDrive({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: { ...type.display, color: colors.ink },
   kicker: { ...type.micro, color: colors.lime, textTransform: 'uppercase' },
   heroTitle: { ...type.h1, color: '#FFFFFF', marginTop: 6 },
@@ -684,6 +737,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'space-between',
     marginTop: spacing.md,
+  },
+  endpointLabel: {
+    ...type.micro,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  endpoint: {
+    ...type.body,
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 23,
+    marginBottom: spacing.md,
   },
   route: { ...type.h1, color: colors.ink, marginBottom: spacing.sm },
   center: { alignItems: 'center' },

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import type {ConnectorType} from '../../domain/types';
@@ -74,6 +75,9 @@ function matches(m: VehicleModel, q: string): boolean {
  * filter everywhere, so the screen says so plainly.
  */
 export default function VehicleSetupScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'VehicleSetup'>();
   const {vehicle: vehicleService} = useServices();
@@ -417,7 +421,7 @@ export default function VehicleSetupScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   heading: {...type.display, color: colors.ink},
   lead: {...type.body, color: colors.muted, marginTop: spacing.xs},
   block: {marginTop: spacing.lg},

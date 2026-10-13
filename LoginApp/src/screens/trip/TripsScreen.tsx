@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {timeAgo} from '../../domain/trust';
@@ -27,6 +28,9 @@ import {useHeldReservation} from '../../ui/useHeldReservation';
 
 /** Trips tab: planning, saved routes, energy plans, reservations, multi-stop. */
 export default function TripsScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow(30_000);
   const route = useApp(s => s.activeRoute);
@@ -101,6 +105,7 @@ export default function TripsScreen(): React.JSX.Element {
             cachedLabel={`Planned ${timeAgo(route.computedAt, now)}.`}
           />
           <PrimaryButton
+            variant="blue"
             label="Open route"
             icon="route"
             onPress={() => nav.navigate('RouteResult')}
@@ -171,7 +176,9 @@ export default function TripsScreen(): React.JSX.Element {
               right={<Pill label="Plan" tone="lime" />}
               onPress={() =>
                 nav.navigate('RoutePlanner', {
-                  fromLabel: r.fromLabel,
+                  fromCoords: r.fromCoords,
+        toCoords: r.toCoords,
+        fromLabel: r.fromLabel,
                   toLabel: r.toLabel,
                 })
               }
@@ -224,7 +231,7 @@ export default function TripsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   sdKicker: {
     ...type.micro,
     color: colors.limeDark,

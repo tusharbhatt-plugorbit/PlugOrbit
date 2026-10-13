@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ALL_AMENITIES, AMENITY_LABEL} from '../../domain/discover';
@@ -67,6 +68,9 @@ function FilterGroup({
   caption?: string;
   children: React.ReactNode;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View>
       <SectionTitle title={title} />
@@ -80,6 +84,9 @@ function FilterGroup({
 
 /** 05 Filters. Changes apply immediately and the count updates live. */
 export default function FiltersScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const vehicle = useApp(selectActiveVehicle);
   const filters = useApp(s => s.filters);
@@ -331,7 +338,7 @@ export default function FiltersScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   stack: {gap: spacing.md},
   chips: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},

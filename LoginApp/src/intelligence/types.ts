@@ -219,6 +219,7 @@ export type ChargingPlan = {
      */
     socWithPlan: SocRange | null;
   };
+  itinerary?: {stops: ScoredStop[]; complete: boolean; arrivalSoc: SocRange | null};
   primary: ScoredStop | null;
   backup: BackupStop | null;
   /** Other safe options, best first (feeds "Find me something cheaper"). */

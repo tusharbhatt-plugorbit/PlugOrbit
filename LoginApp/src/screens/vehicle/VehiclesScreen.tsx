@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {sessionTarget} from '../../app/initialStack';
@@ -31,6 +32,9 @@ const carName = (v: Pick<Vehicle, 'make' | 'model'>) => `${v.make} ${v.model}`;
  * session is open) or add another.
  */
 export default function VehiclesScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {vehicle: vehicleService} = useServices();
   const vehicles = useApp(s => s.vehicles);
@@ -266,7 +270,7 @@ export default function VehiclesScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.body, color: colors.muted},
   gap: {marginTop: spacing.lg},
   list: {gap: spacing.md, marginTop: spacing.lg},

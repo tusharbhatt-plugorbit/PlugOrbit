@@ -17,6 +17,11 @@ router = APIRouter(prefix="/auth/otp", tags=["otp"])
 def send_otp(body: OtpSendRequest):
     settings = get_settings()
     kind, key = otp.normalize_identifier(body.identifier)
+    if kind == "phone" and not delivery.sms_configured(settings) and not settings.otp_dev_fallback:
+        raise HTTPException(status_code=503, detail={
+            "code": "OTP_DELIVERY_FAILED",
+            "message": "SMS login is not configured. Use your email address to receive a code.",
+        })
     code = otp.issue(key)
     common = {"identifier_type": kind, "expires_in": settings.otp_ttl_seconds,
               "resend_in": settings.otp_resend_seconds}

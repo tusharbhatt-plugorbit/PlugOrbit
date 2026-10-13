@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {colors, spacing, type} from '../theme';
@@ -31,6 +32,9 @@ export function ExplainRow({
   right?: React.ReactNode;
   last?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const t = TONE[tone];
   return (
     <View
@@ -49,7 +53,7 @@ export function ExplainRow({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {nearestAlternative} from '../../domain/alternative';
@@ -49,6 +50,8 @@ type Loaded = {
  * route, to its nearest alternative. Never about a charger you didn't choose.
  */
 export default function BackupAlertScreen(): React.JSX.Element {
+  useAppearance();
+
   const nav = useNavigation();
   const {params} = useRoute<'BackupAlert'>();
   const {station: stationService} = useServices();
@@ -161,6 +164,9 @@ function AlertBody({
   now: number;
   route: Route | null;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {route: routeService} = useServices();
   const active = useIsActiveRef();
@@ -281,7 +287,7 @@ function AlertBody({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   kicker: {...type.micro, color: colors.danger, textTransform: 'uppercase'},
   title: {...type.h1, color: colors.ink, marginTop: 6},
   sub: {...type.body, color: colors.inkSoft, marginTop: 6, lineHeight: 20},

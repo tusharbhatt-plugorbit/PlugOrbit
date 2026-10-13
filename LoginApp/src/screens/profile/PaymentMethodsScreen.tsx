@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -41,6 +42,9 @@ const KINDS = [
  * place a hold first); unverified ones are explained, not hidden.
  */
 export default function PaymentMethodsScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const {payment} = useServices();
   const methods = useApp(s => s.paymentMethods);
 
@@ -283,7 +287,7 @@ export default function PaymentMethodsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   gap: {marginTop: spacing.md},
   hint: {...type.caption, color: colors.muted, marginTop: spacing.lg},
   list: {gap: spacing.md, marginTop: spacing.sm},

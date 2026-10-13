@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -49,6 +50,9 @@ const STRATEGIES: ReadonlyArray<{value: RouteStrategy; label: string}> = [
  * signal. Every stop is shown with its backup.
  */
 export default function RouteResultScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow(30_000);
   const {route: routeService} = useServices();
@@ -96,9 +100,12 @@ export default function RouteResultScreen(): React.JSX.Element {
     setError(null);
     try {
       const next = await routeService.plan({
+        fromCoords: route.fromCoords,
+        toCoords: route.toCoords,
         fromLabel: route.fromLabel,
         toLabel: route.toLabel,
         via: route.via,
+        viaCoords: route.viaCoords,
         startSoc: route.startSoc,
         strategy,
         vehicle,
@@ -113,13 +120,17 @@ export default function RouteResultScreen(): React.JSX.Element {
   };
 
   const start = async () => {
+    if (route.chargingComplete === false && route.stops.length === 0) {
+      showToast('No safe charging stop is confirmed. Review route stations and verify a compatible open charger before driving.', 'warn');
+      return;
+    }
     const first = route.stops[0];
     if (first) {
       chooseStop(route, 0);
       nav.navigate('Navigation', {stationId: first.station.id, stopIndex: 0});
       return;
     }
-    const end = route.polyline[route.polyline.length - 1];
+    const end = route.toCoords ?? route.polyline[route.polyline.length - 1];
     const ok = await openDirections({id: 'dest', ...end});
     if (!ok) {
       showToast('Couldn’t open Google Maps.', 'warn');
@@ -148,18 +159,21 @@ export default function RouteResultScreen(): React.JSX.Element {
       }
       footer={
         <PrimaryButton
-          label={route.stops.length > 0 ? 'Start trip' : 'Open navigation'}
+          disabled={route.chargingComplete === false && route.stops.length === 0}
+          label={route.chargingComplete === false && route.stops.length === 0 ? 'Verify a charger before driving' : route.emergencyStationId ? 'Navigate to nearest reachable charger' : route.stops.length > 0 ? 'Start trip' : 'Open navigation'}
           icon={route.stops.length > 0 ? 'navigation' : 'map'}
           loading={replanning}
           onPress={start}
         />
       }>
-      <RouteMap route={route} height={210} highlightStop={0} />
-      <RouteSummary
+      <RouteMap route={route} height={280} highlightStop={0} />
+      <Text style={{...type.caption, color:colors.muted}}>{route.geometrySource === "road" ? "Road directions · OpenStreetMap / OSRM · travel time estimate" : "Saved estimate · refresh to load road directions"}</Text>
+      {route.chargingComplete !== false && <RouteSummary
         route={route}
         cachedLabel={`Planned ${timeAgo(route.computedAt, now)}.`}
-      />
+      />}
 
+      {route.chargingComplete === false && <Notice tone="danger" title="Charging route needs verification" body={route.stops.length ? "Navigate to the reachable first charger and charge there. Verify or replan the remaining charging stops before continuing." : "Google returned this road route, but did not confirm enough reachable compatible chargers. Review the stations below and confirm connector details with the operator before driving."} />}
       {stale && (
         <Notice
           tone="warn"
@@ -189,7 +203,7 @@ export default function RouteResultScreen(): React.JSX.Element {
         </View>
       </View>
 
-      {route.stops.length === 0 ? (
+      {route.stops.length === 0 && route.chargingComplete !== false ? (
         <Notice
           tone="lime"
           title="No charging stop needed"
@@ -220,6 +234,21 @@ export default function RouteResultScreen(): React.JSX.Element {
         </>
       )}
 
+      {route.corridorStations && <>
+        <SectionTitle title={`Stations along your route (${route.corridorStations.length})`} />
+        <Notice title="Choose where to stop" body="These are stations returned by Google near the route. Confirm connector, availability and tariff with the operator before stopping. Search coverage may be incomplete." />
+        {route.corridorStations.map(station => <Card key={station.id}>
+          <Text style={styles.small}>{station.name}</Text>
+          <Text style={styles.small}>{station.address}</Text>
+          <TextButton label="View station details" onPress={() => nav.navigate('StationDetail', {stationId: station.id})} />
+          {routeService.chooseStation && <TextButton label={replanning ? 'Checking station...' : 'Choose this as first stop'} onPress={async () => {
+            if(replanning) return; setReplanning(true); setError(null);
+            try {const next=await routeService.chooseStation!(route,station.id); cacheRoute(next); showToast('Your chosen charger is now the first stop.','success');}
+            catch(e){setError(describeError(e,'Could not choose this charger.').body);}
+            finally{setReplanning(false);}
+          }} />}
+        </Card>)}
+      </>}
       <View style={styles.links}>
         <TextButton
           label="Energy plan"
@@ -247,6 +276,9 @@ function StopCard({
   now: number;
   onOpen: () => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const connector =
     stop.station.connectors.find(c => c.id === stop.connectorId) ??
     stop.station.connectors[0];
@@ -288,7 +320,7 @@ function StopCard({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   small: {...type.label, color: colors.muted},
   seg: {marginTop: spacing.sm},
   stopWrap: {gap: spacing.sm},

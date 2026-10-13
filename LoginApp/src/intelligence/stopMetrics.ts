@@ -188,7 +188,7 @@ export function estimateStopsAfter(args: {
     let pos = args.fromAlongKm;
     let soc = chargeTo;
     let stops = 0;
-    for (let leg = 0; leg < 4; leg++) {
+    for (let leg = 0; leg <= args.others.length; leg++) {
       const reach = safeReachKm(vehicle, soc, floor, config, args.conditions);
       if (pos + reach >= args.totalKm) {
         return {stopsAfter: stops, feasible: true};

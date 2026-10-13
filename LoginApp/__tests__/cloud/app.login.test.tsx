@@ -32,6 +32,16 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 let cloud: FakeCloud;
 let verifyBody: unknown;
+let sendBody: Record<string, unknown>;
+const DELIVERED_BY_EMAIL = {
+  message: 'sent',
+  identifier_type: 'email',
+  channel: 'email',
+  delivered: true,
+  dev_code: null,
+  expires_in: 300,
+  resend_in: 30,
+};
 const mounted: Renderer[] = [];
 
 const settle = async (ms = 100) => {
@@ -105,22 +115,11 @@ beforeEach(() => {
   resetSessionMemory();
   resetCloudSyncForTests();
   cloud = createFakeCloud();
+  sendBody = DELIVERED_BY_EMAIL;
   (globalThis as unknown as {fetch: unknown}).fetch = jest.fn(
     async (url: string, init?: never) => {
       if (url.endsWith('/auth/otp/send')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            message: 'sent',
-            identifier_type: 'email',
-            channel: 'email',
-            delivered: true,
-            dev_code: null,
-            expires_in: 300,
-            resend_in: 30,
-          }),
-        };
+        return {ok: true, status: 200, json: async () => sendBody};
       }
       if (url.endsWith('/auth/otp/verify')) {
         return {ok: true, status: 200, json: async () => verifyBody};
@@ -167,7 +166,33 @@ test('a login that opens a Firebase session is backed up from then on', async ()
   expect(cloud.puts).toHaveLength(0);
 });
 
-test('a login without a session stays on this device and never calls the cloud', async () => {
+test('a delivered code without a Firebase session does not sign in', async () => {
+  verifyBody = {verified: true, message: 'Verified.'};
+  const r = await renderApp();
+
+  await pressText(r, 'Get started');
+  await type(r, 'name@example.com');
+  await pressText(r, 'Send verification code');
+  await type(r, '123456');
+  await pressText(r, 'Verify and create account');
+
+  expect(appStore.get().signedIn).toBe(false);
+  expect(await loadSession()).toBeNull();
+  expect(cloud.gets).toBe(0);
+  expect(cloud.puts).toHaveLength(0);
+  // Still on the code step, not let into the app.
+  expect(
+    r.root.findAllByType(Text).some(n => n.props.children === 'Enter your code'),
+  ).toBe(true);
+});
+
+test('the on-screen development code still signs in on this device, without calling the cloud', async () => {
+  sendBody = {
+    ...DELIVERED_BY_EMAIL,
+    channel: 'screen',
+    delivered: false,
+    dev_code: '123456',
+  };
   verifyBody = {verified: true, message: 'Verified.'};
   const r = await renderApp();
 

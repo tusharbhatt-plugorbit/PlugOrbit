@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {colors, radii, sizes, slopFor, spacing, type} from '../theme';
@@ -20,6 +21,9 @@ export function QuickValueChips({
   /** Accessibility group label, e.g. "Quick battery levels". */
   label: string;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.row} accessibilityLabel={label}>
       {values.map(v => {
@@ -47,7 +51,7 @@ export function QuickValueChips({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   row: {flexDirection: 'row', gap: spacing.sm},
   chip: {
     flex: 1,
@@ -62,5 +66,5 @@ const styles = StyleSheet.create({
   selected: {backgroundColor: colors.lime, borderColor: colors.lime},
   pressed: {opacity: 0.85},
   text: {...type.label, color: colors.inkSoft, fontWeight: '600'},
-  textSelected: {color: colors.ink, fontWeight: '800'},
+  textSelected: {color: colors.onAccent, fontWeight: '800'},
 });

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {DEFAULT_CENTER} from '../../config/google';
@@ -62,6 +63,9 @@ const KINDS: ReadonlyArray<{
 
 /** 21 Report a problem. Goes to the station's record and opens a support ticket. */
 export default function ReportProblemScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'ReportProblem'>();
   const {station: stationService} = useServices();
@@ -202,7 +206,7 @@ export default function ReportProblemScreen(): React.JSX.Element {
                   <Icon
                     name="check"
                     size={13}
-                    color={colors.ink}
+                    color={colors.onAccent}
                     strokeWidth={3}
                   />
                 )}
@@ -236,7 +240,7 @@ export default function ReportProblemScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   lead: {...type.display, color: colors.ink},
   label: {...type.label, color: colors.muted},
@@ -267,7 +271,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  optionOn: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  optionOn: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   optionIcon: {
     width: 40,
     height: 40,

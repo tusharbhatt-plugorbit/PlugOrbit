@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {resumeSession} from '../../app/initialStack';
@@ -27,6 +28,9 @@ const SEGMENTS: ReadonlyArray<{value: Segment; label: string}> = [
 
 /** 18 Activity: charging history and receipts, plus support tickets. */
 export default function ActivityScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Activity'>();
   const now = useNow(30_000);
@@ -165,6 +169,9 @@ export default function ActivityScreen(): React.JSX.Element {
 }
 
 function Stat({label, value}: {label: string; value: string}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.stat}
@@ -176,7 +183,7 @@ function Stat({label, value}: {label: string; value: string}) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
   heroTitle: {...type.h1, color: '#FFFFFF', marginTop: 6},
   heroSub: {...type.body, color: colors.chipText, marginTop: 4},

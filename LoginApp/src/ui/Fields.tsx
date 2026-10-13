@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityActionEvent,
@@ -37,6 +38,9 @@ export function TextField({
   error?: string;
   icon?: IconName;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const [focused, setFocused] = useState(false);
   const scrollOwner = useScrollOwner();
   return (
@@ -106,6 +110,9 @@ export function SearchField({
   onSubmit?: () => void;
   autoFocus?: boolean;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.search, elevation(1)]}>
       <Icon name="search" size={18} color={colors.muted} />
@@ -142,6 +149,9 @@ export function ToggleRow({
   last?: boolean;
   disabled?: boolean;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.toggleRow, !last && styles.divider]}>
       <View style={styles.toggleText}>
@@ -171,6 +181,9 @@ export function SegmentedControl<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.segment} accessibilityRole="tablist">
       {options.map(o => {
@@ -208,6 +221,9 @@ export function Chip({
   onPress?: () => void;
   icon?: IconName;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -224,7 +240,7 @@ export function Chip({
         <Icon
           name={icon}
           size={14}
-          color={selected ? colors.ink : colors.inkSoft}
+          color={selected ? colors.onAccent : colors.inkSoft}
         />
       )}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
@@ -253,6 +269,9 @@ export function PercentSlider({
   step?: number;
   label: string;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const width = useRef(0);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -337,6 +356,9 @@ export function Stepper({
   format?: (v: number) => string;
   label: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.stepper}>
       <Pressable
@@ -365,7 +387,7 @@ export function Stepper({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fieldWrap: { gap: 6 },
   label: { ...type.label, color: colors.ink },
   field: {
@@ -433,7 +455,9 @@ const styles = StyleSheet.create({
   toggleSub: { ...type.caption, color: colors.muted, marginTop: 2 },
   segment: {
     flexDirection: 'row',
-    backgroundColor: colors.slateSoft,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
     borderRadius: radii.md,
     padding: 3,
   },
@@ -446,14 +470,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  segmentActive: { backgroundColor: colors.bg },
+  segmentActive: { backgroundColor: colors.controlActive },
   segmentText: {
     textAlign: 'center',
     flexShrink: 1,
     ...type.label,
     color: colors.inkSoft,
   },
-  segmentTextActive: { color: '#FFFFFF' },
+  segmentTextActive: { color: colors.onControlActive },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -474,7 +498,7 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
     fontWeight: '600',
   },
-  chipTextSelected: { color: colors.ink, fontWeight: '800' },
+  chipTextSelected: { color: colors.onAccent, fontWeight: '800' },
   sliderHit: { height: 44, justifyContent: 'center' },
   sliderTrack: {
     height: 10,
@@ -489,9 +513,9 @@ const styles = StyleSheet.create({
     height: 28,
     marginLeft: -14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.onControlActive,
     borderWidth: 3,
-    borderColor: colors.bg,
+    borderColor: colors.limeDark,
     top: 8,
   },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

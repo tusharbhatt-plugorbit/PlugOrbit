@@ -1,9 +1,10 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {Marker} from 'react-native-maps';
 import {availableCount, compatibleConnectors} from '../domain/rules';
 import type {StationWithDistance, Vehicle} from '../domain/types';
-import {colors} from '../theme';
+
 import {Icon} from '../ui/Icon';
 
 type Props = {
@@ -20,6 +21,9 @@ const HEAD_SELECTED = 40;
 const SETTLE_MS = 400;
 
 function ChargerMarkerBase({station, vehicle, selected, onSelect}: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const [tracking, setTracking] = useState(true);
 
   useEffect(() => {
@@ -67,7 +71,7 @@ function ChargerMarkerBase({station, vehicle, selected, onSelect}: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   // Fixed box so the snapshot is the same size for both states.
   box: {
     width: HEAD_SELECTED + 4,

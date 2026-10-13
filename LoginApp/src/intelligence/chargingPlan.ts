@@ -79,6 +79,31 @@ type Evaluated = {
  * It is a pure function of its input: same world in, same plan out.
  */
 export function planCharging(input: PlanInput): ChargingPlan {
+  const projections = new Map(input.stations.map(station => [station, project(input.path, station)]));
+  const initial = planNextCharge(input, projections);
+  const stops: ScoredStop[] = [];
+  let current = initial;
+  let leg = input;
+  const excluded = new Set(input.excludeIds ?? []);
+  for (let i = 0; i <= input.stations.length && current.chargingRequired; i++) {
+    const stop = current.primary;
+    if (!stop || excluded.has(stop.station.id) || (stops.length > 0 && stop.alongKm <= leg.progressKm + 1)) break;
+    stops.push(stop);
+    excluded.add(stop.station.id);
+    const rejoined = socAfterKm(input.vehicle, stop.metrics.targetSoc, stop.lateralKm, input.config, input.conditions);
+    leg = {...input, progressKm: stop.alongKm, soc: rejoined.expected,
+      now: stop.metrics.etaAt + (stop.metrics.totalStopMin.min + stop.metrics.totalStopMin.max) * 30000 - stop.metrics.detourMin * 60000,
+      excludeIds: [...excluded], incumbentId: null, pinnedId: null, incumbentBackupId: null, holdIncumbent: false};
+    current = planNextCharge(leg, projections);
+  }
+  const complete = !current.chargingRequired;
+  const arrivalSoc = complete ? current.destination.socWithoutCharging : null;
+  return {...initial, itinerary: {stops, complete, arrivalSoc}, stopsAfterPrimary: Math.max(0, stops.length - 1),
+    routeRisk: complete ? initial.routeRisk : 'high', limitedOptions: initial.limitedOptions || !complete,
+    destination: {...initial.destination, etaAt: current.destination.etaAt, socWithPlan: arrivalSoc}};
+}
+
+function planNextCharge(input: PlanInput, projections: Map<Station, ReturnType<typeof project>>): ChargingPlan {
   const {config, vehicle, path, now} = input;
   const reserve = input.reservePct ?? config.minimumSafetyReservePct;
   const profile = input.profile ?? 'balanced';
@@ -92,7 +117,7 @@ export function planCharging(input: PlanInput): ChargingPlan {
     config,
     input.conditions,
   );
-  const chargingRequired = destinationSoc.low < reserve;
+  const chargingRequired = destinationSoc.low < reserve || input.soc <= config.batteryCriticalPct;
   const destinationEta =
     now + driveMinutes(remainingKm, config, input.conditions) * 60000;
 
@@ -103,7 +128,7 @@ export function planCharging(input: PlanInput): ChargingPlan {
     if (exclude.has(station.id)) {
       return;
     }
-    const {along, lateral} = project(path, station);
+    const {along, lateral} = projections.get(station)!;
     if (lateral > config.maxLateralKm) {
       return;
     }
@@ -285,6 +310,7 @@ export function planCharging(input: PlanInput): ChargingPlan {
     backupStrength: strengths,
   });
   const ranked = rankedAll.filter(s => !tooEarlySet.has(s.station.id));
+  if (mode === 'battery_critical') ranked.sort((a,b) => a.metrics.distanceFromDriverKm - b.metrics.distanceFromDriverKm || b.score-a.score);
 
   // 5. Stability policy: a plan the driver has already heard about does not
   //    change for a marginal gain. Two questions decide a change: is there a
@@ -306,7 +332,7 @@ export function planCharging(input: PlanInput): ChargingPlan {
       : undefined;
     if (holding) {
       primary = holding;
-    } else if (anchorId) {
+    } else if (anchorId && mode !== 'battery_critical') {
       const incumbent = ranked.find(s => s.station.id === anchorId);
       if (!incumbent) {
         // Gone from the safe set. If we ruled it out, that is a safety switch;

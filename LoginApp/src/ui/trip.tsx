@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {stopCostLabel} from '../domain/routeCost';
@@ -19,6 +20,9 @@ function Stat({
   label: string;
   value: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.stat}
@@ -40,6 +44,9 @@ export function RouteSummary({
   /** e.g. "Saved 12 min ago" when showing a cached plan. */
   cachedLabel?: string;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Card>
       <View style={styles.head}>
@@ -97,6 +104,9 @@ export function StopRow({
   index: number;
   last?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.stop}>
       <View style={styles.rail}>
@@ -131,6 +141,8 @@ export function StopBackup({
   now: number;
   onOpen: (stationId: string) => void;
 }) {
+  useAppearance();
+
   const backup = stop.backup;
   if (!backup) {
     return (
@@ -155,7 +167,7 @@ export function StopBackup({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   head: {
     flexDirection: 'row',

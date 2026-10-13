@@ -1,6 +1,8 @@
 # PlugOrbit Backend
 
-FastAPI service. Firebase project: `plugorbit-fb178`.
+FastAPI service. The Firebase CLI default project is set in `.firebaserc` (currently `plugorbit-783dc`).
+Use the Web API key and Admin credentials from the same project; set `FIREBASE_PROJECT_ID`
+to that project to reject a mismatched service-account key at startup.
 
 ```sh
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
@@ -147,3 +149,15 @@ open unless `OTP_DEV_FALLBACK_SESSIONS=true`.
 The wire protocol is locked from both sides by `tests/fixtures/*.json`; after changing it
 regenerate with `UPDATE_FIXTURES=1 pytest tests/test_ai_protocol.py` and then
 `UPDATE_FIXTURES=1 npx jest __tests__/assistant/protocol.test.ts` (in `LoginApp/`).
+
+## Other endpoints added for the phone app
+
+| Endpoint | |
+|---|---|
+| `GET /assistant/guide/status` · `POST /assistant/guide/chat` | The in-app **help guide**: a single-shot Gemini chat (`GEMINI_API_KEY`, `GEMINI_MODEL`) for questions about how PlugOrbit works. Separate from Orbit Assist above (different provider, no tools, nothing is stored); without a key the app's guide answers offline. See `ORBIT_SETUP.md`. |
+| `GET /support/access` · `GET`/`POST /support/tickets` · `GET /support/tickets/{id}` · `POST /support/tickets/{id}/reply` | Firestore-backed support tickets owned by the signed-in user, created idempotently by `requestId`, with an automated first reply. |
+| `GET /support/agent/tickets` · `POST /support/agent/tickets/{id}/reply` | Agent inbox and replies. Only users with the `support_agent` Firebase claim or a verified email in `SUPPORT_AGENT_EMAILS`. |
+| `POST /auth/google` · `/auth/google-browser/start` · `/page` · `/poll/{flow}` | Google sign-in (native ID token, or the browser flow). The browser hand-off is held in memory, so run **one instance / one worker** (see `DEMO_READINESS.md`). |
+
+`Dockerfile` builds the API for a container host such as Cloud Run (`SMTP_SETUP.md`,
+`FIREBASE_SETUP.md` and `PHONE_FEATURES_SETUP.md` cover the provider setup).

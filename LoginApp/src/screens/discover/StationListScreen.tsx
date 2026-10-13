@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useCallback, useMemo, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {
@@ -127,6 +128,9 @@ function StationListBody({
   onRetryLocation,
   onRetry,
 }: BodyProps) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const filters = useApp(s => s.filters);
   const favourites = useApp(s => s.favouriteStationIds);
@@ -429,6 +433,9 @@ function StationListBody({
 
 /** 04 Nearby chargers. */
 export default function StationListScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'StationList'>();
   const now = useNow();
@@ -517,7 +524,7 @@ export default function StationListScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   stack: {gap: spacing.md},
   searchRow: {
     flexDirection: 'row',

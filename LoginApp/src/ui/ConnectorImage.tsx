@@ -1,3 +1,4 @@
+import {useAppearance} from '../appearance';
 import React from 'react';
 import Svg, {Circle, Path, Rect} from 'react-native-svg';
 import type {ConnectorType} from '../domain/types';
@@ -66,6 +67,8 @@ const GBT_PINS: readonly Dot[] = [
 ];
 
 function Pins({dots, fill}: {dots: readonly Dot[]; fill: string}) {
+  useAppearance();
+
   return (
     <>
       {dots.map(([cx, cy, r]) => (
@@ -81,6 +84,8 @@ function Pins({dots, fill}: {dots: readonly Dot[]; fill: string}) {
  * recognisable shape and pin layout, nothing technical.
  */
 export function ConnectorImage({type, size = 56, pin = PIN}: Props) {
+  useAppearance();
+
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       {type === 'Type2' && (

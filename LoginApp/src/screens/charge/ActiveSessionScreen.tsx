@@ -1,12 +1,16 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
-import {billFor} from '../../domain/sessionBill';
-import {describeError} from '../../domain/describeError';
-import {useIsFocused, useNavigation} from '../../navigation/NavigationContext';
-import {useServices} from '../../services';
-import {useApp} from '../../store/appStore';
-import {colors, spacing, type} from '../../theme';
-import {formatDuration, formatInr} from '../../utils/format';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, { useEffect, useRef, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { billFor } from '../../domain/sessionBill';
+import { describeError } from '../../domain/describeError';
+import {
+  useIsFocused,
+  useNavigation,
+} from '../../navigation/NavigationContext';
+import { useServices } from '../../services';
+import { useApp } from '../../store/appStore';
+import { spacing, type } from '../../theme';
+import { formatDuration, formatInr } from '../../utils/format';
 import {
   Card,
   EmptyState,
@@ -20,8 +24,8 @@ import {
   TextButton,
   useNow,
 } from '../../ui';
-import {ConfirmActionSheet} from '../../ui/ConfirmActionSheet';
-import {SessionRing} from '../../ui/SessionRing';
+import { ConfirmActionSheet } from '../../ui/ConfirmActionSheet';
+import { SessionRing } from '../../ui/SessionRing';
 
 /**
  * 14 Charging. Every number is a pure function of the stored session and the
@@ -29,9 +33,12 @@ import {SessionRing} from '../../ui/SessionRing';
  * TODO(integration): charger CMS meter values replace the simulated curve.
  */
 export default function ActiveSessionScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const focused = useIsFocused();
-  const {session: sessionService} = useServices();
+  const { session: sessionService } = useServices();
   const session = useApp(s => s.session);
   const now = useNow(1000);
 
@@ -51,9 +58,9 @@ export default function ActiveSessionScreen(): React.JSX.Element {
       return;
     }
     if (status === 'payment_due' || status === 'stopped') {
-      nav.replace('Payment', {sessionId});
+      nav.replace('Payment', { sessionId });
     } else if (status === 'payment_failed') {
-      nav.replace('PaymentFailure', {sessionId});
+      nav.replace('PaymentFailure', { sessionId });
     }
   }, [focused, status, sessionId, nav]);
 
@@ -68,7 +75,7 @@ export default function ActiveSessionScreen(): React.JSX.Element {
       if (auto) {
         showToast('Target reached. Time to settle up.', 'success');
       }
-      nav.replace('Payment', {sessionId});
+      nav.replace('Payment', { sessionId });
     } catch (e) {
       setError(describeError(e, 'We couldn’t stop the session.').body);
       setStopping(false);
@@ -107,13 +114,14 @@ export default function ActiveSessionScreen(): React.JSX.Element {
     );
   }
 
-  const {metrics} = bill;
+  const { metrics } = bill;
   const idle = reached;
 
   return (
     <Screen
       title="Charging"
       hideBack
+      dark
       stack
       footer={
         <PrimaryButton
@@ -123,19 +131,31 @@ export default function ActiveSessionScreen(): React.JSX.Element {
           loading={stopping}
           onPress={() => setConfirming(true)}
         />
-      }>
-      <Card>
+      }
+    >
+      <Card tone="dark">
         <View style={styles.liveRow}>
           <Pill label="Charging" tone="lime" dot uppercase />
           <Pill label="Estimated meter" tone="amber" />
         </View>
-        <SessionRing percent={metrics.socPercent} target={session.targetSoc} />
         <Text style={styles.station} numberOfLines={1}>
           {session.stationName}
         </Text>
         <Text style={styles.conn}>
           {session.connectorLabel} • {session.powerKw} kW
         </Text>
+        <SessionRing
+          percent={metrics.socPercent}
+          target={session.targetSoc}
+          dark
+          caption="Charging…"
+        />
+        <Image
+          source={require('../../../assets/scenes/charging-night-v2.png')}
+          style={styles.chargingPhoto}
+          resizeMode="cover"
+          accessibilityLabel="Electric vehicle charging illustration"
+        />
       </Card>
 
       <View style={styles.grid}>
@@ -193,7 +213,7 @@ export default function ActiveSessionScreen(): React.JSX.Element {
           icon="flag"
           tone="muted"
           onPress={() =>
-            nav.navigate('ReportProblem', {stationId: session.stationId})
+            nav.navigate('ReportProblem', { stationId: session.stationId })
           }
         />
       </View>
@@ -217,7 +237,8 @@ export default function ActiveSessionScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
+  chargingPhoto: { width: '100%', height: 155, borderRadius: 16 },
   liveRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -226,13 +247,13 @@ const styles = StyleSheet.create({
   },
   station: {
     ...type.heading,
-    color: colors.ink,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginTop: spacing.lg,
   },
   conn: {
     ...type.caption,
-    color: colors.muted,
+    color: '#CBD5E1',
     textAlign: 'center',
     marginTop: 2,
   },
@@ -242,5 +263,5 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginVertical: spacing.md,
   },
-  center: {alignItems: 'center', marginTop: spacing.sm},
+  center: { alignItems: 'center', marginTop: spacing.sm },
 });

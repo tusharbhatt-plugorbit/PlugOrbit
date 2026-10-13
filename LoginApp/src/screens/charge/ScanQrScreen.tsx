@@ -1,10 +1,16 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useCallback, useMemo, useRef, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Linking, NativeModules, StyleSheet, Text, View} from 'react-native';
 import {QrCamera} from '../../components/QrCamera';
 import {DEFAULT_CENTER} from '../../config/google';
 import {chargerCode, resolveChargerCode} from '../../domain/chargerCode';
 import {describeError} from '../../domain/describeError';
-import {compatibleConnectors, connectorFits} from '../../domain/rules';
+import {
+  availableCount,
+  compatibleConnectors,
+  connectorFits,
+  rankOrganic,
+} from '../../domain/rules';
 import type {Station, StationWithDistance} from '../../domain/types';
 import {
   useIsActiveRef,
@@ -28,18 +34,26 @@ import {
 
 const BRACKET = 34;
 
-/** Scan a physical charger QR, or enter its printed ID manually. */
+/**
+ * Scan a physical charger QR with the live in-app camera (or Google's scanner), or enter
+ * its printed ID manually. Registered charger IDs are verified before use; an operator
+ * website QR is only ever opened after an explicit tap.
+ */
 export default function ScanQrScreen(): React.JSX.Element {
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const active = useIsActiveRef();
+  const focused = useIsFocused();
   const {params} = useRoute<'ScanQr'>();
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
-  const focused = useIsFocused();
   const resolving = useRef(false);
+  const hasGoogleScanner = !!NativeModules.PlugOrbitDeviceTools?.scanQr;
 
   const [manualOpen, setManualOpen] = useState(false);
   const [code, setCode] = useState('');
+  const [operatorLink, setOperatorLink] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,8 +85,14 @@ export default function ScanQrScreen(): React.JSX.Element {
       }
       resolving.current = true;
       setBusy(true);
-      setError(null);
+      setError(null); setOperatorLink('');
       try {
+        if (raw.trim().length > 2048) throw new Error('This QR code is too long. Enter the charger ID manually.');
+        if (/^https:\/\//i.test(raw.trim())) {
+          const url = new URL(raw.trim());
+          if (url.username || url.password) throw new Error('This QR link could not be opened safely.');
+          setOperatorLink(url.toString()); return;
+        }
         const all = await loadAll();
         const hit = resolveChargerCode(raw, all);
         if (!hit) {
@@ -106,6 +126,68 @@ export default function ScanQrScreen(): React.JSX.Element {
     [active, go, loadAll, vehicle],
   );
 
+  /** Google's own scanner: needs no camera permission, so it also works when that is denied. */
+  const scanWithGoogle = useCallback(async () => {
+    if (busy || !active.current) {
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      const raw = await NativeModules.PlugOrbitDeviceTools.scanQr();
+      if (typeof raw === 'string' && raw.trim() && active.current) {
+        // handleCode takes over the busy state.
+        setBusy(false);
+        await handleCode(raw);
+      }
+    } catch (e) {
+      if (active.current) {
+        setError(
+          e instanceof Error ? e.message : 'Could not open the camera scanner.',
+        );
+      }
+    } finally {
+      if (active.current) {
+        setBusy(false);
+      }
+    }
+  }, [active, busy, handleCode]);
+
+  /** Development only: pick a charger without a camera (emulators have none). */
+  const simulate = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const all = await loadAll();
+      const preferred = params?.stationId
+        ? all.find(s => s.id === params.stationId)
+        : undefined;
+      const pool = preferred
+        ? [preferred]
+        : rankOrganic(
+            all.filter(s => s.integration === 'integrated'),
+            vehicle,
+          );
+      const station =
+        pool.find(s => availableCount(s, vehicle) > 0) ?? pool[0] ?? null;
+      if (!station) {
+        setError('No compatible charger was found to scan.');
+        return;
+      }
+      const connector =
+        compatibleConnectors(station, vehicle).find(
+          c => c.status === 'available',
+        ) ??
+        compatibleConnectors(station, vehicle)[0] ??
+        station.connectors[0];
+      go(station, connector.id);
+    } catch (e) {
+      setError(describeError(e, 'We couldn’t read that code.').body);
+    } finally {
+      setBusy(false);
+    }
+  }, [go, loadAll, params?.stationId, vehicle]);
+
   const example = useMemo(
     () =>
       chargerCode(
@@ -119,11 +201,25 @@ export default function ScanQrScreen(): React.JSX.Element {
     <Screen
       title="Scan charger QR"
       footer={
-        <SecondaryButton
-          label="Enter charger ID manually"
-          icon="pencil"
-          onPress={() => setManualOpen(true)}
-        />
+        <>
+          {hasGoogleScanner && (
+            <SecondaryButton
+              label="Use Google scanner"
+              icon="scan-line"
+              disabled={busy}
+              onPress={scanWithGoogle}
+              accessibilityHint="Opens Google's QR scanner, which needs no camera permission"
+            />
+          )}
+          {__DEV__ && (
+            <SecondaryButton label="Simulate scan" onPress={simulate} />
+          )}
+          <SecondaryButton
+            label="Enter charger ID manually"
+            icon="pencil"
+            onPress={() => setManualOpen(true)}
+          />
+        </>
       }>
       <View style={styles.stage}>
         <View style={styles.finder} accessibilityLabel="Camera viewfinder">
@@ -141,13 +237,33 @@ export default function ScanQrScreen(): React.JSX.Element {
         <Text style={styles.hint}>Point the camera at the charger QR code</Text>
         <Text style={styles.sub}>
           {busy
-            ? 'Looking up charger?'
+            ? 'Looking up charger…'
             : 'Keep the QR code inside the frame. Scanning starts automatically.'}
         </Text>
+        {!!operatorLink && (
+          <Notice
+            tone="info"
+            title="QR website link"
+            body={`This QR opens ${new URL(operatorLink).hostname}. Verify this is your charging operator. PlugOrbit will not start charging or make a payment automatically.`}
+            action={
+              <SecondaryButton
+                label="Open QR website"
+                icon="link"
+                onPress={async () => {
+                  try {
+                    await Linking.openURL(operatorLink);
+                  } catch {
+                    setError('Could not open the operator website.');
+                  }
+                }}
+              />
+            }
+          />
+        )}
         {error && (
           <Notice
             tone="danger"
-            title="Couldn?t use that charger"
+            title="Couldn’t use that charger"
             body={error}
           />
         )}
@@ -195,10 +311,13 @@ export default function ScanQrScreen(): React.JSX.Element {
 }
 
 function Corner({style}: {style: object}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return <View style={[styles.corner, style]} />;
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   stage: {
     flex: 1,
     alignItems: 'center',

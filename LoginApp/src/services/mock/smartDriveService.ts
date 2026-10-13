@@ -26,6 +26,9 @@ import type { SmartDriveDemo, SmartDriveService } from '../types';
 import { ApiError, OfflineError } from '../types';
 import { buildStations, findPlace } from './data';
 import { pathBetween } from './routeService';
+import { roadRoute } from '../roadRouting';
+import { emergencyChargeRoute } from '../emergencyCharge';
+import { loadRouteStations } from './stationService';
 import { guard, uid } from './runtime';
 
 /** Longest single hop of a simulated drive, so messages arrive in order. */
@@ -38,6 +41,8 @@ type Overlay = { status: 'occupied' | 'offline'; queue: number };
 const overlays = new Map<string, Overlay>();
 let signalLost = false;
 let lastWorld: World | null = null;
+let liveWorld: World | null = null;
+let liveRestorePending: Promise<Station[]> | null = null;
 
 function applyOverlays(stations: Station[], now: number): Station[] {
   return stations.map(s => {
@@ -60,7 +65,8 @@ function applyOverlays(stations: Station[], now: number): Station[] {
  * statuses age honestly instead of staying "fresh".
  * TODO(integration): charger status from operator / CMS feeds.
  */
-function worldAt(now: number, offline: boolean): World {
+function worldAt(now: number, offline: boolean, live = false): World {
+  if (live) return liveWorld ? {...liveWorld, now} : {now, stations: []};
   if (offline && lastWorld) {
     return { ...lastWorld, now };
   }
@@ -77,6 +83,15 @@ function currentTrip(): ActiveTrip {
     throw new ApiError('There’s no trip in progress. Plan a journey first.');
   }
   return trip;
+}
+
+function validCoords(c: { latitude: number; longitude: number }): boolean {
+  return (
+    Number.isFinite(c.latitude) &&
+    Number.isFinite(c.longitude) &&
+    Math.abs(c.latitude) <= 90 &&
+    Math.abs(c.longitude) <= 180
+  );
 }
 
 function requireVehicle() {
@@ -149,7 +164,7 @@ function evaluate(trip: ActiveTrip, event: TripEvent): TripUpdate {
   const offline = trip.network === 'offline' || signalLost;
   return processEvent(trip, event, {
     vehicle,
-    world: worldAt(event.at, offline),
+    world: worldAt(event.at, offline, !trip.simulated),
     config: DEFAULT_SMART_DRIVE_CONFIG,
     quiet: appStore.get().smartDrive.prefs.verbosity === 'minimal',
     mode: assistModeOf(appStore.get().smartDrive.prefs),
@@ -173,6 +188,15 @@ async function syncNetwork(trip: ActiveTrip): Promise<ActiveTrip> {
         throw e;
       }
       reachable = false;
+    }
+  }
+  if (reachable && !trip.simulated && !liveWorld) {
+    try {
+      liveRestorePending ??= loadRouteStations(trip.polyline).finally(() => {liveRestorePending = null;});
+      liveWorld = {now: Date.now(), stations: await liveRestorePending};
+    } catch {
+      reachable = false;
+      liveWorld = {now: trip.plan.computedAt, stations: (trip.plan.itinerary?.stops ?? [trip.plan.primary, trip.plan.backup]).filter((s): s is ScoredStop => !!s).map(s => s.station)};
     }
   }
   const at = tripNow(trip);
@@ -206,7 +230,7 @@ function noteChoice(
   });
 }
 
-export function createSmartDriveService(): SmartDriveService {
+export function createSmartDriveService(useRoads = false): SmartDriveService {
   const advance: SmartDriveService['advance'] = async km => {
     let trip = await syncNetwork(currentTrip());
     if (trip.monitoringState === 'ended') {
@@ -304,21 +328,23 @@ export function createSmartDriveService(): SmartDriveService {
         );
       }
       const gps = input.fromCoords;
-      if (
-        gps &&
-        (!Number.isFinite(gps.latitude) ||
-          !Number.isFinite(gps.longitude) ||
-          Math.abs(gps.latitude) > 90 ||
-          Math.abs(gps.longitude) > 180)
-      ) {
+      if (gps && !validCoords(gps)) {
         throw new ApiError(
           'Your starting location is invalid. Try locating again.',
+        );
+      }
+      const dest = input.toCoords;
+      if (dest && !validCoords(dest)) {
+        throw new ApiError(
+          'Your destination location is invalid. Choose it again.',
         );
       }
       const from = gps
         ? { name: input.fromLabel, coords: { ...gps } }
         : findPlace(input.fromLabel);
-      const to = findPlace(input.toLabel);
+      const to = dest
+        ? { name: input.toLabel, coords: { ...dest } }
+        : findPlace(input.toLabel);
       if (!from || !to) {
         throw new ApiError(
           'Choose a start and destination from the suggestions.',
@@ -339,20 +365,29 @@ export function createSmartDriveService(): SmartDriveService {
         ...(input.strategy !== undefined ? { strategy: input.strategy } : {}),
       };
       const now = Date.now();
+      const emergency = useRoads && startSoc <= DEFAULT_SMART_DRIVE_CONFIG.batteryCriticalPct
+        ? await emergencyChargeRoute(from.coords, to.coords, vehicle, startSoc, now) : null;
+      const road = emergency?.road ?? (useRoads ? await roadRoute([from.coords, to.coords]) : null);
+      if (road) {
+        const stations = await loadRouteStations(road.points);
+        if (emergency && !stations.some(s => s.id === emergency.station.id)) stations.push(emergency.station);
+        liveWorld = {now, stations};
+      }
       const trip = createTrip({
+        firstStopId: emergency?.station.id,
         tripId: uid('trip'),
         vehicle,
         origin: { label: from.name, coords: from.coords },
         destination: { label: to.name, coords: to.coords },
-        polyline: pathBetween(from.coords, to.coords),
+        polyline: road?.points ?? pathBetween(from.coords, to.coords),
         startSoc,
         now,
-        world: worldAt(now, false),
+        world: worldAt(now, false, useRoads),
         config: DEFAULT_SMART_DRIVE_CONFIG,
         reservePct: prefs.minArrivalSocPct,
         profile: profileFromPrefs(prefs),
         preferAmenities: prefs.preferAmenities,
-        simulated: true,
+        simulated: !useRoads,
       });
       const withPrefs = {
         ...trip,
@@ -363,7 +398,7 @@ export function createSmartDriveService(): SmartDriveService {
     },
 
     async begin() {
-      const trip = currentTrip();
+      const trip = await syncNetwork(currentTrip());
       await guard(200);
       if (trip.phase !== 'ready') {
         return { trip, notifications: [], decisions: [], events: [] };

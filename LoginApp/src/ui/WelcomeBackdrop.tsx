@@ -1,6 +1,7 @@
 import React from 'react';
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import Svg, {
+  Circle,
   Defs,
   LinearGradient,
   Path,
@@ -18,7 +19,7 @@ const DASH_COUNT = 6;
 const DASHES_SHOWN = 4;
 
 /** Dashes of the road's centre line, shrinking toward the horizon. */
-const DASHES = Array.from({length: DASHES_SHOWN}, (_, i) => {
+const DASHES = Array.from({ length: DASHES_SHOWN }, (_, i) => {
   const near = Math.pow(i / DASH_COUNT, 1.8);
   const far = Math.pow((i + 0.5) / DASH_COUNT, 1.8);
   const yNear = HORIZON + (BOTTOM - HORIZON) * near;
@@ -52,7 +53,8 @@ export function WelcomeBackdrop({
       height="100%"
       viewBox="0 0 400 800"
       preserveAspectRatio="xMidYMax slice"
-      pointerEvents="none">
+      pointerEvents="none"
+    >
       <Defs>
         <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#0C1830" />
@@ -65,8 +67,9 @@ export function WelcomeBackdrop({
           cy="520"
           rx="240"
           ry="110"
-          gradientUnits="userSpaceOnUse">
-          <Stop offset="0" stopColor="#A2F067" stopOpacity="0.22" />
+          gradientUnits="userSpaceOnUse"
+        >
+          <Stop offset="0" stopColor="#09CBEA" stopOpacity="0.22" />
           <Stop offset="1" stopColor="#A2F067" stopOpacity="0" />
         </RadialGradient>
         <LinearGradient id="road" x1="0" y1="0" x2="0" y2="1">
@@ -92,11 +95,11 @@ export function WelcomeBackdrop({
           />
           <Path
             d={`M188 ${HORIZON} L-120 ${BOTTOM} M212 ${HORIZON} L520 ${BOTTOM}`}
-            stroke="#A2F067"
+            stroke="#09CBEA"
             strokeOpacity="0.28"
             strokeWidth="1.5"
           />
-          <Path d={DASHES} fill="#A2F067" fillOpacity="0.7" />
+          <Path d={DASHES} fill="#09CBEA" fillOpacity="0.7" />
           <Rect
             x="-200"
             y={HORIZON}
@@ -146,6 +149,95 @@ export function WelcomeBackdrop({
         </>
       )}
 
+      {showRoad && (
+        <>
+          <Path
+            d="M16 616 L33 577 Q45 564 71 558 L116 507 Q130 492 164 494 L201 501 Q222 507 248 555 L275 568 Q290 579 289 612 L281 629 H29 Z"
+            fill="#0D3458"
+            stroke="#3C82AD"
+            strokeWidth="2"
+          />
+          <Path
+            d="M81 554 L127 513 Q141 501 163 504 L196 511 L228 553 Z"
+            fill="#07192D"
+            stroke="#31719D"
+            strokeWidth="2"
+          />
+          <Path
+            d="M25 581 Q105 558 255 575"
+            fill="none"
+            stroke="#09CBEA"
+            strokeOpacity="0.65"
+            strokeWidth="2"
+          />
+          <Circle
+            cx="70"
+            cy="620"
+            r="28"
+            fill="#020A14"
+            stroke="#204668"
+            strokeWidth="4"
+          />
+          <Circle
+            cx="70"
+            cy="620"
+            r="15"
+            fill="#102941"
+            stroke="#627B96"
+            strokeWidth="2"
+          />
+          <Circle
+            cx="240"
+            cy="620"
+            r="28"
+            fill="#020A14"
+            stroke="#204668"
+            strokeWidth="4"
+          />
+          <Circle
+            cx="240"
+            cy="620"
+            r="15"
+            fill="#102941"
+            stroke="#627B96"
+            strokeWidth="2"
+          />
+          <Path
+            d="M19 586 L66 586"
+            stroke="#FF455B"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <Path
+            d="M257 581 L277 584"
+            stroke="#D9FAFF"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+          <Rect
+            x="320"
+            y="482"
+            width="46"
+            height="151"
+            rx="13"
+            fill="#071B31"
+            stroke="#09CBEA"
+            strokeWidth="2"
+          />
+          <Rect x="328" y="496" width="30" height="44" rx="5" fill="#0D3854" />
+          <Path
+            d="M346 502 L335 520 H345 L340 533 L353 513 H344 Z"
+            fill="#25E3C0"
+          />
+          <Path
+            d="M321 551 C293 551 299 591 270 588"
+            fill="none"
+            stroke="#25E3C0"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </>
+      )}
       <Rect x="-200" y="470" width="800" height="330" fill="url(#fade)" />
     </Svg>
   );

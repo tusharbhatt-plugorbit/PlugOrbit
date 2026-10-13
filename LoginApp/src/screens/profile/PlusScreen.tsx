@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -28,6 +29,9 @@ import {ExplainRow} from '../../ui/ExplainRow';
  * active plan shows its renewal and can be cancelled behind a confirmation.
  */
 export default function PlusScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {preferences} = useServices();
   const plus = useApp(s => s.plus);
@@ -106,7 +110,7 @@ export default function PlusScreen(): React.JSX.Element {
       <Card tone="dark">
         <View style={styles.heroTop}>
           <View style={styles.crown}>
-            <Icon name="crown" size={22} color={colors.ink} />
+            <Icon name="crown" size={22} color={colors.onAccent} />
           </View>
           <Text style={styles.heroName}>PlugOrbit Plus</Text>
           {plus.active && (
@@ -220,7 +224,7 @@ export default function PlusScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   gap: {marginTop: spacing.lg},
   heroTop: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
   crown: {

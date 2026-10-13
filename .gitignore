@@ -3,3 +3,25 @@
 # Firebase Admin service-account keys: secrets, never commit (anywhere in the repo).
 *firebase-adminsdk*.json
 serviceAccountKey.json
+
+/.native/
+
+# Local credentials and configuration
+.env*
+!.env.example
+**/google-services.json
+**/GoogleService-Info.plist
+application_default_credentials.json
+*.pem
+*.p12
+*.pfx
+# Generated builds, caches, recordings and device diagnostics
+*.apk
+*.aab
+*.log
+*.iml
+**/.pytest_cache/
+LoginApp/video-tools/
+LoginApp/videos/
+LoginApp/plugorbit-*.png
+LoginApp/plugorbit-*.xml

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -27,6 +28,9 @@ import {
  * store: the driver can retry, switch method, or get help without losing it.
  */
 export default function PaymentFailureScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'PaymentFailure'>();
   const {payment} = useServices();
@@ -186,7 +190,7 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm},
   heroIcon: {
     width: 64,

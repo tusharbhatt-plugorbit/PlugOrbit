@@ -41,6 +41,10 @@ export function evaluateStation(
   vehicle: Vehicle,
 ): SafetyViolation[] {
   const out: SafetyViolation[] = [];
+  if (/^closed(?:\s|$)|permanently closed|temporarily closed/i.test(station.hours.trim())) {
+    out.push({code: 'CLOSED_AT_ARRIVAL', detail: 'Google reports this station closed.'});
+    return out;
+  }
   if (hasUnconfirmedConnectors(station)) {
     // We cannot prove it fits, so it does not get recommended.
     out.push({

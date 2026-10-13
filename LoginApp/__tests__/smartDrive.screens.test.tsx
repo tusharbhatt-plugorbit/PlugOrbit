@@ -235,7 +235,7 @@ describe('the trip dashboard', () => {
     const r = await open('SmartDrive');
     const t = all(r);
     expect(t).toContain('You’re good to drive.');
-    expect(t).toContain('Delhi → Jaipur');
+    expect(t).toContain('From | Delhi | To | Jaipur');
     expect(t).toContain('Charging needed');
     expect(t).toMatch(/PlugOrbit pick/i);
     expect(t).toMatch(/High charge confidence|Medium charge confidence/);

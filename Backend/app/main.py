@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .ai.router import router as assistant_router
 from .config import get_settings
 from .firebase import init_firebase
-from .routes import auth, otp, users
+from .routes import assistant_guide, auth, google_browser, otp, support, users
 from .services.delivery import log_startup_notice
 
 
@@ -31,6 +31,9 @@ app.include_router(auth.router)
 app.include_router(otp.router)
 app.include_router(users.router)
 app.include_router(assistant_router)
+app.include_router(assistant_guide.router)
+app.include_router(support.router)
+app.include_router(google_browser.router)
 
 
 @app.get("/health", tags=["health"])

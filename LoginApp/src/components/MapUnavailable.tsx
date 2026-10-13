@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {EmptyState} from '../ui';
@@ -30,6 +31,9 @@ const COPY = {
  * would give a blank rectangle and no explanation.
  */
 export function MapUnavailable({onViewList, reason = 'key'}: Props) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const copy = COPY[reason];
   return (
     <View style={styles.wrap} testID="map-unavailable">
@@ -48,7 +52,7 @@ export function MapUnavailable({onViewList, reason = 'key'}: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.mapBg,

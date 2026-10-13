@@ -4,22 +4,22 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {AppState, Linking, Platform, Text, TextInput} from 'react-native';
+import { AppState, Linking, Platform, Text, TextInput } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
-import {DEFAULT_CENTER} from '../src/config/google';
-import {NEXON, TestApp, probe, seedSignedIn} from '../src/dev/testHarness';
-import {createStationService} from '../src/services/mock/stationService';
-import type {Services} from '../src/services/types';
-import {OfflineError} from '../src/services/types';
-import {demoStore} from '../src/store/demoStore';
-import {VEHICLE_CATALOG} from '../src/services/mock/data';
-import {appStore} from '../src/store/appStore';
+import { DEFAULT_CENTER } from '../src/config/google';
+import { NEXON, TestApp, probe, seedSignedIn } from '../src/dev/testHarness';
+import { createStationService } from '../src/services/mock/stationService';
+import type { Services } from '../src/services/types';
+import { OfflineError } from '../src/services/types';
+import { demoStore } from '../src/store/demoStore';
+import { VEHICLE_CATALOG } from '../src/services/mock/data';
+import { appStore } from '../src/store/appStore';
 
-const {act} = ReactTestRenderer;
+const { act } = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 const getCurrentPosition = Geolocation.getCurrentPosition as jest.Mock;
-const USER = {latitude: 28.6139, longitude: 77.209};
+const USER = { latitude: 28.6139, longitude: 77.209 };
 const LOCATION_BODY =
   'Enable location permission to find EV chargers near you.';
 
@@ -110,11 +110,11 @@ beforeAll(() => {
 beforeEach(() => {
   seedSignedIn();
   getCurrentPosition.mockReset();
-  getCurrentPosition.mockImplementation(success => success({coords: USER}));
+  getCurrentPosition.mockImplementation(success => success({ coords: USER }));
 });
 
 afterEach(async () => {
-  (globalThis as unknown as {__MAP_NEVER_READY?: boolean}).__MAP_NEVER_READY =
+  (globalThis as unknown as { __MAP_NEVER_READY?: boolean }).__MAP_NEVER_READY =
     false;
   await act(async () => {
     mounted.splice(0).forEach(r => r.unmount());
@@ -146,8 +146,8 @@ describe('layout and data', () => {
   });
 
   test('only shows chargers compatible with the active vehicle', async () => {
-    const leaf = {...VEHICLE_CATALOG[9], id: 'veh-leaf'};
-    appStore.set({vehicles: [leaf], activeVehicleId: leaf.id});
+    const leaf = { ...VEHICLE_CATALOG[9], id: 'veh-leaf' };
+    appStore.set({ vehicles: [leaf], activeVehicleId: leaf.id });
     const rLeaf = await renderHome();
     const leafMarkers = markerLabels(rLeaf);
     expect(leafMarkers.length).toBeGreaterThan(0);
@@ -197,7 +197,7 @@ describe('filters', () => {
   });
 
   test('presenter "no compatible" shows an honest empty state', async () => {
-    demoStore.set({noCompatible: true});
+    demoStore.set({ noCompatible: true });
     const r = await renderHome();
     expect(textsOf(r)).toContain('No compatible chargers found nearby');
   });
@@ -249,16 +249,16 @@ describe('location and search', () => {
 
   test('searches around the device location', async () => {
     const nearby = jest.fn(stationService.nearby);
-    await renderHome({station: {...stationService, nearby}});
+    await renderHome({ station: { ...stationService, nearby } });
     expect(nearby.mock.calls[0][0].origin).toEqual(USER);
   });
 
   test('denied location still works, around the default centre, with a retry', async () => {
     getCurrentPosition.mockImplementationOnce((_ok, fail) =>
-      fail({code: 1, message: 'denied'}),
+      fail({ code: 1, message: 'denied' }),
     );
     const nearby = jest.fn(stationService.nearby);
-    const r = await renderHome({station: {...stationService, nearby}});
+    const r = await renderHome({ station: { ...stationService, nearby } });
     expect(nearby.mock.calls[0][0].origin).toEqual(DEFAULT_CENTER);
     expect(textsOf(r)).toContain('Location access needed');
     expect(textsOf(r)).toContain(LOCATION_BODY);
@@ -269,7 +269,7 @@ describe('location and search', () => {
   });
 
   test('presenter location-denied switch behaves the same', async () => {
-    demoStore.set({locationDenied: true});
+    demoStore.set({ locationDenied: true });
     const r = await renderHome();
     expect(textsOf(r)).toContain('Location access needed');
     // Still usable: chargers around the default centre are on the map.
@@ -277,7 +277,7 @@ describe('location and search', () => {
   });
 
   test('denied location offers Settings, and the card can be set aside', async () => {
-    demoStore.set({locationDenied: true});
+    demoStore.set({ locationDenied: true });
     const openSettings = jest.spyOn(Linking, 'openSettings');
     openSettings.mockResolvedValue(undefined);
     const r = await renderHome();
@@ -298,7 +298,7 @@ describe('location and search', () => {
 
   test('location services being off gets its own wording', async () => {
     getCurrentPosition.mockImplementation((_ok, fail) =>
-      fail({code: 2, message: 'unavailable'}),
+      fail({ code: 2, message: 'unavailable' }),
     );
     const r = await renderHome();
     expect(textsOf(r)).toContain('Location is turned off');
@@ -308,7 +308,7 @@ describe('location and search', () => {
 
   test('no position in time is not called "turned off", and Settings is not offered', async () => {
     getCurrentPosition.mockImplementation((_ok, fail) =>
-      fail({code: 3, message: 'timeout'}),
+      fail({ code: 3, message: 'timeout' }),
     );
     const r = await renderHome();
     expect(textsOf(r)).toContain('Couldn’t find your location');
@@ -321,13 +321,13 @@ describe('location and search', () => {
 
   test('services off puts Settings first, and returning from Settings looks again', async () => {
     getCurrentPosition.mockImplementation((_ok, fail) =>
-      fail({code: 2, message: 'unavailable'}),
+      fail({ code: 2, message: 'unavailable' }),
     );
     const openSettings = jest
       .spyOn(Linking, 'openSettings')
       .mockResolvedValue(undefined);
     let appStateListener: ((s: string) => void) | undefined;
-    const sub = {remove: jest.fn()};
+    const sub = { remove: jest.fn() };
     const addListener = jest
       .spyOn(AppState, 'addEventListener')
       .mockImplementation(((_: string, cb: (s: string) => void) => {
@@ -344,21 +344,21 @@ describe('location and search', () => {
 
     await press(r, 'Open settings');
     expect(openSettings).toHaveBeenCalledTimes(1);
-    getCurrentPosition.mockImplementation(success => success({coords: USER}));
+    getCurrentPosition.mockImplementation(success => success({ coords: USER }));
     await act(async () => appStateListener?.('active'));
     await flush();
     expect(getCurrentPosition.mock.calls.length).toBeGreaterThan(callsBefore);
     expect(textsOf(r)).not.toContain('Location is turned off');
 
     // Hand back the shared stub (jest.setup.js) for the tests that follow.
-    addListener.mockImplementation((() => ({remove: jest.fn()})) as never);
+    addListener.mockImplementation((() => ({ remove: jest.fn() })) as never);
     openSettings.mockRestore();
   });
 
   test('on Android the first refusal can still be retried; after one, Settings leads', async () => {
     const os = Platform.OS;
     Platform.OS = 'android';
-    demoStore.set({locationDenied: true});
+    demoStore.set({ locationDenied: true });
     const r = await renderHome();
     expect(textsOf(r)).toContain('Allow location');
     expect(textsOf(r)).not.toContain('Open settings');
@@ -369,7 +369,7 @@ describe('location and search', () => {
   });
 
   test('the list shortcut and charger card step aside while the location card is up', async () => {
-    demoStore.set({locationDenied: true});
+    demoStore.set({ locationDenied: true });
     const r = await renderHome();
     const hasPill = () =>
       pressables(r).some(n => /View list of/.test(n.props.accessibilityLabel));
@@ -430,7 +430,7 @@ describe('location and search', () => {
     const nearby = jest
       .fn(stationService.nearby)
       .mockRejectedValueOnce(new Error('Places API (New) is disabled'));
-    const r = await renderHome({station: {...stationService, nearby}});
+    const r = await renderHome({ station: { ...stationService, nearby } });
     expect(textsOf(r)).toContain('Places API (New) is disabled');
     await press(r, 'Try again');
     expect(textsOf(r)).not.toContain('Places API (New) is disabled');
@@ -439,7 +439,7 @@ describe('location and search', () => {
 
   test('offline is explained in plain words', async () => {
     const nearby = jest.fn().mockRejectedValue(new OfflineError());
-    const r = await renderHome({station: {...stationService, nearby}});
+    const r = await renderHome({ station: { ...stationService, nearby } });
     expect(textsOf(r)).toContain(
       'You’re offline. Showing the last chargers we found.',
     );
@@ -447,7 +447,7 @@ describe('location and search', () => {
 
   test('"Search this area" appears after a real pan and searches there', async () => {
     const nearby = jest.fn(stationService.nearby);
-    const r = await renderHome({station: {...stationService, nearby}});
+    const r = await renderHome({ station: { ...stationService, nearby } });
     const map = home(r).find(
       n =>
         n.props.initialRegion !== undefined && n.props.onRegionChangeComplete,
@@ -486,9 +486,9 @@ describe('location and search', () => {
 
   test('a slow, superseded search cannot overwrite newer results', async () => {
     getCurrentPosition.mockImplementationOnce((_ok, fail) =>
-      fail({code: 1, message: 'denied'}),
+      fail({ code: 1, message: 'denied' }),
     );
-    const pending = stationService.nearby({origin: USER, vehicle: NEXON});
+    const pending = stationService.nearby({ origin: USER, vehicle: NEXON });
     await flush();
     const all = await pending;
     let resolveFirst!: (v: typeof all) => void;
@@ -496,7 +496,7 @@ describe('location and search', () => {
       .fn()
       .mockImplementationOnce(() => new Promise(res => (resolveFirst = res)))
       .mockResolvedValueOnce(all.slice(0, 1));
-    const r = await renderHome({station: {...stationService, nearby}});
+    const r = await renderHome({ station: { ...stationService, nearby } });
 
     await press(r, 'Go to my location');
     expect(markerLabels(r)).toHaveLength(1);
@@ -504,4 +504,21 @@ describe('location and search', () => {
     await flush();
     expect(markerLabels(r)).toHaveLength(1);
   });
+});
+
+test('onboarding does not request location or mount the hidden Home map', async () => {
+  getCurrentPosition.mockClear();
+  let renderer!: Renderer;
+  await act(async () => {
+    renderer = ReactTestRenderer.create(
+      <TestApp tab="Home" stack={[{ name: 'VehicleSetup' }]} />,
+    );
+  });
+  mounted.push(renderer);
+  await flush();
+  expect(getCurrentPosition).not.toHaveBeenCalled();
+  // The map is its own route now, so nothing behind onboarding mounts a map at all.
+  expect(
+    renderer.root.findAll(n => n.props.initialRegion !== undefined),
+  ).toHaveLength(0);
 });

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {
   Pressable,
@@ -21,10 +22,10 @@ type CardProps = {
   testID?: string;
 };
 
-const TONE: Record<NonNullable<CardProps['tone']>, ViewStyle> = {
-  default: {backgroundColor: colors.surface},
+const BASE_TONE: Record<NonNullable<CardProps['tone']>, ViewStyle> = {
+  default: {backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.inputBorder},
   lime: {backgroundColor: colors.limeSoft},
-  dark: {backgroundColor: colors.bg},
+  dark: {backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.inputBorder},
   warn: {backgroundColor: colors.amberSoft},
   danger: {backgroundColor: colors.dangerSoft},
 };
@@ -38,10 +39,15 @@ export function Card({
   accessibilityLabel,
   testID,
 }: CardProps) {
+  const appearance = useAppearance();
+  const styles=useThemedStyles(baseStyles);
+  const TONE=useThemedStyles(BASE_TONE);
+
   const body = [
     styles.card,
     elevation(1),
     TONE[tone],
+    tone === 'default' && {backgroundColor: `${appearance.colors.surface}F2`},
     padded && styles.padded,
     style,
   ];
@@ -74,6 +80,9 @@ export function SectionTitle({
   /** No outer margins: the parent spaces the heading (a gapped column). */
   compact?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.sectionRow, compact && styles.sectionRowCompact]}>
       <Text style={styles.section} accessibilityRole="header">
@@ -98,14 +107,6 @@ type RowProps = {
   last?: boolean;
 };
 
-const ICON_TONE = {
-  default: {bg: '#F1F5F9', fg: colors.ink},
-  lime: {bg: colors.limeSoft, fg: colors.limeDark},
-  warn: {bg: colors.amberSoft, fg: colors.amber},
-  danger: {bg: colors.dangerSoft, fg: colors.danger},
-  info: {bg: colors.infoSoft, fg: colors.info},
-} as const;
-
 /** The "icon tile + title + subtitle + chevron" row used across Profile/Support/Activity. */
 export function ListRow({
   title,
@@ -118,7 +119,16 @@ export function ListRow({
   testID,
   last,
 }: RowProps) {
-  const tone = ICON_TONE[iconTone];
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
+  const tone = {
+    default: {bg: colors.inputBg, fg: colors.ink},
+    lime: {bg: colors.limeSoft, fg: colors.limeDark},
+    warn: {bg: colors.amberSoft, fg: colors.amber},
+    danger: {bg: colors.dangerSoft, fg: colors.danger},
+    info: {bg: colors.infoSoft, fg: colors.info},
+  }[iconTone];
   const showChevron = chevron ?? !!onPress;
   const content = (
     <View style={[styles.row, !last && styles.rowDivider]}>
@@ -161,6 +171,9 @@ export function ListRow({
 
 /** Rows grouped in one white card. */
 export function ListCard({children}: {children: React.ReactNode}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.card, elevation(1), styles.listCard]}>{children}</View>
   );
@@ -177,6 +190,9 @@ export function KeyValue({
   emphasis?: boolean;
   last?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.kv, !last && styles.rowDivider]}>
       <Text style={styles.kvLabel}>{label}</Text>
@@ -192,18 +208,23 @@ export function KeyValue({
 }
 
 export function Divider() {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return <View style={styles.divider} />;
 }
 
 export function Spacer({size = spacing.lg}: {size?: number}) {
+  useAppearance();
+
   return <View style={{height: size}} />;
 }
 
-const styles = StyleSheet.create({
-  card: {borderRadius: radii.lg, overflow: 'hidden'},
+const baseStyles = StyleSheet.create({
+  card: {borderRadius: radii.xl, overflow: 'hidden'},
   padded: {padding: spacing.lg},
   pressed: {opacity: 0.88},
-  listCard: {backgroundColor: colors.surface, paddingHorizontal: spacing.lg},
+  listCard: {backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.inputBorder, paddingHorizontal: spacing.lg},
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',

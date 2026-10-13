@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '../../navigation/NavigationContext';
@@ -14,6 +15,9 @@ type Lang = 'en' | 'hi';
  * yet, and the screen says so instead of pretending.
  */
 export default function LanguageScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const language = useApp(s => s.language);
 
@@ -68,7 +72,7 @@ export default function LanguageScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.body, color: colors.muted},
   list: {gap: spacing.md, marginTop: spacing.lg},
   notice: {marginTop: spacing.lg},

@@ -17,7 +17,7 @@ export function setFastMocks(value: boolean) {
 
 /** Simulated network latency. */
 export function latency(ms = 350): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, fast ? 0 : ms));
+  return new Promise(resolve => setTimeout(resolve, fast || !__DEV__ ? 0 : ms));
 }
 
 /**

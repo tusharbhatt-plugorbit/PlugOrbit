@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -8,8 +9,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import {colors, radii, sizes, spacing, type} from '../theme';
-import {Icon, IconName} from './Icon';
+import { colors, radii, sizes, spacing, type } from '../theme';
+import { Icon, IconName } from './Icon';
 
 type ButtonProps = {
   label: string;
@@ -28,14 +29,15 @@ type ButtonProps = {
   accessibilityHint?: string;
 };
 
-type Variant = 'dark' | 'lime' | 'danger';
+type Variant = 'dark' | 'lime' | 'danger' | 'blue';
 
-const VARIANT: Record<Variant, {bg: string; fg: string; spinner: string}> = {
+const VARIANT: Record<Variant, { bg: string; fg: string; spinner: string }> = {
   // Matches Home's "Directions": dark fill, white label.
-  dark: {bg: colors.bg, fg: '#FFFFFF', spinner: '#FFFFFF'},
+  dark: { bg: colors.bg, fg: '#FFFFFF', spinner: '#FFFFFF' },
+  blue: { bg: '#075BD8', fg: '#FFFFFF', spinner: '#FFFFFF' },
   // Matches Welcome's primary: lime fill, black label. For dark surfaces.
-  lime: {bg: colors.lime, fg: '#000000', spinner: '#000000'},
-  danger: {bg: colors.danger, fg: '#FFFFFF', spinner: '#FFFFFF'},
+  lime: { bg: colors.lime, fg: '#000000', spinner: '#000000' },
+  danger: { bg: colors.danger, fg: '#FFFFFF', spinner: '#FFFFFF' },
 };
 
 export function PrimaryButton({
@@ -51,7 +53,10 @@ export function PrimaryButton({
   style,
   testID,
   accessibilityHint,
-}: ButtonProps & {variant?: Variant}) {
+}: ButtonProps & { variant?: Variant }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const v = VARIANT[variant];
   const inactive = disabled || loading;
   return (
@@ -60,18 +65,19 @@ export function PrimaryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{disabled: inactive, busy: loading}}
+      accessibilityState={{ disabled: inactive, busy: loading }}
       testID={testID}
-      android_ripple={{color: 'rgba(255,255,255,0.18)'}}
-      style={({pressed}) => [
+      android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
+      style={({ pressed }) => [
         styles.base,
         compact && styles.compact,
         large && styles.large,
-        {backgroundColor: v.bg},
+        { backgroundColor: v.bg },
         disabled && styles.disabled,
         pressed && !inactive && styles.pressed,
         style,
-      ]}>
+      ]}
+    >
       {loading ? (
         <View style={styles.row}>
           <ActivityIndicator color={v.spinner} />
@@ -93,8 +99,9 @@ export function PrimaryButton({
               styles.label,
               compact && styles.labelCompact,
               large && styles.labelLarge,
-              {color: v.fg},
-            ]}>
+              { color: v.fg },
+            ]}
+          >
             {label}
           </Text>
         </View>
@@ -114,7 +121,10 @@ export function SecondaryButton({
   style,
   testID,
   accessibilityHint,
-}: ButtonProps & {tone?: 'default' | 'danger'}) {
+}: ButtonProps & { tone?: 'default' | 'danger' }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const fg = tone === 'danger' ? colors.danger : colors.ink;
   const inactive = disabled || loading;
   return (
@@ -123,24 +133,30 @@ export function SecondaryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{disabled: inactive, busy: loading}}
+      accessibilityState={{ disabled: inactive, busy: loading }}
       testID={testID}
-      android_ripple={{color: 'rgba(15,23,42,0.08)'}}
-      style={({pressed}) => [
+      android_ripple={{ color: 'rgba(15,23,42,0.08)' }}
+      style={({ pressed }) => [
         styles.base,
         styles.secondary,
         compact && styles.compact,
         disabled && styles.disabled,
         pressed && !inactive && styles.pressed,
         style,
-      ]}>
+      ]}
+    >
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
         <View style={styles.row}>
           {icon && <Icon name={icon} size={compact ? 16 : 18} color={fg} />}
           <Text
-            style={[styles.label, compact && styles.labelCompact, {color: fg}]}>
+            style={[
+              styles.label,
+              compact && styles.labelCompact,
+              { color: fg },
+            ]}
+          >
             {label}
           </Text>
         </View>
@@ -164,6 +180,9 @@ export function TextButton({
   tone?: 'default' | 'danger' | 'muted' | 'onDark';
   testID?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const fg =
     tone === 'danger'
       ? colors.danger
@@ -179,9 +198,10 @@ export function TextButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       testID={testID}
-      style={({pressed}) => [styles.textBtn, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.textBtn, pressed && styles.pressed]}
+    >
       {icon && <Icon name={icon} size={16} color={fg} />}
-      <Text style={[type.label, {color: fg}]}>{label}</Text>
+      <Text style={[type.label, { color: fg }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -202,10 +222,13 @@ export function IconButton({
   size?: number;
   testID?: string;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const palette = {
-    light: {bg: colors.surface, fg: colors.ink},
-    dark: {bg: colors.bgRaised, fg: '#FFFFFF'},
-    lime: {bg: colors.lime, fg: colors.ink},
+    light: { bg: colors.surface, fg: colors.ink },
+    dark: { bg: colors.bgRaised, fg: '#FFFFFF' },
+    lime: { bg: colors.lime, fg: colors.onAccent },
   }[tone];
   return (
     <Pressable
@@ -214,7 +237,7 @@ export function IconButton({
       accessibilityLabel={label}
       testID={testID}
       hitSlop={6}
-      style={({pressed}) => [
+      style={({ pressed }) => [
         styles.iconBtn,
         {
           width: size,
@@ -223,13 +246,14 @@ export function IconButton({
           backgroundColor: palette.bg,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon name={icon} size={Math.round(size * 0.45)} color={palette.fg} />
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   base: {
     minHeight: sizes.button,
     paddingVertical: spacing.md,
@@ -259,5 +283,5 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  iconBtn: {alignItems: 'center', justifyContent: 'center'},
+  iconBtn: { alignItems: 'center', justifyContent: 'center' },
 });

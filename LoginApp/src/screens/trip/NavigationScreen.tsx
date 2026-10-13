@@ -1,4 +1,5 @@
-import React, {useEffect, useMemo, useRef} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {nearestAlternative} from '../../domain/alternative';
 import {availableCount, stationHealth} from '../../domain/rules';
@@ -11,10 +12,11 @@ import {
   useRoute,
 } from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
+import {roadRoute} from '../../services/roadRouting';
+import type {RoadGeometry} from '../../services/roadRouting';
 import {openDirections} from '../../services/directions';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {colors, spacing, type} from '../../theme';
-import {formatClock} from '../../utils/format';
 import {formatDistance} from '../../utils/geo';
 import {
   AsyncView,
@@ -42,13 +44,16 @@ const AVG_KMH = 55;
  * the charger and move you to the backup if it fills up or goes offline.
  */
 export default function NavigationScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Navigation'>();
   const focused = useIsFocused();
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const route = useApp(s => s.activeRoute);
-  const {origin, known, ready, demoArea} = useUserOrigin();
+  const {origin, known, ready, demoArea} = useUserOrigin(true);
   const now = useNow(15_000);
   const handled = useRef(false);
 
@@ -148,6 +153,9 @@ function Body({
   /** The plan's stop for this charger, when it is one. */
   stop?: RouteStop;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {station: stationService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -172,7 +180,17 @@ function Body({
     ? stop?.backupExtraMin ?? 0
     : Math.max(3, backup?.detourMin ?? 0);
   const driveMin = Math.max(2, Math.round((station.distanceKm / AVG_KMH) * 60));
-  const arrive = now + driveMin * 60_000;
+
+  const [road, setRoad] = useState<RoadGeometry | null>(null);
+  const [roadError, setRoadError] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setRoad(null); setRoadError(false);
+    if (known) roadRoute([{latitude: origin.latitude, longitude: origin.longitude}, {latitude: station.latitude, longitude: station.longitude}]).then(result => {
+      if (alive) setRoad(result);
+    }).catch(() => {if (alive) setRoadError(true);});
+    return () => {alive = false;};
+  }, [known, origin.latitude, origin.longitude, station.latitude, station.longitude]);
 
   const open = async () => {
     const ok = await openDirections(station);
@@ -183,14 +201,15 @@ function Body({
 
   return (
     <>
-      <StationMiniMap from={origin} to={station} height={210} />
+      {known ? <StationMiniMap from={origin} to={station} height={210} routePoints={road?.points ?? null} />
+        : <Notice tone="warn" title="Current location unavailable" body="Turn on location and allow PlugOrbit access. Google Maps can find your current position when you open navigation." />}
+      {roadError && <Notice tone="warn" title="Road preview unavailable" body="Open Google Maps to get directions from your current location." />}
 
       <Card tone="dark">
         <Text style={styles.kicker}>Heading to</Text>
         <Text style={styles.title}>{station.name}</Text>
         <Text style={styles.heroSub}>
-          {formatDistance(station.distanceKm)} • about {driveMin} min • arrive{' '}
-          {formatClock(arrive)}
+          {known ? `${formatDistance(road?.distanceKm ?? station.distanceKm)} - about ${road?.durationMin ?? driveMin} min` : 'Distance unavailable'}
         </Text>
         {(!known || demoArea) && (
           <Text style={styles.warn}>
@@ -260,7 +279,7 @@ function Body({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
   title: {...type.h1, color: '#FFFFFF', marginTop: 6},
   heroSub: {...type.body, color: colors.chipText, marginTop: 6},

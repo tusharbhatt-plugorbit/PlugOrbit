@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo} from 'react';
 import {
   Pressable,
@@ -114,6 +115,9 @@ function MetricRow({
   cells: Cell[];
   last?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={[styles.metric, !last && styles.metricDivider]}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -154,6 +158,9 @@ function PickCard({
   tone: 'default' | 'lime';
   onOpen: (s: StationWithDistance) => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const winner = result.winners[0];
   const names = result.winners.map(w => w.name).join(' and ');
   const title = !winner
@@ -200,6 +207,9 @@ function CompareBody({
   refreshing: boolean;
   reload: () => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow();
   const vehicle = useApp(selectActiveVehicle);
@@ -513,6 +523,8 @@ function CompareBody({
 
 /** 07 Compare chargers. */
 export default function CompareScreen(): React.JSX.Element {
+  useAppearance();
+
   const nav = useNavigation();
   const {params} = useRoute<'Compare'>();
   const {station: stationService} = useServices();
@@ -592,7 +604,7 @@ export default function CompareScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   scrollContent: {paddingTop: spacing.xl, paddingBottom: spacing.xxl},
   intro: {gap: spacing.md},
