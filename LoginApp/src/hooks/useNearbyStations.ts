@@ -79,6 +79,7 @@ export function useNearbyStations(vehicle: Vehicle | null, enabled = true) {
   const [state, setState] = useState<State>(INITIAL);
   const abortRef = useRef<AbortController | null>(null);
   const vehicleRef = useRef(vehicle);
+  const lastLoaded = useRef<{at:number; vehicleId:string|null} | null>(null);
   vehicleRef.current = vehicle;
 
   const begin = useCallback((): AbortSignal => {
@@ -104,6 +105,7 @@ export function useNearbyStations(vehicle: Vehicle | null, enabled = true) {
         if (signal.aborted) {
           return;
         }
+        lastLoaded.current = {at:Date.now(),vehicleId:vehicleRef.current?.id ?? null};
         // Nothing near here, so the service looked around New Delhi instead:
         // move the search centre there and say so, as for a denied location.
         const fellBack = isDemoFallback(origin, stations);
@@ -186,6 +188,7 @@ export function useNearbyStations(vehicle: Vehicle | null, enabled = true) {
     if (!enabled) {
       return;
     }
+    if (lastLoaded.current?.vehicleId === vehicleId && Date.now()-lastLoaded.current.at < 60000) return () => abortRef.current?.abort();
     // First mount locates; a vehicle switch re-searches in place.
     if (first.current) {
       first.current = false;
