@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
@@ -27,6 +28,9 @@ import {
 
 /** 34 Charging cost: an estimate before you stop, with GST, for a SoC range. */
 export default function CostCalculatorScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'CostCalculator'>();
   const {station: stationService} = useServices();
@@ -90,6 +94,7 @@ export default function CostCalculatorScreen(): React.JSX.Element {
       stack
       footer={
         <PrimaryButton
+            variant="blue"
           label="Find stations"
           icon="search"
           onPress={() => nav.navigate('StationList')}
@@ -183,7 +188,7 @@ export default function CostCalculatorScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted, marginTop: -6},

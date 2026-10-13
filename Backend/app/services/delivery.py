@@ -42,8 +42,14 @@ def send_email(to: str, code: str) -> None:
     msg["From"] = sender
     msg["To"] = to
     msg.set_content(_message_text(code, settings.otp_ttl_seconds))
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=TIMEOUT_SECONDS) as smtp:
-        if settings.smtp_use_tls:
+    connection = (
+        smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=TIMEOUT_SECONDS,
+                         context=ssl.create_default_context())
+        if settings.smtp_use_ssl else
+        smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=TIMEOUT_SECONDS)
+    )
+    with connection as smtp:
+        if settings.smtp_use_tls and not settings.smtp_use_ssl:
             smtp.starttls(context=ssl.create_default_context())
         if settings.smtp_username:
             smtp.login(settings.smtp_username, settings.smtp_password)

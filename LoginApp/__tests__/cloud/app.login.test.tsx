@@ -8,26 +8,28 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Alert, Text, TextInput} from 'react-native';
+import { Alert, Text, TextInput } from 'react-native';
 import App from '../../App';
-import {createFakeCloud} from '../../src/dev/fakeCloud';
-import type {FakeCloud} from '../../src/dev/fakeCloud';
-import {seedSignedIn} from '../../src/dev/testHarness';
+import { createFakeCloud } from '../../src/dev/fakeCloud';
+import type { FakeCloud } from '../../src/dev/fakeCloud';
+import { seedSignedIn } from '../../src/dev/testHarness';
 import {
   loadSession,
   peekSession,
   resetSessionMemory,
   saveSession,
 } from '../../src/services/session';
-import {appStore, resetAppStore} from '../../src/store/appStore';
-import {markOnboardingSeen} from '../../src/store/onboarding';
-import {resetCloudSyncForTests, stopCloudSync} from '../../src/store/cloudSync';
-import {resetDemo} from '../../src/store/demoStore';
-import {createMemoryStorage, setStorage} from '../../src/store/storage';
+import { appStore, resetAppStore } from '../../src/store/appStore';
+import {
+  resetCloudSyncForTests,
+  stopCloudSync,
+} from '../../src/store/cloudSync';
+import { resetDemo } from '../../src/store/demoStore';
+import { createMemoryStorage, setStorage } from '../../src/store/storage';
 
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
-const {act} = ReactTestRenderer;
+const { act } = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
 
 let cloud: FakeCloud;
@@ -43,8 +45,6 @@ const settle = async (ms = 100) => {
 };
 
 const renderApp = async (): Promise<Renderer> => {
-  // A returning install: the first-run introduction was already seen.
-  await markOnboardingSeen();
   let renderer!: Renderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(<App />);
@@ -105,7 +105,7 @@ beforeEach(() => {
   resetSessionMemory();
   resetCloudSyncForTests();
   cloud = createFakeCloud();
-  (globalThis as unknown as {fetch: unknown}).fetch = jest.fn(
+  (globalThis as unknown as { fetch: unknown }).fetch = jest.fn(
     async (url: string, init?: never) => {
       if (url.endsWith('/auth/otp/send')) {
         return {
@@ -123,7 +123,7 @@ beforeEach(() => {
         };
       }
       if (url.endsWith('/auth/otp/verify')) {
-        return {ok: true, status: 200, json: async () => verifyBody};
+        return { ok: true, status: 200, json: async () => verifyBody };
       }
       return cloud.fetch(url, init);
     },
@@ -148,16 +148,16 @@ test('a login that opens a Firebase session is backed up from then on', async ()
       id_token: session.idToken,
       refresh_token: session.refreshToken,
       expires_in: 3600,
-      user: {uid: 'u1'},
+      user: { uid: 'u1' },
     },
   };
   const r = await renderApp();
 
-  await pressText(r, 'Get started');
+  await pressText(r, 'Get Started');
   await type(r, 'name@example.com');
-  await pressText(r, 'Send verification code');
+  await pressText(r, 'Send Verification Code  →');
   await type(r, '123456');
-  await pressText(r, 'Verify and create account');
+  await pressText(r, 'Verify & Create Account  →');
 
   expect(appStore.get().signedIn).toBe(true);
   expect(peekSession()?.uid).toBe('u1');
@@ -167,31 +167,33 @@ test('a login that opens a Firebase session is backed up from then on', async ()
   expect(cloud.puts).toHaveLength(0);
 });
 
-test('a login without a session stays on this device and never calls the cloud', async () => {
-  verifyBody = {verified: true, message: 'Verified.'};
+test('a delivered code without a Firebase session does not sign in', async () => {
+  verifyBody = { verified: true, message: 'Verified.' };
   const r = await renderApp();
 
-  await pressText(r, 'Get started');
+  await pressText(r, 'Get Started');
   await type(r, 'name@example.com');
-  await pressText(r, 'Send verification code');
+  await pressText(r, 'Send Verification Code  →');
   await type(r, '123456');
-  await pressText(r, 'Verify and create account');
+  await pressText(r, 'Verify & Create Account  →');
 
-  expect(appStore.get().signedIn).toBe(true);
+  expect(appStore.get().signedIn).toBe(false);
   expect(await loadSession()).toBeNull();
   expect(cloud.gets).toBe(0);
   expect(cloud.puts).toHaveLength(0);
-  expect(appStore.get().history.length).toBeGreaterThan(0); // sample content, as before
+  expect(
+    r.root.findAllByType(Text).some(n => n.props.children === 'Verify Code'),
+  ).toBe(true);
 });
 
 test('signing out right after an edit still uploads it, then forgets the session', async () => {
   seedSignedIn();
-  appStore.set({favouriteStationIds: []});
+  appStore.set({ favouriteStationIds: [] });
   await saveSession(cloud.session('u1'));
   const r = await renderApp();
   expect(appStore.get().accountUid).toBe('u1'); // App started the backup
 
-  appStore.set({favouriteStationIds: ['last-second']}); // inside the 2s pause
+  appStore.set({ favouriteStationIds: ['last-second'] }); // inside the 2s pause
   await pressLabel(r, 'Profile', 'first');
   await pressLabel(r, 'Sign out', 'first'); // opens the confirmation
   await pressLabel(r, 'Sign out', 'last'); // confirms

@@ -1,16 +1,17 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import type {TabName} from '../navigation/params';
-import {colors, sizes, type} from '../theme';
-import {Icon, IconName} from './Icon';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { TabName } from '../navigation/params';
+import { colors, sizes, type } from '../theme';
+import { Icon, IconName } from './Icon';
 
-const TAB_META: Record<TabName, {label: string; icon: IconName}> = {
-  Home: {label: 'Home', icon: 'house'},
-  Trips: {label: 'Trips', icon: 'route'},
-  Charge: {label: 'Charge', icon: 'zap'},
-  Activity: {label: 'Activity', icon: 'history'},
-  Profile: {label: 'Profile', icon: 'user'},
+const TAB_META: Record<TabName, { label: string; icon: IconName }> = {
+  Home: { label: 'Home', icon: 'house' },
+  Trips: { label: 'Trips', icon: 'route' },
+  Charge: { label: 'Charge', icon: 'zap' },
+  Activity: { label: 'Activity', icon: 'history' },
+  Profile: { label: 'Profile', icon: 'user' },
 };
 
 const ORDER: TabName[] = ['Home', 'Trips', 'Charge', 'Activity', 'Profile'];
@@ -28,11 +29,15 @@ export function TabBar({
   onSelect: (t: TabName) => void;
   badges?: Partial<Record<TabName, boolean>>;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const insets = useSafeAreaInsets();
   return (
     <View
-      style={[styles.bar, {paddingBottom: Math.max(insets.bottom, 8)}]}
-      accessibilityRole="tablist">
+      style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}
+      accessibilityRole="tablist"
+    >
       {ORDER.map(t => {
         const meta = TAB_META[t];
         const active = t === tab;
@@ -43,19 +48,20 @@ export function TabBar({
             onPress={() => onSelect(t)}
             accessibilityRole="tab"
             accessibilityLabel={meta.label}
-            accessibilityState={{selected: active}}
+            accessibilityState={{ selected: active }}
             testID={`tab-${t}`}
-            style={styles.item}>
+            style={styles.item}
+          >
             {center ? (
               <View style={[styles.fab, active && styles.fabActive]}>
-                <Icon name="zap" size={22} color={colors.ink} filled />
+                <Icon name="zap" size={22} color="#FFFFFF" filled />
               </View>
             ) : (
               <View>
                 <Icon
                   name={meta.icon}
                   size={22}
-                  color={active ? colors.lime : colors.placeholder}
+                  color={active ? colors.electric : colors.muted}
                   strokeWidth={active ? 2.4 : 2}
                 />
                 {badges[t] && <View style={styles.badge} />}
@@ -71,12 +77,16 @@ export function TabBar({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: colors.bg,
-    borderTopWidth: 1,
-    borderTopColor: '#1E293B',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderRadius: 28,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderColor: colors.inputBorder,
+    borderTopColor: colors.inputBorder,
     paddingTop: 8,
     minHeight: sizes.tabBar,
   },
@@ -91,21 +101,21 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: colors.placeholder,
+    color: colors.muted,
   },
-  labelActive: {color: colors.lime, fontWeight: '800'},
+  labelActive: { color: colors.electric, fontWeight: '800' },
   fab: {
     width: 46,
     height: 46,
-    borderRadius: 16,
-    marginTop: -22,
-    backgroundColor: colors.lime,
+    borderRadius: 24,
+    marginTop: -18,
+    backgroundColor: colors.controlActive,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: colors.bg,
+    borderColor: colors.body,
   },
-  fabActive: {backgroundColor: '#B9F78A'},
+  fabActive: { backgroundColor: '#004BC4' },
   badge: {
     position: 'absolute',
     top: -2,

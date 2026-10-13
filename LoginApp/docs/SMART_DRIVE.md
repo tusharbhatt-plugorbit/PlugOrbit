@@ -1,7 +1,5 @@
 # PlugOrbit Smart Drive
 
-> **Naming:** the feature is called **Orbit Assist** in the app. The code, route and type names keep "Smart Drive" so nothing that imports or stores them moved. It now has two modes, *Guided* and *Orbit Assist*; see [`ORBIT_ASSIST.md`](ORBIT_ASSIST.md).
-
 > **You drive. We handle the charge.**
 > Internally: *PlugOrbit thinks ahead so the driver doesn't have to.*
 

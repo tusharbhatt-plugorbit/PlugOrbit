@@ -1,4 +1,6 @@
-import React from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useState} from 'react';
+import {exportReceipt} from '../../services/receiptExport';
 import {StyleSheet, Text, View} from 'react-native';
 import {invoiceFor} from '../../domain/charging';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
@@ -18,10 +20,22 @@ import {
 
 /** 17 Receipt. Read-only: everything comes from the settled session in history. */
 export default function ReceiptScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Receipt'>();
   const summary = useApp(s => s.history.find(h => h.id === params.sessionId));
   const rated = useApp(s => s.feedbackDone.includes(params.sessionId));
+  const [saving, setSaving] = useState(false);
+  const download = async () => {
+    if (saving || !summary) return;
+    setSaving(true);
+    try {if (await exportReceipt(summary)) showToast('Receipt saved to the folder you selected.', 'success');}
+    catch (error) {showToast(error instanceof Error ? error.message : 'Could not save the receipt.', 'warn');}
+    finally {setSaving(false);}
+  };
+
 
   if (!summary) {
     return (
@@ -67,7 +81,7 @@ export default function ReceiptScreen(): React.JSX.Element {
       }>
       <View style={styles.hero}>
         <View style={styles.check}>
-          <Icon name="check" size={34} color={colors.ink} strokeWidth={3} />
+          <Icon name="check" size={34} color={colors.onAccent} strokeWidth={3} />
         </View>
         <Text style={styles.title} accessibilityRole="header">
           Payment successful
@@ -114,12 +128,10 @@ export default function ReceiptScreen(): React.JSX.Element {
 
       <View style={styles.actions}>
         <SecondaryButton
-          label="Download GST receipt"
+          label="Download receipt with GST breakdown"
           icon="file-down"
-          // TODO(integration): generate the GST invoice PDF on the backend.
-          onPress={() =>
-            showToast('GST receipt saved to your files.', 'success')
-          }
+          loading={saving}
+          onPress={download}
         />
         <SecondaryButton
           label="View in Activity"
@@ -131,7 +143,7 @@ export default function ReceiptScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {alignItems: 'center', paddingVertical: spacing.lg, gap: 6},
   check: {
     width: 72,

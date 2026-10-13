@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Image, StyleSheet, View} from 'react-native';
 import {colors} from '../theme';
@@ -25,6 +26,9 @@ export function BrandLogo({
   glow = false,
   borderColor = colors.limeHaloBorder,
 }: Props) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const tile = (
     <View
       style={[
@@ -61,7 +65,7 @@ export function BrandLogo({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   tile: {
     borderWidth: StyleSheet.hairlineWidth * 2,
     backgroundColor: colors.bg,

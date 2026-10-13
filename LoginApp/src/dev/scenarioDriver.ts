@@ -4,7 +4,6 @@ import type {SmartDriveConfig} from '../intelligence/config';
 import {createTrip, processEvent} from '../intelligence/monitor';
 import type {
   ActiveTrip,
-  AssistMode,
   Decision,
   NotificationDraft,
   TripEvent,
@@ -43,7 +42,6 @@ export class ScenarioDriver {
       path?: Path;
       config?: SmartDriveConfig;
       quiet?: boolean;
-      mode?: AssistMode;
       now?: number;
     } = {},
   ) {
@@ -88,7 +86,6 @@ export class ScenarioDriver {
       world: this.world(),
       config: this.config,
       quiet: this.opts.quiet,
-      mode: this.opts.mode,
     });
     this.trip = update.trip;
     this.told.push(...update.notifications);

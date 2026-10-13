@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
@@ -39,6 +40,9 @@ export function RouteMap({
   /** Index of the stop to emphasise (e.g. the chosen one). */
   highlightStop?: number;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const ref = useRef<MapView>(null);
   const first = route.polyline[0];
   const last = route.polyline[route.polyline.length - 1];
@@ -72,8 +76,9 @@ export function RouteMap({
         showsCompass={false}>
         <Polyline
           coordinates={[...route.polyline]}
-          strokeColor={colors.bg}
+          strokeColor={colors.electric}
           strokeWidth={5}
+          lineDashPattern={route.geometrySource === "road" ? undefined : [8, 6]}
         />
         <Marker coordinate={first} anchor={{x: 0.5, y: 0.5}}>
           <View style={styles.endpoint} />
@@ -115,6 +120,9 @@ function FallbackRouteMap({
   height: number;
   highlightStop?: number;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const [broken, setBroken] = useState(false);
   const first = route.polyline[0];
   const last = route.polyline[route.polyline.length - 1];
@@ -141,10 +149,10 @@ function FallbackRouteMap({
       points: route.polyline.map(
         p => [p.latitude, p.longitude] as [number, number],
       ),
-      color: colors.bg,
+      color: colors.electric,
       width: 5,
     }),
-    [route],
+    [route, colors.electric],
   );
 
   if (broken) {
@@ -169,7 +177,7 @@ function FallbackRouteMap({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     borderRadius: radii.lg,
     overflow: 'hidden',

@@ -1,4 +1,5 @@
-import React, {useMemo, useRef, useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {billFor} from '../../domain/sessionBill';
@@ -26,6 +27,9 @@ import {
  * the app is closed or the network drops here.
  */
 export default function PaymentScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Payment'>();
   const {payment} = useServices();
@@ -39,8 +43,6 @@ export default function PaymentScreen(): React.JSX.Element {
   const validated = useMemo(() => methods.filter(m => m.validated), [methods]);
   const [chosen, setChosen] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
-  // Set synchronously: two taps in the same frame both see paying === false.
-  const inFlight = useRef(false);
   const [error, setError] = useState<{
     title: string;
     body: string;
@@ -82,10 +84,9 @@ export default function PaymentScreen(): React.JSX.Element {
   const method = validated.find(m => m.id === methodId) ?? null;
 
   const pay = async () => {
-    if (!method || paying || inFlight.current) {
+    if (!method || paying) {
       return;
     }
-    inFlight.current = true;
     setPaying(true);
     setError(null);
     try {
@@ -103,7 +104,6 @@ export default function PaymentScreen(): React.JSX.Element {
         offline: copy.kind === 'offline',
       });
       setPaying(false);
-      inFlight.current = false;
     }
   };
 
@@ -194,7 +194,7 @@ export default function PaymentScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {alignItems: 'center', paddingVertical: spacing.lg},
   heroLabel: {...type.label, color: colors.muted},
   heroTotal: {

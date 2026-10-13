@@ -13,7 +13,6 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
 
   VehicleSetup: undefined,
   ManualSoc: undefined,
-  Map: undefined,
   StationList: undefined,
   Filters: undefined,
   StationDetail: {stationId: 'st-chargezone-neemrana'},
@@ -41,6 +40,7 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
   Feedback: {sessionId: 'PO-6A4K92'},
   ReportProblem: {stationId: 'st-chargezone-neemrana'},
   Support: undefined,
+  SupportAgent: undefined,
   TicketDetail: {ticketId: 'tk-142'},
   Vehicles: undefined,
   PaymentMethods: undefined,
@@ -67,8 +67,9 @@ export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
 
   SmartDrive: undefined,
   SmartDriveStop: undefined,
-  Assistant: undefined,
 
+  AIAssistant: undefined,
+  ReferFriend: undefined,
   PresenterTools: undefined,
 };
 

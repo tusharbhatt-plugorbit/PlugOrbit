@@ -1,4 +1,5 @@
 from firebase_admin import auth, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from ..firebase import get_db
 from ..schemas import UserOut
@@ -40,6 +41,12 @@ def update_name(uid: str, name: str) -> UserOut:
 def delete_user(uid: str) -> None:
     # Recursive: the profile and everything under it (users/{uid}/state/*), so deleting an
     # account leaves no orphaned user data behind.
-    ref = get_db().collection(USERS).document(uid)
-    get_db().recursive_delete(ref)
+    db = get_db()
+    owned = list(db.collection("support_tickets").where(filter=FieldFilter("ownerUid", "==", uid)).stream())
+    for offset in range(0, len(owned), 450):
+        batch = db.batch()
+        for ticket in owned[offset:offset+450]: batch.delete(db.collection("support_tickets").document(ticket.id))
+        batch.commit()
+    ref = db.collection(USERS).document(uid)
+    db.recursive_delete(ref)
     auth.delete_user(uid)

@@ -1,3 +1,4 @@
+import {Platform} from 'react-native';
 /**
  * @format
  */
@@ -11,8 +12,13 @@ jest.mock('../src/config/google', () => ({
 import {
   PlacesError,
   fetchNearbyChargers,
+  fetchChargerById,
   toCharger,
 } from '../src/services/places';
+
+const originalPlacesOs = Platform.OS;
+beforeAll(() => Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true}));
+afterAll(() => Object.defineProperty(Platform, 'OS', {value: originalPlacesOs, configurable: true}));
 
 const CENTER = {latitude: 28.6, longitude: 77.2};
 
@@ -195,6 +201,8 @@ describe('fetchNearbyChargers', () => {
     expect(url).toBe('https://places.googleapis.com/v1/places:searchNearby');
     expect(init.method).toBe('POST');
     expect(init.headers['X-Goog-Api-Key']).toBe('test-key');
+    expect(init.headers['X-Android-Package']).toBe('com.loginapp');
+    expect(init.headers['X-Android-Cert']).toBe('5E8F16062EA3CD2C4A0D547876BAA6F38CABF625');
     expect(init.headers['X-Goog-FieldMask']).toContain(
       'places.evChargeOptions',
     );
@@ -278,4 +286,17 @@ describe('fetchNearbyChargers', () => {
     const error = await pending;
     expect(error).not.toBeInstanceOf(PlacesError);
   });
+});
+
+
+test('looks up a saved charger by its exact place ID without a nearby search', async () => {
+  fetchMock.mockResolvedValue(okResponse({id: 'ChIJ_saved', displayName: {text: 'Saved charger'}, location: {latitude: 28.5, longitude: 77.1}}));
+  expect((await fetchChargerById('ChIJ_saved')).name).toBe('Saved charger');
+  expect(fetchMock.mock.calls[0][0]).toBe('https://places.googleapis.com/v1/places/ChIJ_saved');
+  expect(fetchMock.mock.calls[0][1].method).toBe('GET');
+  expect(fetchMock.mock.calls[0][1].headers['X-Goog-FieldMask']).not.toContain('places.');
+});
+test('removed saved chargers retain a 404 status for the missing-location UI', async () => {
+  fetchMock.mockResolvedValue({ok: false, status: 404});
+  await expect(fetchChargerById('ChIJ_removed')).rejects.toMatchObject({status: 404});
 });

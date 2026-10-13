@@ -1,3 +1,10 @@
+import {roadRoute, RoadGeometry} from '../roadRouting';
+import {emergencyChargeRoute, EmergencyChargerNotFound} from '../emergencyCharge';
+import {DEFAULT_SMART_DRIVE_CONFIG} from '../../intelligence/config';
+import {openStateAt} from '../../intelligence/hours';
+import {socAfterKm} from '../../intelligence/battery';
+import {evaluateStation, evaluateArrival} from '../../intelligence/safety';
+import {chooseConnector} from '../../intelligence/stopMetrics';
 import {minutesToCharge, energyToCharge, GST_RATE} from '../../domain/charging';
 import {
   availableCount,
@@ -25,7 +32,7 @@ import type {EnergyPlan, RouteService} from '../types';
 import {ApiError} from '../types';
 import {DELHI_JAIPUR_CORRIDOR, PLACES, findPlace} from './data';
 import {guard, hash} from './runtime';
-import {detourFor, loadStations, waitFor} from './stationService';
+import {detourFor, loadStations, loadRouteStations, waitFor, createStationService} from './stationService';
 
 const AVG_SPEED_KMH = 66;
 const MAX_LATERAL_KM = 14;
@@ -94,7 +101,7 @@ function candidatesFor(
 ): Candidate[] {
   const out: Candidate[] = [];
   stations.forEach(s => {
-    if (exclude.has(s.id) || !isCompatible(s, vehicle)) {
+    if (exclude.has(s.id) || !isCompatible(s, vehicle) || openStateAt(s.hours, Date.now()) === 'closed') {
       return;
     }
     const {along, lateral} = project(path, s);
@@ -218,9 +225,12 @@ function planOnce(
   exclude: ReadonlySet<string>,
   now: number,
   resume?: Resume,
+  road?: RoadGeometry,
+  routeStations?: Station[],
+  emergencyStationId?: string,
 ): Route {
-  const from = findPlace(request.fromLabel);
-  const to = findPlace(request.toLabel);
+  const from = request.fromCoords ? {name: request.fromLabel, coords: request.fromCoords} : findPlace(request.fromLabel);
+  const to = request.toCoords ? {name: request.toLabel, coords: request.toCoords} : findPlace(request.toLabel);
   if (!from || !to) {
     throw new ApiError('Choose a start and destination from the suggestions.');
   }
@@ -229,30 +239,35 @@ function planOnce(
   }
 
   const waypoints = (request.via ?? [])
-    .map(v => findPlace(v))
+    .map((v, index) => request.viaCoords?.[index] ? {name: v, coords: request.viaCoords[index]!} : findPlace(v))
     .filter((p): p is NonNullable<typeof p> => p !== null);
   const legs: Coords[][] = [];
   const chain = [from, ...waypoints, to];
   for (let i = 0; i < chain.length - 1; i++) {
     legs.push(pathBetween(chain[i].coords, chain[i + 1].coords));
   }
-  const polyline = legs.reduce<Coords[]>(
+  const polyline = road?.points ?? legs.reduce<Coords[]>(
     (acc, leg) => (acc.length ? [...acc, ...leg.slice(1)] : leg),
     [],
   );
   const path = buildPath(polyline);
+  if (road && path.totalKm > 0) {
+    const scale = road.distanceKm / path.totalKm;
+    path.cum = path.cum.map(km => km * scale);
+    path.totalKm = road.distanceKm;
+  }
 
   const vehicle = request.vehicle;
   const pctPerKm = 100 / vehicle.rangeKm100;
   const reserve = request.safetyReservePct;
-  const stations = loadStations();
+  const stations = routeStations ?? loadStations();
   const cands = candidatesFor(stations, path, vehicle, exclude);
 
   const stops: RouteStop[] = [...(resume?.keep ?? [])];
   const previous = stops[stops.length - 1];
   let pos = previous ? project(path, previous.station).along : 0;
   let soc = previous ? previous.chargeToSoc : request.startSoc;
-  let forcedId = resume?.backupId ?? null;
+  let forcedId = resume?.backupId ?? emergencyStationId ?? null;
 
   for (let n = stops.length; n < MAX_STOPS; n++) {
     const needToEnd = (path.totalKm - pos) * pctPerKm;
@@ -295,8 +310,9 @@ function planOnce(
           c.along < path.totalKm - 2,
       );
       if (reachable.length === 0) {
+        if (road || (emergencyStationId && stops.length > 0)) break;
         throw new ApiError(
-          'No compatible charger is reachable with this battery level. Charge a little first or lower your reserve.',
+          'No confirmed compatible charger was found within reach on this route. Check your battery and connector type, or choose another route. Stations with unpublished connector details cannot be recommended safely.',
         );
       }
       // Don't stop absurdly early: prefer the far half of what is reachable.
@@ -366,7 +382,7 @@ function planOnce(
   }
 
   const arriveSoc = Math.round(soc - (path.totalKm - pos) * pctPerKm);
-  if (arriveSoc < reserve - 0.5) {
+  if (arriveSoc < reserve - 0.5 && !emergencyStationId && !road) {
     throw new ApiError(
       'This trip needs more charging stops than are available. Try another strategy.',
     );
@@ -376,13 +392,15 @@ function planOnce(
     0,
   );
   const driveMin = Math.round(
-    (path.totalKm / AVG_SPEED_KMH) * 60 + totalChargeMin,
+    (road?.durationMin ?? (path.totalKm / AVG_SPEED_KMH) * 60) + totalChargeMin,
   );
 
   return {
     id: `rt-${hash(
       `${request.fromLabel}|${request.toLabel}|${request.strategy}|${request.startSoc}`,
     ).toString(36)}`,
+    fromCoords: from.coords,
+    toCoords: to.coords,
     fromLabel: from.name,
     toLabel: to.name,
     distanceKm: Math.round(path.totalKm),
@@ -392,8 +410,12 @@ function planOnce(
     safetyReservePct: reserve,
     strategy: request.strategy,
     polyline,
+    geometrySource: road ? "road" : "estimate",
+    chargingComplete: arriveSoc >= reserve - 0.5,
+    emergencyStationId,
+    corridorStations: stations.filter(station => project(path, station).lateral <= MAX_LATERAL_KM && openStateAt(station.hours, now) !== 'closed').sort((a,b) => project(path,a).along-project(path,b).along),
     stops,
-    ...(waypoints.length > 0 ? {via: waypoints.map(w => w.name)} : {}),
+    ...(waypoints.length > 0 ? {via: waypoints.map(w => w.name), viaCoords: waypoints.map(w => w.coords)} : {}),
     computedAt: now,
   };
 }
@@ -404,6 +426,8 @@ function requestFromRoute(route: Route): RouteRequest {
     throw new ApiError('Add your vehicle first so we can plan for it.');
   }
   return {
+    fromCoords: route.fromCoords,
+    toCoords: route.toCoords,
     fromLabel: route.fromLabel,
     toLabel: route.toLabel,
     startSoc: route.startSoc,
@@ -412,27 +436,70 @@ function requestFromRoute(route: Route): RouteRequest {
     safetyReservePct: route.safetyReservePct,
     avoidPaidParking: false,
     via: route.via,
+    viaCoords: route.viaCoords,
   };
 }
 
-export function createRouteService(): RouteService {
+export function createRouteService(useRoads = false): RouteService {
+  async function geometry(request: RouteRequest): Promise<(RoadGeometry & {emergencyStation?: Station}) | undefined> {
+    if (!useRoads) return undefined;
+    const labels = [request.fromLabel, ...(request.via ?? []), request.toLabel];
+    const places = labels.map((label, index) => {
+      const coords = index === 0 ? request.fromCoords : index === labels.length - 1 ? request.toCoords : request.viaCoords?.[index - 1];
+      return coords ? {name: label, coords} : findPlace(label);
+    });
+    if (places.some(p => !p)) throw new ApiError("Choose locations from the suggestions.");
+    const coords = places.map(p => p!.coords);
+    if (request.startSoc <= DEFAULT_SMART_DRIVE_CONFIG.batteryCriticalPct) {
+      let emergency;
+      try {emergency = await emergencyChargeRoute(coords[0], coords[1], request.vehicle, request.startSoc, Date.now());}
+      catch (error) {if (error instanceof EmergencyChargerNotFound) return roadRoute(coords); throw error;}
+      if (coords.length === 2) return {...emergency.road, emergencyStation: emergency.station};
+      const rest = await roadRoute(coords.slice(1));
+      return {points:[...emergency.road.points,...rest.points.slice(1)], distanceKm:emergency.road.distanceKm+rest.distanceKm,
+        durationMin:emergency.road.durationMin+rest.durationMin, emergencyStation:emergency.station};
+    }
+    return roadRoute(coords);
+  }
+  async function stationsFor(road: (RoadGeometry & {emergencyStation?: Station}) | undefined) {
+    if (!road) return undefined;
+    const stations = await loadRouteStations(road.points);
+    if (road.emergencyStation && !stations.some(s => s.id === road.emergencyStation!.id)) stations.push(road.emergencyStation);
+    return stations;
+  }
   return {
     async plan(request) {
       await guard(700);
-      return planOnce(
-        request,
-        new Set(request.avoidStationIds ?? []),
-        Date.now(),
-      );
+      const road = await geometry(request);
+      return planOnce(request, new Set(), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
+    },
+
+    async chooseStation(route, stationId) {
+      const request = requestFromRoute(route);
+      const origin = request.fromCoords ?? findPlace(request.fromLabel)?.coords;
+      const destination = request.toCoords ?? findPlace(request.toLabel)?.coords;
+      if (!origin || !destination) throw new ApiError('Choose valid start and destination locations.');
+      const station = await createStationService(useRoads).get(stationId, origin);
+      if (evaluateStation(station, request.vehicle).length) throw new ApiError('This station is closed, incompatible, offline, or has unpublished connector details. Verify with the operator before choosing it.');
+      const firstLeg = useRoads ? await roadRoute([origin, station]) : undefined;
+      const km = firstLeg?.distanceKm ?? distanceKm(origin,station)*ROAD_FACTOR;
+      const arrival = evaluateArrival(station,{etaAt:Date.now()+(firstLeg?.durationMin ?? km/AVG_SPEED_KMH*60)*60000,
+        arriveSoc:socAfterKm(request.vehicle,request.startSoc,km,DEFAULT_SMART_DRIVE_CONFIG),connector:chooseConnector(station,request.vehicle)},
+        Date.now(),request.startSoc<=DEFAULT_SMART_DRIVE_CONFIG.batteryCriticalPct?'battery_critical':'normal',request.safetyReservePct,DEFAULT_SMART_DRIVE_CONFIG);
+      if (arrival.violations.length) throw new ApiError('This station cannot be reached safely on your starting battery or is closed at arrival. Choose a closer open compatible charger.');
+      const via = (request.via ?? []).map((label,i)=>request.viaCoords?.[i] ?? findPlace(label)?.coords);
+      if (via.some(p=>!p)) throw new ApiError('Choose valid intermediate destinations.');
+      const onward = useRoads ? await roadRoute([station,...via.filter((p):p is Coords=>!!p),destination]) : undefined;
+      const road = firstLeg && onward ? {points:[...firstLeg.points,...onward.points.slice(1)],distanceKm:firstLeg.distanceKm+onward.distanceKm,durationMin:firstLeg.durationMin+onward.durationMin} : undefined;
+      const stations = await stationsFor(road) ?? loadStations();
+      if (!stations.some(s=>s.id===station.id)) stations.push(station);
+      return planOnce(request,new Set(),Date.now(),{keep:[],backupId:station.id},road,stations,station.id);
     },
 
     async energyPlan(request): Promise<EnergyPlan> {
       await guard(600);
-      const route = planOnce(
-        request,
-        new Set(request.avoidStationIds ?? []),
-        Date.now(),
-      );
+      const road = await geometry(request);
+      const route = planOnce(request, new Set(), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
       const legs: EnergyPlan['legs'] = [
         {label: route.fromLabel, socPercent: route.startSoc, kind: 'start'},
         ...route.stops.flatMap(s => [
@@ -465,11 +532,14 @@ export function createRouteService(): RouteService {
       // Swap in exactly the backup the driver was shown. Earlier stops and
       // every waypoint stay; battery, cost and the new stop's own backup are
       // recomputed, and the charger that failed stays out of the new plan.
+      const road = await geometry(requestFromRoute(route));
       return planOnce(
         requestFromRoute(route),
         new Set([stop.station.id]),
         Date.now(),
         {keep: route.stops.slice(0, stopIndex), backupId: stop.backup.id},
+        road,
+        road ? await loadRouteStations(road.points) : undefined,
       );
     },
 

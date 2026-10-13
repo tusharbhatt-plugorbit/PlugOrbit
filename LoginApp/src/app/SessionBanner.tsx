@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -29,6 +30,9 @@ const HIDE_ON: readonly RouteName[] = [
 
 /** Persistent "charging in progress" entry point while a session is open. */
 export function SessionBanner() {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {current, depth} = useNavigationState();
   const insets = useSafeAreaInsets();
@@ -75,7 +79,7 @@ export function SessionBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     position: 'absolute',
     left: spacing.lg,

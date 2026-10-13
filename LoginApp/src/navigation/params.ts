@@ -14,12 +14,11 @@ export type RouteParams = {
   // MVP
   VehicleSetup: {onboarding?: boolean; vehicleId?: string} | undefined; // 01
   ManualSoc: {onboarding?: boolean} | undefined; // 02
-  Map: undefined; // the charger map (was the Home tab before the dashboard)
   StationList: {query?: string} | undefined; // 04
   Filters: undefined; // 05
   StationDetail: {stationId: string}; // 06
   Compare: {stationIds: string[]}; // 07
-  RoutePlanner: {toLabel?: string; fromLabel?: string} | undefined; // 08
+  RoutePlanner: {toLabel?: string; fromLabel?: string; fromCoords?: {latitude: number; longitude: number}; toCoords?: {latitude: number; longitude: number}} | undefined; // 08
   RouteResult: undefined; // 09 (reads the cached active route)
   BackupAlert:
     | {
@@ -45,6 +44,7 @@ export type RouteParams = {
   Feedback: {sessionId: string}; // 20
   ReportProblem: {stationId?: string; sessionId?: string} | undefined; // 21
   Support: undefined; // 22
+  SupportAgent: undefined;
   TicketDetail: {ticketId: string}; // 23
   Vehicles: undefined; // Profile > Vehicles (24)
   PaymentMethods: undefined; // Profile > Payment methods
@@ -68,19 +68,16 @@ export type RouteParams = {
   OfflineMode: undefined; // 35
   Community: {stationId: string}; // 36
   Notifications: undefined; // 37
-  /** `onboarding`: the optional third setup step (after vehicle and battery). */
-  TripPreferences: {onboarding?: boolean} | undefined; // 38
+  TripPreferences: undefined; // 38
   MultiStop: undefined; // 39
   Privacy: undefined; // 40
 
   // Smart Drive
-  /** Orbit Assist: plan a trip, or watch the one in progress. `toLabel` pre-fills the destination. */
-  SmartDrive: {toLabel?: string} | undefined;
+  SmartDrive: undefined; // the co-pilot: plan a trip, or watch the one in progress
   SmartDriveStop: undefined; // why this charger, what it costs, ask the co-pilot
 
-  // Orbit Assist conversation (voice and text). `listen` opens the microphone on arrival,
-  // for buttons whose whole point is "talk to Orbit"; it is never set automatically.
-  Assistant: {listen?: boolean} | undefined;
+  AIAssistant: undefined;
+  ReferFriend: undefined;
 
   // Demo
   PresenterTools: undefined;

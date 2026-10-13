@@ -1,4 +1,5 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useEffect, useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
   energyToCharge,
@@ -59,6 +60,8 @@ const REFRESH_MS = 20_000;
  * flow and never pretends PlugOrbit controls the charger.
  */
 export default function StartChargingScreen(): React.JSX.Element {
+  useAppearance();
+
   const {params} = useRoute<'StartCharging'>();
   const {station: stationService} = useServices();
   const focused = useIsFocused();
@@ -101,6 +104,9 @@ export default function StartChargingScreen(): React.JSX.Element {
 }
 
 function LoadingBody() {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.loading}>
       <Card>
@@ -122,6 +128,9 @@ function StartForm({
   initialTarget?: number;
   onRefresh: () => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow();
   const {session: sessionService} = useServices();
@@ -153,8 +162,6 @@ function StartForm({
   const targetSoc = Math.max(target, minTarget);
 
   const [starting, setStarting] = useState(false);
-  // Set synchronously: two taps in the same frame both see starting === false.
-  const inFlight = useRef(false);
   const [handoff, setHandoff] = useState<string | null>(null);
   const [formError, setFormError] = useState<{
     title: string;
@@ -243,10 +250,9 @@ function StartForm({
     free && method !== null && price !== null && battery !== null && !starting;
 
   const start = async () => {
-    if (!ready || !method || price === null || inFlight.current) {
+    if (!ready || !method || price === null) {
       return;
     }
-    inFlight.current = true;
     setStarting(true);
     setFormError(null);
     try {
@@ -269,7 +275,6 @@ function StartForm({
         }
       }
       setStarting(false);
-      inFlight.current = false;
     }
   };
 
@@ -504,6 +509,9 @@ function StartForm({
 }
 
 function Estimate({label, value}: {label: string; value: string}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.estimate}
@@ -523,6 +531,9 @@ function OperatorHandoff({
   station: StationWithDistance;
   reason: string | null;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   return (
     <View style={styles.pad}>
@@ -572,6 +583,9 @@ function OperatorHandoff({
 }
 
 function Step({n, text}: {n: number; text: string}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.step}>
       <View style={styles.stepDot}>
@@ -582,7 +596,7 @@ function Step({n, text}: {n: number; text: string}) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   pad: {gap: spacing.md},
   loading: {gap: spacing.md},

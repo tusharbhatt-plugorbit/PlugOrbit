@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import type {AlertPreferences, RouteStrategy} from '../../domain/types';
@@ -8,8 +9,9 @@ import {
   selectActiveVehicle,
   useApp,
 } from '../../store/appStore';
-import {presenterToolsEnabled} from '../../config/presenter';
-import {endCloudSession} from '../../store/cloudSync';
+import {cloudStatus, endCloudSession, syncNow} from '../../store/cloudSync';
+import {useStore} from '../../store/createStore';
+import {showToast} from '../../ui/Toast';
 import {colors, radii, spacing, type} from '../../theme';
 import {formatInr} from '../../utils/format';
 import {
@@ -43,6 +45,9 @@ function alertsOn(a: AlertPreferences): number {
 }
 
 function Stat({value, label}: {value: string; label: string}) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.stat}
@@ -59,7 +64,12 @@ function Stat({value, label}: {value: string; label: string}) {
  * rows that reach every settings screen, and a confirmed sign out.
  */
 export default function ProfileScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
+  const appearance = useAppearance();
+  const sync = useStore(cloudStatus, value => value);
   const vehicle = useApp(selectActiveVehicle);
   const vehicleCount = useApp(s => s.vehicles.length);
   const history = useApp(s => s.history);
@@ -96,7 +106,7 @@ export default function ProfileScreen(): React.JSX.Element {
       <Card tone="dark">
         <View style={styles.accountRow}>
           <View style={styles.avatar}>
-            <Icon name="user" size={26} color={colors.ink} />
+            <Icon name="user" size={26} color={colors.onAccent} />
           </View>
           <View style={styles.accountText}>
             <Text style={styles.name}>PlugOrbit driver</Text>
@@ -126,6 +136,25 @@ export default function ProfileScreen(): React.JSX.Element {
         </View>
       </Card>
 
+      <SectionTitle title="Account sync" />
+      <Card>
+        <Text style={{...type.heading, color: colors.ink}}>Your PlugOrbit account</Text>
+        <Text style={{...type.caption, color: colors.muted, marginVertical: 10}}>
+          {sync.state === 'off' ? 'Sign in to back up your saved routes and vehicles.' : sync.state === 'offline' ? 'Offline. Your changes stay on this phone and sync when connected.' : sync.state === 'error' ? 'Sync needs attention. Your local data is safe.' : sync.state === 'syncing' ? 'Syncing your vehicles and saved routes...' : sync.lastSyncedAt ? `Last synced ${new Date(sync.lastSyncedAt).toLocaleTimeString()}` : 'Your vehicles and saved routes sync with your signed-in account.'}
+        </Text>
+        <SecondaryButton label={sync.state === 'syncing' ? 'Syncing...' : 'Sync now'} icon="refresh-cw" disabled={sync.state === 'off' || sync.state === 'syncing'} onPress={async () => {await syncNow(); const status = cloudStatus.get(); showToast(status.state === 'idle' ? 'Account synced' : 'Sync is pending. Please check your connection.', status.state === 'idle' ? 'success' : 'info');}} />
+      </Card>
+      <SectionTitle title="Appearance" />
+      <Card>
+        <Text style={{...type.heading,color:colors.ink}}>Make it yours</Text>
+        <Text style={{...type.caption,color:colors.muted,marginTop:6,marginBottom:14}}>Soft glass surfaces. A theme for every drive.</Text>
+        <View style={{flexDirection:'row',gap:8}}>
+          {(['system','light'] as const).map(mode=>(
+            <SecondaryButton key={mode} label={mode==='system'?'System':'Light'} onPress={()=>appearance.setMode(mode)}
+              style={{flex:1,borderColor:appearance.mode===mode?colors.electric:colors.divider,backgroundColor:appearance.mode===mode?colors.infoSoft:colors.surface}} />
+          ))}
+        </View>
+      </Card>
       <SectionTitle title="My EV" />
       <ListCard>
         <ListRow
@@ -214,6 +243,12 @@ export default function ProfileScreen(): React.JSX.Element {
         />
       </ListCard>
 
+      <SectionTitle title="PlugOrbit extras" />
+      <ListCard>
+        <ListRow icon="sparkles" title="Orbit AI assistant" subtitle="Ask about EV charging, routes and battery" onPress={() => nav.navigate('AIAssistant')} />
+        <ListRow icon="users" title="Refer a friend" subtitle="Invite friends to PlugOrbit" onPress={() => nav.navigate('ReferFriend')} last />
+      </ListCard>
+
       <SectionTitle title="Help" />
       <ListCard>
         <ListRow
@@ -228,19 +263,7 @@ export default function ProfileScreen(): React.JSX.Element {
           title="Roadside assistance"
           subtitle="Towing and help when you’re stranded"
           onPress={() => nav.navigate('Roadside')}
-          last={!presenterToolsEnabled()}
         />
-        {presenterToolsEnabled() && (
-          <ListRow
-            icon="settings"
-            iconTone="info"
-            title="Presenter tools"
-            subtitle="Demo switches and shortcuts"
-            right={<Pill label="Demo" tone="info" uppercase />}
-            onPress={() => nav.navigate('PresenterTools')}
-            last
-          />
-        )}
       </ListCard>
 
       <View style={styles.signOut}>
@@ -250,7 +273,7 @@ export default function ProfileScreen(): React.JSX.Element {
           tone="danger"
           onPress={() => setConfirmOut(true)}
         />
-        <Text style={styles.version}>PlugOrbit prototype • demo data feed</Text>
+        <Text style={styles.version}>PlugOrbit</Text>
       </View>
 
       <ConfirmActionSheet
@@ -275,7 +298,7 @@ export default function ProfileScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   accountRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
   avatar: {
     width: 52,
@@ -298,7 +321,7 @@ const styles = StyleSheet.create({
   },
   stat: {flex: 1},
   statValue: {...type.heading, color: '#FFFFFF'},
-  statLabel: {...type.caption, color: colors.placeholder, marginTop: 2},
+  statLabel: {...type.caption, color: colors.onDarkMuted, marginTop: 2},
   signOut: {marginTop: spacing.xl, gap: spacing.md},
   version: {...type.caption, color: colors.muted, textAlign: 'center'},
 });

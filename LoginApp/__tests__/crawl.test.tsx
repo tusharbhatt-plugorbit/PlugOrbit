@@ -204,13 +204,14 @@ describe.each(ROUTES)('%s', route => {
 // Routes only reachable through the tab bar (not a button on a screen).
 const TAB_ONLY = new Set<RouteName>(TABS);
 
-// Reached by a camera QR event or a confirmation flow, rather than one button.
-// __tests__/charge.flow.test.tsx drives these interactions.
-const COVERED_BY_FLOW_TESTS = new Set<RouteName>(['StartCharging', 'Payment', 'PaymentFailure']);
+// Reached only after a two-step interaction (a confirm sheet), which a single
+// press per button can't see. __tests__/charge.flow.test.tsx drives these.
+const COVERED_BY_FLOW_TESTS = new Set<RouteName>(['Payment', 'PaymentFailure']);
 
 test('every route is reachable from a button on another screen', () => {
   const reachable = new Set<RouteName>([...TAB_ONLY, ...COVERED_BY_FLOW_TESTS]);
   reached.forEach(targets => targets.forEach(t => reachable.add(t)));
-  const unreachable = ROUTES.filter(r => !reachable.has(r));
+  // PresenterTools is intentionally absent from the driver's production profile.
+  const unreachable = ROUTES.filter(r => r !== 'PresenterTools' && !reachable.has(r));
   expect(unreachable).toEqual([]);
 });

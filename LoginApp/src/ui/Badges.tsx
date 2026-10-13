@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {TRUST_LABEL, dataTrust, isStale, timeAgo} from '../domain/trust';
@@ -15,15 +16,6 @@ import {Icon, IconName} from './Icon';
 
 type Tone = 'lime' | 'amber' | 'info' | 'slate' | 'danger' | 'dark';
 
-const TONE: Record<Tone, {bg: string; fg: string}> = {
-  lime: {bg: colors.limeSoft, fg: colors.limeDark},
-  amber: {bg: colors.amberSoft, fg: colors.amber},
-  info: {bg: colors.infoSoft, fg: colors.info},
-  slate: {bg: colors.slateSoft, fg: colors.inkSoft},
-  danger: {bg: colors.dangerSoft, fg: colors.danger},
-  dark: {bg: colors.bg, fg: colors.lime},
-};
-
 export function Pill({
   label,
   tone = 'slate',
@@ -37,7 +29,18 @@ export function Pill({
   dot?: boolean;
   uppercase?: boolean;
 }) {
-  const t = TONE[tone];
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
+  const {colors: palette} = useAppearance();
+  const t = {
+    lime: {bg: palette.limeSoft, fg: palette.limeDark},
+    amber: {bg: palette.amberSoft, fg: palette.amber},
+    info: {bg: palette.infoSoft, fg: palette.info},
+    slate: {bg: palette.slateSoft, fg: palette.inkSoft},
+    danger: {bg: palette.dangerSoft, fg: palette.danger},
+    dark: {bg: palette.bg, fg: palette.lime},
+  }[tone];
   return (
     <View style={[styles.pill, {backgroundColor: t.bg}]}>
       {dot && <View style={[styles.dot, {backgroundColor: t.fg}]} />}
@@ -58,6 +61,8 @@ const STATUS_TONE: Record<ConnectorStatus, Tone> = {
 };
 
 export function StatusBadge({status}: {status: ConnectorStatus}) {
+  useAppearance();
+
   return (
     <Pill
       label={connectorStatusLabel(status)}
@@ -91,6 +96,9 @@ export function ConfidenceBadge({
   subject?: string;
   showAge?: boolean;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const trust = dataTrust(feed, now);
   const stale = isStale(feed, now);
   const age = timeAgo(feed.updatedAt, now);
@@ -118,6 +126,8 @@ export function ConfidenceBadge({
 }
 
 export function ConfidencePill({confidence}: {confidence: Confidence}) {
+  useAppearance();
+
   const tone: Tone =
     confidence === 'high' ? 'lime' : confidence === 'medium' ? 'info' : 'slate';
   return <Pill label={CONFIDENCE_LABEL[confidence]} tone={tone} />;
@@ -134,6 +144,9 @@ export function ConnectorChip({
   onPress?: () => void;
   compatible?: boolean;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const dotColor =
     connector.status === 'available'
       ? colors.limeDark
@@ -176,7 +189,7 @@ export function typeLabel(t: ConnectorType): string {
   return t === 'Type2' ? 'Type 2 (AC)' : t === 'GBT' ? 'GB/T' : t;
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -205,7 +218,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.inputBorder,
   },
-  chipSelected: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  chipSelected: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   chipDim: {opacity: 0.55},
   chipText: {...type.label, color: colors.ink},
   chipTextSelected: {color: colors.ink},

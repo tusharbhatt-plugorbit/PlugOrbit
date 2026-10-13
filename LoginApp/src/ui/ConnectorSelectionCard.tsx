@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import type {ConnectorType} from '../domain/types';
@@ -35,6 +36,9 @@ export function ConnectorSelectionCard({
   onPress,
   testID,
 }: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const info = CONNECTOR_INFO[connector];
   const body = (
     <>
@@ -57,7 +61,7 @@ export function ConnectorSelectionCard({
             : styles.markHidden,
         ]}>
         {selected && (
-          <Icon name="check" size={14} color={colors.ink} strokeWidth={3} />
+          <Icon name="check" size={14} color={colors.onAccent} strokeWidth={3} />
         )}
       </View>
     </>
@@ -92,7 +96,7 @@ export function ConnectorSelectionCard({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 130,
@@ -105,7 +109,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.md,
   },
-  cardSelected: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  cardSelected: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   pressed: {opacity: 0.9},
   picture: {
     width: 84,
@@ -137,6 +141,8 @@ const styles = StyleSheet.create({
 
 /** A small connector picture + name, for summaries ("Chargers with ..."). */
 export function ConnectorTag({type: connector}: {type: ConnectorType}) {
+  useAppearance();
+
   return (
     <View style={tagStyles.tag}>
       <ConnectorImage type={connector} size={24} />

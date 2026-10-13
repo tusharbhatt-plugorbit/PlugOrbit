@@ -24,15 +24,10 @@ import type {
   Vehicle,
   WaitEstimate,
 } from '../domain/types';
-import type { CopilotAnswer, QuestionId } from '../intelligence/explain';
-import type { EventInput } from '../intelligence/sessionBridge';
-import type {
-  ActiveTrip,
-  AssistMode,
-  TripOutcome,
-  TripUpdate,
-} from '../intelligence/types';
-import type { Coords } from '../utils/geo';
+import type {CopilotAnswer, QuestionId} from '../intelligence/explain';
+import type {EventInput} from '../intelligence/sessionBridge';
+import type {ActiveTrip, TripOutcome, TripUpdate} from '../intelligence/types';
+import type {Coords} from '../utils/geo';
 
 /**
  * Service contracts. The mock implementations in ./mock back every screen today;
@@ -78,12 +73,12 @@ export class IntegrationUnavailableError extends Error {
   }
 }
 
-export type VehicleModel = Omit<Vehicle, 'id'> & { modelId: string };
+export type VehicleModel = Omit<Vehicle, 'id'> & {modelId: string};
 
 export interface VehicleService {
   catalog(): Promise<VehicleModel[]>;
   /** Persist a vehicle (adds or updates) and make it active. */
-  save(vehicle: Omit<Vehicle, 'id'> & { id?: string }): Promise<Vehicle>;
+  save(vehicle: Omit<Vehicle, 'id'> & {id?: string}): Promise<Vehicle>;
   setActive(vehicleId: string): Promise<void>;
   remove(vehicleId: string): Promise<void>;
   setBattery(percent: number): Promise<BatteryReading>;
@@ -115,7 +110,7 @@ export interface StationService {
     stationId: string,
     kind: CommunityUpdate['kind'],
   ): Promise<CommunityUpdate>;
-  report(report: ProblemReport): Promise<{ ticketId: string }>;
+  report(report: ProblemReport): Promise<{ticketId: string}>;
   /** Join the queue / leave it (TODO(integration): operator queue API). */
   joinQueue(stationId: string): Promise<QueueTicket>;
   leaveQueue(): Promise<void>;
@@ -141,6 +136,7 @@ export type EnergyPlan = {
 };
 
 export interface RouteService {
+  chooseStation?(route: Route, stationId: string): Promise<Route>;
   plan(request: RouteRequest): Promise<Route>;
   energyPlan(request: RouteRequest): Promise<EnergyPlan>;
   /** Re-plan a stop onto its backup; returns the updated route. */
@@ -189,6 +185,8 @@ export interface PaymentService {
 }
 
 export interface SupportService {
+  list?(): Promise<Ticket[]>;
+  get?(ticketId: string): Promise<Ticket>;
   createTicket(input: {
     category: TicketCategory;
     title: string;
@@ -213,15 +211,12 @@ export interface PreferencesService {
 }
 
 export type StartSmartDriveInput = {
+  fromCoords?: {latitude: number; longitude: number};
+  toCoords?: {latitude: number; longitude: number};
   fromLabel: string;
-  /** Device GPS origin, when the driver uses their current location. */
-  fromCoords?: import('../utils/geo').Coords;
   toLabel: string;
   /** Defaults to the battery on record. */
   startSoc?: number;
-  /** Per-journey overrides; never overwrite the driver's saved preferences. */
-  reservePct?: number;
-  strategy?: TripPreferences['strategy'];
 };
 
 /**
@@ -255,8 +250,6 @@ export interface SmartDriveService {
   setEnabled(enabled: boolean): Promise<void>;
   /** `minimal` lets only plan changes and safety alerts through. */
   setVerbosity(verbosity: 'calm' | 'minimal'): Promise<void>;
-  /** Guided recommends and waits to be asked; assist also volunteers suggestions. */
-  setMode(mode: AssistMode): Promise<void>;
   /** Remember that the driver doesn't want this preference suggestion again. */
   dismissSuggestion(id: string): Promise<void>;
   /** Finish (or abandon) the trip; keeps prediction versus reality. */
@@ -290,4 +283,4 @@ export type Services = {
   preferences: PreferencesService;
 };
 
-export type { AppNotification, SessionSummary, Station };
+export type {AppNotification, SessionSummary, Station};

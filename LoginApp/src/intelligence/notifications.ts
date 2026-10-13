@@ -5,7 +5,6 @@ import {PHRASES, kmLabel, minutesLabel, pctLabel} from './copy';
 import {mayClaimLive} from './safety';
 import type {
   ActiveTrip,
-  AssistMode,
   Decision,
   NotificationAction,
   NotificationDraft,
@@ -42,17 +41,6 @@ const HELD_WORTH_MENTIONING_MIN = 3;
 /** At most this many critical alerts per trip: they must stay rare. */
 export const MAX_CRITICAL_PER_TRIP = 3;
 
-/**
- * What Guided mode never volunteers: optional improvements and heads-ups about
- * options. Everything the plan itself depends on (the stop ahead, an unusable
- * charger, a low battery, payment, going offline) still gets through.
- */
-export const GUIDED_HOLDS_BACK: ReadonlySet<NotificationKind> = new Set([
-  'better_charger',
-  'charger_getting_busy',
-  'limited_options',
-]);
-
 export type NotifyInput = {
   prev: ActiveTrip;
   next: ActiveTrip;
@@ -60,8 +48,6 @@ export type NotifyInput = {
   config: SmartDriveConfig;
   /** "Quiet" verbosity: only IMPORTANT and CRITICAL get through. */
   quiet: boolean;
-  /** `guided` holds back suggestions (see GUIDED_HOLDS_BACK). Default `assist`. */
-  mode?: AssistMode;
   now: number;
 };
 
@@ -682,16 +668,6 @@ function resolve(args: {
         });
         return;
       }
-    }
-    if (input.mode === 'guided' && GUIDED_HOLDS_BACK.has(d.kind)) {
-      out.push({
-        at: now,
-        noticed: c.noticed,
-        notify: false,
-        why: 'Guided mode: suggestions wait until you ask.',
-        draft: null,
-      });
-      return;
     }
     if (quiet && LEVEL_RANK[d.level] < LEVEL_RANK.important) {
       out.push({

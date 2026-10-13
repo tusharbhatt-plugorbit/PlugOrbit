@@ -1,18 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- "Near me": current location (fine = GPS, coarse = approximate). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Orbit Assist voice: the microphone is used only while the driver taps to talk. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Android 11+ package visibility: find the phone's speech recogniser and text-to-speech engine. -->
-    <queries>
-      <intent><action android:name="android.speech.RecognitionService" /></intent>
-      <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
-    </queries>
 
     <application
       android:name=".MainApplication"
@@ -21,8 +12,10 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
+      android:networkSecurityConfig="@xml/network_security_config"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
       <!-- Google Maps SDK key, injected from LoginApp/.env (see app/build.gradle). -->
       <meta-data
         android:name="com.google.android.geo.API_KEY"

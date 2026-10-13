@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -49,6 +50,9 @@ const OUTLOOK_WORDS = {
  * the engines already made; none of it can override a safety rule.
  */
 export default function SmartDriveStopScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const active = useIsActiveRef();
   const {smartDrive} = useServices();
@@ -71,10 +75,10 @@ export default function SmartDriveStopScreen(): React.JSX.Element {
           body={
             trip
               ? `Your battery covers the trip. ${PHRASES.noActionNeeded}`
-              : 'Plan a journey and we’ll pick your stop and a backup before you need them.'
+              : 'Start Smart Drive and we’ll pick your stop and a backup before you need them.'
           }
           primary={{
-            label: trip ? 'Back to your trip' : 'Plan a journey',
+            label: trip ? 'Back to your trip' : 'Start Smart Drive',
             icon: 'sparkles',
             onPress: () => nav.replace('SmartDrive'),
           }}
@@ -321,7 +325,7 @@ export default function SmartDriveStopScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fine: {
     ...type.caption,
     color: colors.muted,

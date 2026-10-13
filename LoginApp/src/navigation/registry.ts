@@ -1,6 +1,8 @@
 import type {Registry} from './AppNavigator';
 
 import ActivityScreen from '../screens/activity/ActivityScreen';
+import AIAssistantScreen from '../screens/activity/AIAssistantScreen';
+import ReferFriendScreen from '../screens/profile/ReferFriendScreen';
 import AlertsScreen from '../screens/activity/AlertsScreen';
 import FeedbackScreen from '../screens/activity/FeedbackScreen';
 import NotificationsScreen from '../screens/activity/NotificationsScreen';
@@ -8,6 +10,7 @@ import ReportProblemScreen from '../screens/activity/ReportProblemScreen';
 import RoadsideScreen from '../screens/activity/RoadsideScreen';
 import SessionDetailScreen from '../screens/activity/SessionDetailScreen';
 import SupportScreen from '../screens/activity/SupportScreen';
+import SupportAgentScreen from '../screens/activity/SupportAgentScreen';
 import TicketDetailScreen from '../screens/activity/TicketDetailScreen';
 import ActiveSessionScreen from '../screens/charge/ActiveSessionScreen';
 import ChargeScreen from '../screens/charge/ChargeScreen';
@@ -27,14 +30,12 @@ import SavedScreen from '../screens/discover/SavedScreen';
 import StationDetailScreen from '../screens/discover/StationDetailScreen';
 import StationListScreen from '../screens/discover/StationListScreen';
 import HomeScreen from '../screens/home/HomeScreen';
-import MapScreen from '../screens/discover/MapScreen';
 import LanguageScreen from '../screens/profile/LanguageScreen';
 import PaymentMethodsScreen from '../screens/profile/PaymentMethodsScreen';
 import PlusScreen from '../screens/profile/PlusScreen';
 import PresenterToolsScreen from '../screens/profile/PresenterToolsScreen';
 import PrivacyScreen from '../screens/profile/PrivacyScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
-import AssistantScreen from '../screens/assistant/AssistantScreen';
 import SmartDriveScreen from '../screens/smartdrive/SmartDriveScreen';
 import SmartDriveStopScreen from '../screens/smartdrive/SmartDriveStopScreen';
 import BackupAlertScreen from '../screens/trip/BackupAlertScreen';
@@ -71,7 +72,6 @@ export const REGISTRY: Registry = {
   AutoSoc: {component: AutoSocScreen},
 
   // Discover
-  Map: {component: MapScreen, tabBar: true, tab: 'Home'},
   StationList: {component: StationListScreen, tabBar: true, tab: 'Home'},
   Filters: {component: FiltersScreen},
   StationDetail: {component: StationDetailScreen},
@@ -106,6 +106,7 @@ export const REGISTRY: Registry = {
   Feedback: {component: FeedbackScreen},
   ReportProblem: {component: ReportProblemScreen},
   Support: {component: SupportScreen, tabBar: true, tab: 'Profile'},
+  SupportAgent: {component: SupportAgentScreen},
   TicketDetail: {component: TicketDetailScreen},
   Notifications: {component: NotificationsScreen, tabBar: true, tab: 'Home'},
   Alerts: {component: AlertsScreen},
@@ -114,7 +115,9 @@ export const REGISTRY: Registry = {
   // Smart Drive
   SmartDrive: {component: SmartDriveScreen},
   SmartDriveStop: {component: SmartDriveStopScreen},
-  Assistant: {component: AssistantScreen},
+
+  AIAssistant: {component: AIAssistantScreen},
+  ReferFriend: {component: ReferFriendScreen},
 
   // Profile
   PaymentMethods: {component: PaymentMethodsScreen},

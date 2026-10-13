@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -29,6 +30,7 @@ import {
   showToast,
 } from '../../ui';
 import {ConfirmActionSheet} from '../../ui/ConfirmActionSheet';
+import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 type Kind = 'upi' | 'card';
 const KINDS = [
@@ -41,6 +43,9 @@ const KINDS = [
  * place a hold first); unverified ones are explained, not hidden.
  */
 export default function PaymentMethodsScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const {payment} = useServices();
   const methods = useApp(s => s.paymentMethods);
 
@@ -277,13 +282,13 @@ export default function PaymentMethodsScreen(): React.JSX.Element {
           disabled={saving}
           onPress={() => setAdding(false)}
         />
-
+        <KeyboardSpacer />
       </BottomSheet>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   gap: {marginTop: spacing.md},
   hint: {...type.caption, color: colors.muted, marginTop: spacing.lg},
   list: {gap: spacing.md, marginTop: spacing.sm},

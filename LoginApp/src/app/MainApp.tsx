@@ -6,8 +6,6 @@ import {REGISTRY} from '../navigation/registry';
 import {useServices} from '../services';
 import {appStore, flushAppStore, useApp} from '../store/appStore';
 import {TabBar, ToastHost, showToast} from '../ui';
-import {AssistantBridge} from '../assistant/runtime';
-import {AssistantOverlay} from './FloatingAssistant';
 import {BootPlan, planBoot} from './initialStack';
 import {SessionBanner} from './SessionBanner';
 import {useSmartDriveRuntime} from './useSmartDriveRuntime';
@@ -65,8 +63,6 @@ export default function MainApp({bootOverride}: Props): React.JSX.Element {
       overlay={
         <>
           <SessionBanner />
-          <AssistantBridge />
-          <AssistantOverlay />
           <ToastHost />
         </>
       }

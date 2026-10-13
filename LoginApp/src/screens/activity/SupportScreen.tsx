@@ -1,6 +1,8 @@
-import React, {useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useEffect, useState} from 'react';
+import {supportAgentAccess} from '../../services/support';
 import {Linking, Pressable, StyleSheet, Text, View} from 'react-native';
-import {SUPPORT_PHONE, SUPPORT_WHATSAPP_URL} from '../../config/support';
+import {SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_WHATSAPP_URL} from '../../config/support';
 import {describeError} from '../../domain/describeError';
 import type {TicketCategory} from '../../domain/types';
 import {useNavigation} from '../../navigation/NavigationContext';
@@ -23,13 +25,20 @@ import {
   SupportTicketCard,
   TextField,
 } from '../../ui';
+import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 const CATEGORIES: ReadonlyArray<{
   value: TicketCategory;
   title: string;
   sub: string;
-  icon: 'zap' | 'credit-card' | 'map-pin';
+  icon: 'zap' | 'credit-card' | 'map-pin' | 'smartphone';
 }> = [
+  {
+    value: 'other',
+    title: 'App or login issue',
+    sub: 'Sign-in, QR camera, receipts, sync',
+    icon: 'smartphone',
+  },
   {
     value: 'charging',
     title: 'Charging issue',
@@ -67,8 +76,18 @@ const FAQ = [
 
 /** 22 Support center. */
 export default function SupportScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {support} = useServices();
+  const [agent, setAgent] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    support.list?.().catch(() => {});
+    supportAgentAccess().then(value => {if (alive) setAgent(value);}).catch(() => {});
+    return () => {alive = false;};
+  }, [support]);
   const tickets = useApp(s => s.tickets);
   const history = useApp(s => s.history);
   const plus = useApp(s => s.plus.active);
@@ -127,6 +146,7 @@ export default function SupportScreen(): React.JSX.Element {
         <Pill label="Priority support • Plus" tone="lime" icon="crown" />
       )}
 
+      {agent && <ListCard><ListRow icon="message-circle" title="Support agent inbox" subtitle="Review tickets and send human replies" onPress={() => nav.navigate('SupportAgent')} last /></ListCard>}
       <SectionTitle title="How can we help?" />
       <ListCard>
         {CATEGORIES.map((c, i) => (
@@ -149,18 +169,20 @@ export default function SupportScreen(): React.JSX.Element {
       </ListCard>
 
       <ListCard>
+        <ListRow icon="mail" title="Email us" subtitle={SUPPORT_EMAIL}
+          onPress={() => contact(`mailto:${SUPPORT_EMAIL}?subject=PlugOrbit%20support`, 'email')} />
         <ListRow
           icon="phone"
           title="Call us"
-          subtitle="Talk to a person"
-          onPress={() => contact(`tel:${SUPPORT_PHONE}`, 'the phone')}
+          subtitle={SUPPORT_PHONE || "Phone support is being configured"}
+          onPress={() => SUPPORT_PHONE ? contact(`tel:${SUPPORT_PHONE}`, 'the phone') : showToast('Please email support while phone support is being configured.', 'info')}
         />
         <ListRow
           icon="message-circle"
           iconTone="lime"
           title="WhatsApp"
-          subtitle="Message us, we reply here too"
-          onPress={() => contact(SUPPORT_WHATSAPP_URL, 'WhatsApp')}
+          subtitle={SUPPORT_WHATSAPP_URL ? "Message PlugOrbit support" : "WhatsApp support is being configured"}
+          onPress={() => SUPPORT_WHATSAPP_URL ? contact(SUPPORT_WHATSAPP_URL, 'WhatsApp') : showToast('Please email support while WhatsApp is being configured.', 'info')}
           last
         />
       </ListCard>
@@ -221,12 +243,14 @@ export default function SupportScreen(): React.JSX.Element {
         }>
         <TextField
           label="Summary"
+          maxLength={200}
           value={title}
           onChangeText={setTitle}
           placeholder="e.g. Charger stopped at 55%"
         />
         <TextField
           label="What happened?"
+          maxLength={2000}
           value={message}
           onChangeText={setMessage}
           placeholder="Tell us what you saw"
@@ -253,13 +277,13 @@ export default function SupportScreen(): React.JSX.Element {
         {error && (
           <Notice tone="danger" title="Couldn’t open ticket" body={error} />
         )}
-
+        <KeyboardSpacer />
       </BottomSheet>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   faq: {gap: spacing.sm},
   faqItem: {
     backgroundColor: colors.surface,

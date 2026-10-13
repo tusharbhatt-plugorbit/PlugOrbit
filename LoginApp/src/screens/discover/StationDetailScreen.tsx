@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {whyRecommended} from '../../domain/discover';
@@ -21,7 +22,7 @@ import type {
 } from '../../domain/types';
 import {loadStationsById} from '../../hooks/useDiscoverStations';
 import {useNavigation, useRoute} from '../../navigation/NavigationContext';
-import {RUNS_ON_DEMO_DATA, useServices} from '../../services';
+import {useServices} from '../../services';
 import {OfflineError} from '../../services/types';
 import {selectActiveVehicle, useApp} from '../../store/appStore';
 import {useDemo} from '../../store/demoStore';
@@ -51,6 +52,7 @@ import {
 } from '../../ui';
 import type {Resource} from '../../ui/useResource';
 import {AmenityPills} from '../../ui/DiscoverParts';
+import {NearbyAmenities} from '../../ui/NearbyAmenities';
 import {
   ConnectorPanel,
   OperatorInstructionsCard,
@@ -75,6 +77,9 @@ function Section({
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.section}>
       <SectionTitle title={title} action={action} />
@@ -107,6 +112,9 @@ function WaitCard({
   onJoin: () => void;
   disabled: boolean;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const basis =
     wait === null
       ? 'We couldn’t estimate the wait just now.'
@@ -160,6 +168,9 @@ function CommunityPreview({
   now: number;
   onOpen: () => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const latest = (updates ?? [])
     .slice()
     .sort((a, b) => b.at - a.at)
@@ -212,6 +223,9 @@ function Alternatives({
   now: number;
   onOpen: (id: string) => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   if (resource.data === null) {
     return resource.status === 'loading' ? (
       <CardSkeleton lines={3} />
@@ -275,6 +289,10 @@ function StationDetailLoaded({
   refreshing,
   reload,
 }: LoadedProps) {
+  const [amenityQuery, setAmenityQuery] = useState('');
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow();
   const {station: stationService} = useServices();
@@ -421,13 +439,6 @@ function StationDetailLoaded({
           onToggleFavourite={toggleFavourite}
         />
 
-        {RUNS_ON_DEMO_DATA && (
-          <Text style={styles.demoNote}>
-            Demo data: status and prices here are simulated, not a live operator
-            feed.
-          </Text>
-        )}
-
         {unconfirmed && (
           <Notice
             tone="warn"
@@ -562,9 +573,10 @@ function StationDetailLoaded({
 
         {station.amenities.length > 0 && (
           <Section title="Amenities">
-            <AmenityPills amenities={station.amenities} />
+            <AmenityPills amenities={station.amenities} onSelect={a => setAmenityQuery(a === "cafe" ? "cafes" : a === "food" ? "restaurants" : a === "restroom" ? "public toilets" : a === "wifi" ? "cafes with Wi-Fi" : a)} />
           </Section>
         )}
+        <Section title="Nearby amenities"><NearbyAmenities station={station} initialQuery={amenityQuery} /></Section>
 
         <CommunityPreview
           updates={communityRes.data}
@@ -628,6 +640,9 @@ function StationDetailLoaded({
 
 /** 06 Station detail. */
 export default function StationDetailScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'StationDetail'>();
   const {station: stationService} = useServices();
@@ -685,9 +700,8 @@ export default function StationDetailScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
-  demoNote: {...type.caption, color: colors.muted},
   stack: {gap: spacing.md},
   section: {},
   sectionBody: {gap: spacing.md},

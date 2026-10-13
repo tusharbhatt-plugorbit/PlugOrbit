@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -37,6 +38,9 @@ function slotsFrom(now: number): number[] {
  * bay. TODO(integration): operator reservation API.
  */
 export default function ReservationScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'Reservation'>();
   const {station: stationService} = useServices();
@@ -200,7 +204,7 @@ export default function ReservationScreen(): React.JSX.Element {
                           <Icon
                             name="check"
                             size={13}
-                            color={colors.ink}
+                            color={colors.onAccent}
                             strokeWidth={3}
                           />
                         )}
@@ -240,7 +244,7 @@ export default function ReservationScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.h1, color: colors.ink},
   sub: {...type.body, color: colors.muted},
   kicker: {...type.micro, color: colors.limeDark, textTransform: 'uppercase'},
@@ -263,7 +267,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  slotOn: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  slotOn: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   slotTime: {...type.heading, color: colors.ink},
   radio: {
     width: 24,

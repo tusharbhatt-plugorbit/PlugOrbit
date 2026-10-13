@@ -1,18 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import {useAppearance, useThemedStyles} from '../appearance';
+import React, {useEffect, useRef} from 'react';
 import {
   Animated,
   Easing,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, sizes, spacing, type } from '../theme';
-import { Icon } from './Icon';
-import { KeyboardAvoider, KeyboardAwareScrollView } from './KeyboardAware';
-import { useReducedMotion } from './useReducedMotion';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {colors, radii, sizes, spacing, type} from '../theme';
+import {Icon} from './Icon';
 
 type Props = {
   visible: boolean;
@@ -36,20 +38,20 @@ export function BottomSheet({
   dismissable = true,
   testID,
 }: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const insets = useSafeAreaInsets();
-  const reducedMotion = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const animation = Animated.timing(progress, {
+    Animated.timing(progress, {
       toValue: visible ? 1 : 0,
-      duration: reducedMotion ? 0 : 220,
+      duration: 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [visible, progress, reducedMotion]);
+    }).start();
+  }, [visible, progress]);
 
   return (
     <Modal
@@ -57,10 +59,9 @@ export function BottomSheet({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={dismissable ? onClose : undefined}
-    >
-      <KeyboardAvoider style={styles.root} testID={testID}>
-        <Animated.View style={[styles.scrim, { opacity: progress }]}>
+      onRequestClose={dismissable ? onClose : undefined}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.root} testID={testID}>
+        <Animated.View style={[styles.scrim, {opacity: progress}]}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={dismissable ? onClose : undefined}
@@ -82,8 +83,7 @@ export function BottomSheet({
                 },
               ],
             },
-          ]}
-        >
+          ]}>
           <View style={styles.grabber} />
           {title ? (
             <View style={styles.titleRow}>
@@ -96,32 +96,32 @@ export function BottomSheet({
                   hitSlop={12}
                   accessibilityRole="button"
                   accessibilityLabel="Close"
-                  style={styles.close}
-                >
+                  style={styles.close}>
                   <Icon name="x" size={16} color={colors.ink} />
                 </Pressable>
               )}
             </View>
           ) : null}
-          <KeyboardAwareScrollView
+          <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
             {children}
-          </KeyboardAwareScrollView>
+          </ScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
-      </KeyboardAvoider>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
+const baseStyles = StyleSheet.create({
+  root: {flex: 1, justifyContent: 'flex-end'},
+  scrim: {...StyleSheet.absoluteFill, backgroundColor: colors.scrim},
   sheet: {
-    flexShrink: 1,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
@@ -146,16 +146,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  title: { ...type.h1, color: colors.ink, flex: 1 },
+  title: {...type.h1, color: colors.ink, flex: 1},
   close: {
-    width: 44,
-    height: 44,
+    width: 32,
+    height: 32,
     borderRadius: 16,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
-  scrollContent: { paddingBottom: spacing.md, gap: spacing.md },
-  footer: { paddingTop: spacing.sm, gap: spacing.sm },
+  scroll: {flexGrow: 0},
+  scrollContent: {paddingBottom: spacing.md, gap: spacing.md},
+  footer: {paddingTop: spacing.sm, gap: spacing.sm},
 });

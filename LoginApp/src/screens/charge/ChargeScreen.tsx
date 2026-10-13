@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {billFor} from '../../domain/sessionBill';
@@ -30,6 +31,9 @@ import {useHeldReservation} from '../../ui/useHeldReservation';
  * pick up the one in progress.
  */
 export default function ChargeScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow(30_000);
   const vehicle = useApp(selectActiveVehicle);
@@ -228,14 +232,14 @@ export default function ChargeScreen(): React.JSX.Element {
           label="Find a charger on the map"
           icon="map"
           compact
-          onPress={() => nav.navigate('Map')}
+          onPress={() => nav.switchTab('Home')}
         />
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
   heroTitle: {...type.h1, color: '#FFFFFF', marginTop: 6},
   heroSub: {...type.body, color: colors.chipText, marginTop: 6},

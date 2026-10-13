@@ -66,11 +66,17 @@ def check_web_api_key() -> str:
     # A lookup of a junk token has no side effects: a valid key is answered with an error
     # about the token, an invalid key with "API key not valid".
     resp = httpx.post(IDENTITY_LOOKUP, params={"key": key}, json={"idToken": "not-a-token"}, timeout=15)
-    message = str(resp.json().get("error", {}).get("message", ""))
+    try:
+        message = str(resp.json().get("error", {}).get("message", ""))
+    except (ValueError, AttributeError):
+        raise RuntimeError("Firebase returned an unreadable response; the Web API key could not be verified.") from None
     if message.startswith("API key not valid"):
         raise RuntimeError("Google rejected FIREBASE_WEB_API_KEY. Copy it again from Project settings.")
     if message.startswith("CONFIGURATION_NOT_FOUND"):
         raise RuntimeError("Key accepted, but Firebase Authentication is not set up yet (see the Auth check).")
+    if resp.status_code != 400 or message.split(":", 1)[0].strip() != "INVALID_ID_TOKEN":
+        raise RuntimeError(f"Firebase did not confirm the Web API key (HTTP {resp.status_code}). "
+                           "Check API restrictions, Authentication setup and service availability.")
     return "key accepted"
 
 

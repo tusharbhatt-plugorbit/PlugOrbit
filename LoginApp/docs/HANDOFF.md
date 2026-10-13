@@ -26,22 +26,6 @@ Status of the 40-screen showcase build against `docs/PRODUCT_SPEC.md`.
 - **Google location + Maps + Places (nearby chargers)** with separate keys, see
   the README.
 
-## Redesign pass (Orbit Assist, dashboard, keyboard)
-
-A later pass (branch `claude/lucid-allen-5zvsxs`) redesigned sign-in and Home, fixed
-keyboard handling, added Orbit Assist modes, and fixed two integrity bugs. Everything
-is in [`REDESIGN_REPORT.md`](REDESIGN_REPORT.md); Orbit Assist's capability map is in
-[`ORBIT_ASSIST.md`](ORBIT_ASSIST.md). Counts quoted elsewhere in this file predate it
-(now 47 suites, 787 tests).
-
-## Conversational Orbit Assist (voice + LLM)
-
-Added on `claude/kind-hopper-bznav8`: a Claude-backed assistant behind a new Python gateway
-(`Backend/app/ai`), device-side tools over the existing services and engine, push-to-talk
-voice, proactive relay of engine alerts, a full screen, a sheet and driving mode. Full
-reference, setup, costs and the list of unverified/unbuilt parts:
-[`ASSISTANT_AI.md`](ASSISTANT_AI.md). Needs a real model key and a device pass before release.
-
 ## Smart Drive (automated charging co-pilot)
 
 Added on the `Automated_App_mode` branch. Full reference:

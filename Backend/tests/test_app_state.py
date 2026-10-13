@@ -45,6 +45,10 @@ class FakeCol:
     def document(self, doc_id):
         return FakeDoc(self.db, self.path + (doc_id,))
 
+    def where(self, *, filter):
+        snapshots = list(self.stream())
+        return SimpleNamespace(stream=lambda: (snap for snap in snapshots if snap.to_dict().get(filter.field_path) == filter.value))
+
     def stream(self):
         for path, data in list(self.db.data.items()):
             if len(path) == len(self.path) + 1 and path[:-1] == self.path:
@@ -58,10 +62,16 @@ class FakeBatch:
     def set(self, ref, data):
         self.ops.append((ref, data))
 
+    def delete(self, ref):
+        self.ops.append((ref, None))
+
     def commit(self):
         if self.db.error:
             raise self.db.error
         for ref, data in self.ops:
+            if data is None:
+                self.db.data.pop(ref.path, None)
+                continue
             self.db.data[ref.path] = {k: NOW if v is firestore.SERVER_TIMESTAMP else v for k, v in data.items()}
         return [SimpleNamespace(update_time=NOW) for _ in self.ops]
 
@@ -235,7 +245,11 @@ def test_deleting_an_account_removes_its_synced_data(db, monkeypatch):
     app_state.put_state("u2", {"history": [{"id": "b"}]})
     deleted = []
     monkeypatch.setattr(users.auth, "delete_user", deleted.append)
+    db.data[("support_tickets", "own")] = {"ownerUid": "u1", "title": "Private issue"}
+    db.data[("support_tickets", "other")] = {"ownerUid": "u2", "title": "Neighbour issue"}
     users.delete_user("u1")
+    assert ("support_tickets", "own") not in db.data
+    assert ("support_tickets", "other") in db.data
     assert db.recursively_deleted == [("users", "u1")]
     assert app_state.list_state("u1") == {}
     assert app_state.list_state("u2")["history"]["value"] == [{"id": "b"}]  # neighbours untouched

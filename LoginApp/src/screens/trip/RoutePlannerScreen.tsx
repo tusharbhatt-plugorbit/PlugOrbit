@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useState, useCallback} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import type {RouteStrategy} from '../../domain/types';
@@ -22,6 +23,9 @@ import {
   TextButton,
   VehicleSelector,
 } from '../../ui';
+import {getCurrentLocation} from '../../services/location';
+import type {Coords} from '../../utils/geo';
+import type {AddressChoice} from '../../services/addressSearch';
 import {PlaceField} from '../../ui/PlaceField';
 
 const STRATEGIES: ReadonlyArray<{value: RouteStrategy; label: string}> = [
@@ -32,6 +36,9 @@ const STRATEGIES: ReadonlyArray<{value: RouteStrategy; label: string}> = [
 
 /** 08 Plan a trip. Plans with the active car, the current battery and your reserve. */
 export default function RoutePlannerScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const active = useIsActiveRef();
   const {params} = useRoute<'RoutePlanner'>();
@@ -40,8 +47,13 @@ export default function RoutePlannerScreen(): React.JSX.Element {
   const battery = useApp(s => s.battery);
   const prefs = useApp(s => s.tripPrefs);
 
-  const [from, setFrom] = useState(params?.fromLabel ?? 'Delhi');
+  const [from, setFrom] = useState(params?.fromLabel ?? '');
   const [to, setTo] = useState(params?.toLabel ?? '');
+  const [fromCoords, setFromCoords] = useState<Coords | undefined>(params?.fromCoords);
+  const [toCoords, setToCoords] = useState<Coords | undefined>(params?.toCoords);
+  const [locating, setLocating] = useState(false);
+  const selectFrom = useCallback((place: AddressChoice) => setFromCoords(place.coords), []);
+  const selectTo = useCallback((place: AddressChoice) => setToCoords(place.coords), []);
   const [strategy, setStrategy] = useState<RouteStrategy>(prefs.strategy);
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<{
@@ -80,6 +92,8 @@ export default function RoutePlannerScreen(): React.JSX.Element {
     setError(null);
     try {
       const route = await routeService.plan({
+        fromCoords,
+        toCoords,
         fromLabel: from.trim(),
         toLabel: to.trim(),
         startSoc: soc,
@@ -96,7 +110,7 @@ export default function RoutePlannerScreen(): React.JSX.Element {
     } catch (e) {
       const copy = describeError(e, 'We couldn’t plan this trip.');
       setError({
-        title: copy.title,
+        title: copy.kind === 'api' ? 'Could not plan this route' : copy.title,
         body:
           copy.kind === 'api'
             ? copy.body.replace(/^We couldn’t plan this trip\.\s*/, '')
@@ -127,16 +141,30 @@ export default function RoutePlannerScreen(): React.JSX.Element {
           <PlaceField
             label="From"
             value={from}
-            onChangeText={setFrom}
-            placeholder="Start city"
+            onChangeText={text => {setFrom(text); setFromCoords(undefined);}}
+            onSelect={selectFrom}
+            placeholder="Search starting address or city"
             icon="navigation"
           />
+          <TextButton label={locating ? 'Finding your location...' : 'Use current location'}
+            icon="navigation" onPress={async () => {
+              if (locating) return;
+              setLocating(true); setError(null);
+              try {
+                const coords = await getCurrentLocation();
+                if (active.current) {setFrom('Current location'); setFromCoords(coords);}
+              } catch (e) {
+                if (active.current) setError({title: 'Location unavailable', body: e instanceof Error ? e.message : 'Search for your starting address instead.', offline: false});
+              } finally {if (active.current) setLocating(false);}
+            }} />
           <View style={styles.swapRow}>
             <IconButton
               icon="arrow-up-down"
               label="Swap start and destination"
               size={40}
               onPress={() => {
+                setFromCoords(toCoords);
+                setToCoords(fromCoords);
                 setFrom(to);
                 setTo(from);
               }}
@@ -145,8 +173,9 @@ export default function RoutePlannerScreen(): React.JSX.Element {
           <PlaceField
             label="To"
             value={to}
-            onChangeText={setTo}
-            placeholder="Destination city"
+            onChangeText={text => {setTo(text); setToCoords(undefined);}}
+            onSelect={selectTo}
+            placeholder="Search destination address or city"
             icon="flag"
             error={
               same ? 'Start and destination are the same place.' : undefined
@@ -202,7 +231,7 @@ export default function RoutePlannerScreen(): React.JSX.Element {
           title={error.title}
           body={error.body}
           action={
-            !error.offline && /charge|reach/i.test(error.body) ? (
+            !error.offline && /battery is below|battery.*not set/i.test(error.body) ? (
               <TextButton
                 label="Update battery"
                 onPress={() => nav.navigate('ManualSoc')}
@@ -215,7 +244,7 @@ export default function RoutePlannerScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.display, color: colors.ink},
   fields: {gap: spacing.sm},
   swapRow: {alignItems: 'flex-end', marginVertical: -4},

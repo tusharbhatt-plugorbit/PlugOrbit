@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {AMENITY_LABEL} from '../domain/discover';
@@ -28,13 +29,18 @@ export const AMENITY_ICON: Record<Amenity, IconName> = {
 
 export function AmenityPills({
   amenities,
+  onSelect,
 }: {
+  onSelect?: (amenity: Amenity) => void;
   amenities: readonly Amenity[];
 }): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View style={styles.pills}>
       {amenities.map(a => (
-        <Pill key={a} label={AMENITY_LABEL[a]} icon={AMENITY_ICON[a]} />
+        <Pressable key={a} accessibilityRole={onSelect ? "button" : undefined} accessibilityLabel={AMENITY_LABEL[a]} onPress={() => onSelect?.(a)}><Pill label={AMENITY_LABEL[a]} icon={AMENITY_ICON[a]} /></Pressable>
       ))}
     </View>
   );
@@ -53,6 +59,9 @@ export function HeaderChipRow<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <ScrollView
       horizontal
@@ -94,6 +103,9 @@ export function HeaderFilterButton({
   count: number;
   onPress: () => void;
 }): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -107,7 +119,7 @@ export function HeaderFilterButton({
       <Icon
         name="sliders-horizontal"
         size={20}
-        color={count > 0 ? colors.ink : '#FFFFFF'}
+        color={count > 0 ? colors.onAccent : '#FFFFFF'}
       />
       {count > 0 && (
         <View style={styles.filterBadge}>
@@ -126,6 +138,9 @@ export function CheckRow({
   text: string;
   tone?: 'good' | 'warn';
 }): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const good = tone === 'good';
   return (
     <View style={styles.checkRow}>
@@ -158,6 +173,9 @@ export function StatBlock({
   sub?: string;
   onDark?: boolean;
 }): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   return (
     <View
       style={styles.stat}
@@ -178,7 +196,7 @@ export function StatBlock({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   pills: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
   chipScroll: {flexGrow: 0},
   chipRow: {
@@ -191,14 +209,15 @@ const styles = StyleSheet.create({
     height: sizes.chip,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: colors.chipBorder,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipActive: {backgroundColor: colors.lime, borderColor: colors.lime},
-  chipPressed: {backgroundColor: colors.bgRaised},
-  chipText: {color: colors.chipText, fontSize: 14, fontWeight: '600'},
-  chipTextActive: {color: colors.ink, fontWeight: '800'},
+  chipPressed: {backgroundColor: colors.inputBg},
+  chipText: {color: colors.inkSoft, fontSize: 14, fontWeight: '600'},
+  chipTextActive: {color: colors.onAccent, fontWeight: '800'},
   pressed: {opacity: 0.85},
   filterBtn: {
     width: sizes.field,
@@ -237,9 +256,9 @@ const styles = StyleSheet.create({
   checkText: {...type.body, color: colors.inkSoft, flex: 1, lineHeight: 20},
   stat: {flex: 1, gap: 2},
   statLabel: {...type.micro, color: colors.muted, textTransform: 'uppercase'},
-  statLabelDark: {color: colors.placeholder},
+  statLabelDark: {color: colors.onDarkMuted},
   statValue: {...type.heading, color: colors.ink, marginTop: 2},
   statValueDark: {color: '#FFFFFF'},
   statSub: {...type.caption, color: colors.muted},
-  statSubDark: {color: colors.placeholder},
+  statSubDark: {color: colors.onDarkMuted},
 });

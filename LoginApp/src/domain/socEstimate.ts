@@ -82,7 +82,7 @@ export type SocSourceView = {
   /** True only when the number really came from the car and is still linked. */
   fromCar: boolean;
   label: string;
-  tone: 'lime' | 'info' | 'slate' | 'amber';
+  tone: 'lime' | 'info' | 'slate';
   detail: string;
 };
 
@@ -92,7 +92,7 @@ export type SocSourceView = {
  * still up; everything else is plainly manual or a stale reading.
  */
 export function describeSocSource(
-  link: {connected: boolean; simulated?: boolean},
+  link: {connected: boolean},
   battery: BatteryReading | null,
   now: number,
 ): SocSourceView | null {
@@ -100,16 +100,6 @@ export function describeSocSource(
     return null;
   }
   const age = timeAgo(battery.updatedAt, now);
-  // A connection made with the Presenter demo switch reads sample data, so it must
-  // never be described as coming from a car.
-  if (battery.source === 'vehicle' && link.simulated) {
-    return {
-      fromCar: false,
-      label: 'Demo reading',
-      tone: 'amber',
-      detail: `A sample reading from Presenter tools, ${age}. It isn’t from a real car.`,
-    };
-  }
   if (battery.source === 'trip_estimate') {
     return {
       fromCar: false,

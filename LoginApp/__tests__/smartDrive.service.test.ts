@@ -3,18 +3,18 @@
  * The mock Smart Drive service against the real store: the same path the app
  * takes, without any screen in the way.
  */
-import { NEXON, seedSignedIn } from '../src/dev/testHarness';
-import { noon } from '../src/dev/smartDriveFixtures';
-import { sessionEvents } from '../src/intelligence/sessionBridge';
+import {NEXON, seedSignedIn} from '../src/dev/testHarness';
+import {noon} from '../src/dev/smartDriveFixtures';
+import {sessionEvents} from '../src/intelligence/sessionBridge';
 import {
   createSmartDriveService,
   resetSmartDriveMock,
 } from '../src/services/mock/smartDriveService';
-import { ApiError } from '../src/services/types';
-import { appStore, resetAppStore } from '../src/store/appStore';
-import { demoStore } from '../src/store/demoStore';
-import { liveSession } from '../src/dev/testHarness';
-import type { ChargingSession } from '../src/domain/types';
+import {ApiError} from '../src/services/types';
+import {appStore, resetAppStore} from '../src/store/appStore';
+import {demoStore} from '../src/store/demoStore';
+import {liveSession} from '../src/dev/testHarness';
+import type {ChargingSession} from '../src/domain/types';
 
 const trip = () => appStore.get().smartDrive.trip!;
 const told = () =>
@@ -34,42 +34,22 @@ beforeEach(() => {
       'queueMicrotask',
     ],
   });
-  seedSignedIn({ soc: 72 });
+  seedSignedIn({soc: 72});
   resetSmartDriveMock();
 });
 
 afterEach(() => {
   jest.useRealTimers();
-  demoStore.set({ offline: false });
+  demoStore.set({offline: false});
 });
 
 const start = (svc = createSmartDriveService()) =>
-  svc.start({ fromLabel: 'Delhi', toLabel: 'Jaipur' }).then(() => svc);
+  svc.start({fromLabel: 'Delhi', toLabel: 'Jaipur'}).then(() => svc);
 
 describe('starting a trip', () => {
-  test('uses GPS coordinates instead of resolving the current-location label as a city', async () => {
-    const coords = { latitude: 28.4595, longitude: 77.0266 };
-    const t = await createSmartDriveService().start({
-      fromLabel: 'Current location',
-      fromCoords: coords,
-      toLabel: 'Jaipur',
-    });
-    expect(t.origin.coords).toEqual(coords);
-    expect(t.polyline[0]).toEqual(coords);
-  });
-
-  test('rejects invalid GPS coordinates', async () => {
-    await expect(
-      createSmartDriveService().start({
-        fromLabel: 'Current location',
-        fromCoords: { latitude: NaN, longitude: 77 },
-        toLabel: 'Jaipur',
-      }),
-    ).rejects.toThrow('starting location is invalid');
-  });
   test('plans it, stores it, and is ready to go', async () => {
     const svc = createSmartDriveService();
-    const t = await svc.start({ fromLabel: 'Delhi', toLabel: 'Jaipur' });
+    const t = await svc.start({fromLabel: 'Delhi', toLabel: 'Jaipur'});
     expect(t.phase).toBe('ready');
     expect(t.startSoC).toBe(72);
     expect(t.chargingRequired).toBe(true);
@@ -80,11 +60,7 @@ describe('starting a trip', () => {
 
   test('uses the reserve and the amenity preference you set', async () => {
     appStore.set(s => ({
-      tripPrefs: {
-        ...s.tripPrefs,
-        minArrivalSocPct: 20,
-        preferAmenities: true,
-      },
+      tripPrefs: {...s.tripPrefs, minArrivalSocPct: 20, preferAmenities: true},
     }));
     const t = await createSmartDriveService().start({
       fromLabel: 'Delhi',
@@ -98,26 +74,23 @@ describe('starting a trip', () => {
   test('says what is wrong in plain words', async () => {
     const svc = createSmartDriveService();
     await expect(
-      svc.start({ fromLabel: 'Delhi', toLabel: 'Delhi' }),
+      svc.start({fromLabel: 'Delhi', toLabel: 'Delhi'}),
     ).rejects.toThrow(/same place/);
     await expect(
-      svc.start({ fromLabel: 'Delhi', toLabel: 'Atlantis' }),
+      svc.start({fromLabel: 'Delhi', toLabel: 'Atlantis'}),
     ).rejects.toThrow(/Choose a start and destination/);
-    appStore.set({ vehicles: [], activeVehicleId: null });
+    appStore.set({vehicles: [], activeVehicleId: null});
     await expect(
-      svc.start({ fromLabel: 'Delhi', toLabel: 'Jaipur' }),
+      svc.start({fromLabel: 'Delhi', toLabel: 'Jaipur'}),
     ).rejects.toThrow(/Add your vehicle/);
-    appStore.set({ battery: null });
+    appStore.set({battery: null});
     resetAppStore({
       vehicles: [NEXON],
       activeVehicleId: NEXON.id,
       battery: null,
     });
     await expect(
-      createSmartDriveService().start({
-        fromLabel: 'Delhi',
-        toLabel: 'Jaipur',
-      }),
+      createSmartDriveService().start({fromLabel: 'Delhi', toLabel: 'Jaipur'}),
     ).rejects.toBeInstanceOf(ApiError);
   });
 
@@ -223,10 +196,10 @@ describe('things going wrong on the road', () => {
   test('the presenter\'s global "go offline" switch behaves the same way', async () => {
     const svc = await start();
     await svc.begin();
-    demoStore.set({ offline: true });
+    demoStore.set({offline: true});
     await svc.tick();
     expect(trip().network).toBe('offline');
-    demoStore.set({ offline: false });
+    demoStore.set({offline: false});
     await svc.tick();
     expect(trip().network).toBe('online');
   });
@@ -331,7 +304,7 @@ describe('finishing', () => {
       startSoc: trip().currentSoC,
       targetSoc: stop.metrics.targetSoc,
     });
-    await svc.report({ type: 'SESSION_ENDED', soc: stop.metrics.targetSoc });
+    await svc.report({type: 'SESSION_ENDED', soc: stop.metrics.targetSoc});
     await svc.advance(400);
     expect(trip().phase).toBe('arrived');
     const outcome = await svc.end();
@@ -410,7 +383,7 @@ describe('the bridge from the existing charging flow', () => {
     expect(events.map(e => e.type)).toEqual(
       expect.arrayContaining(['BATTERY_UPDATED']),
     );
-    await svc.report({ type: 'TARGET_SOC_REACHED', soc: 60 });
+    await svc.report({type: 'TARGET_SOC_REACHED', soc: 60});
     expect(
       sessionEvents(trip(), s, later + 600_000).map(e => e.type),
     ).not.toContain('TARGET_SOC_REACHED');

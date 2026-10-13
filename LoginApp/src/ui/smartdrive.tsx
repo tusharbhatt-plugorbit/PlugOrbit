@@ -1,7 +1,8 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
-import {availabilityHeadline} from '../domain/rules';
-import type {Vehicle} from '../domain/types';
+import {useAppearance, useThemedStyles} from '../appearance';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { availabilityHeadline } from '../domain/rules';
+import type { Vehicle } from '../domain/types';
 import {
   CHARGE_CONFIDENCE_LABEL,
   VIOLATION_WORDS,
@@ -11,12 +12,10 @@ import {
   pctLabel,
   topReasons,
 } from '../intelligence/copy';
-import {summariseRuledOut} from '../intelligence/chargingPlan';
-import {tripStatus} from '../intelligence/status';
-import type {CopilotStatus} from '../intelligence/status';
+import { summariseRuledOut } from '../intelligence/chargingPlan';
+import type { CopilotStatus } from '../intelligence/status';
 import type {
   ActiveTrip,
-  AssistMode,
   BackupStop,
   ChargeConfidence,
   LogEntry,
@@ -24,13 +23,12 @@ import type {
   ScoredStop,
   StopMetrics,
 } from '../intelligence/types';
-import {colors, elevation, radii, spacing, type} from '../theme';
-import {formatClock} from '../utils/format';
-import {ConfidenceBadge, Pill} from './Badges';
-import {Card, KeyValue} from './Card';
-import {ChoiceCard} from './ChoiceCard';
-import {Icon, IconName} from './Icon';
-import {PrimaryButton, TextButton} from './Buttons';
+import { colors, elevation, radii, spacing, type } from '../theme';
+import { formatClock } from '../utils/format';
+import { ConfidenceBadge, Pill } from './Badges';
+import { Card, KeyValue } from './Card';
+import { Icon, IconName } from './Icon';
+import { TextButton } from './Buttons';
 
 /* ---------------------------------------------------------------- headline -- */
 
@@ -47,13 +45,16 @@ const TONE_ICON: Record<CopilotStatus['tone'], IconName> = {
  */
 export function CopilotStatusCard({
   status,
-  kicker = 'Orbit Assist',
+  kicker = 'Smart Drive',
   footer,
 }: {
   status: CopilotStatus;
   kicker?: string;
   footer?: React.ReactNode;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const alert = status.tone === 'alert';
   const accent =
     status.tone === 'good'
@@ -65,11 +66,12 @@ export function CopilotStatusCard({
     <Card tone={alert ? 'danger' : 'dark'}>
       <View style={styles.statusHead}>
         <Icon name={TONE_ICON[status.tone]} size={18} color={accent} />
-        <Text style={[styles.kicker, {color: accent}]}>{kicker}</Text>
+        <Text style={[styles.kicker, { color: accent }]}>{kicker}</Text>
       </View>
       <Text
         style={[styles.statusHeadline, alert && styles.onLight]}
-        accessibilityRole="header">
+        accessibilityRole="header"
+      >
         {status.headline}
       </Text>
       <Text style={[styles.statusDetail, alert && styles.onLightSoft]}>
@@ -85,11 +87,16 @@ export function CopilotStrip({
   status,
   onPress,
   actionLabel,
+  compact = false,
 }: {
   status: CopilotStatus;
   onPress: () => void;
   actionLabel: string;
+  compact?: boolean;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const accent =
     status.tone === 'good'
       ? colors.lime
@@ -102,24 +109,40 @@ export function CopilotStrip({
       accessibilityRole="button"
       accessibilityLabel={`${status.headline} ${status.detail} ${actionLabel}`}
       testID="copilot-strip"
-      style={({pressed}) => [
+      style={({ pressed }) => [
         styles.strip,
+        compact && styles.stripCompact,
         status.tone === 'alert' && styles.stripAlert,
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.stripIcon}>
-        <Icon name={TONE_ICON[status.tone]} size={20} color={accent} />
+        <Icon
+          name={TONE_ICON[status.tone]}
+          size={20}
+          color={compact ? colors.info : accent}
+        />
       </View>
       <View style={styles.flex}>
-        <Text style={styles.stripHeadline} numberOfLines={2}>
+        <Text
+          style={[styles.stripHeadline, compact && styles.stripHeadlineCompact]}
+          numberOfLines={compact ? 1 : undefined}
+        >
           {status.headline}
         </Text>
-        <Text style={styles.stripDetail} numberOfLines={2}>
+        <Text
+          style={[styles.stripDetail, compact && styles.stripDetailCompact]}
+          numberOfLines={compact ? 1 : undefined}
+        >
           {status.detail}
         </Text>
       </View>
-      <View style={styles.stripAction}>
-        <Icon name="arrow-right" size={20} color={colors.ink} />
+      <View style={[styles.stripAction, compact && styles.stripActionCompact]}>
+        <Icon
+          name="arrow-right"
+          size={20}
+          color={compact ? '#FFFFFF' : colors.ink}
+        />
       </View>
     </Pressable>
   );
@@ -138,17 +161,20 @@ type Mark = {
  * picture of "PlugOrbit has it handled": where you are, the one stop, the backup,
  * and what's left when you get there.
  */
-export function JourneyBar({trip}: {trip: ActiveTrip}) {
+export function JourneyBar({ trip }: { trip: ActiveTrip }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const total = trip.totalKm || 1;
   const pct = (km: number) => Math.max(0, Math.min(100, (km / total) * 100));
   const here = pct(trip.progressKm);
-  const {plan} = trip;
+  const { plan } = trip;
   // A stop right at the start has its own "arrive → leave" label; a start label
   // on top of it would just be a smudge.
   const stopNearStart = plan.primary !== null && pct(plan.primary.alongKm) < 25;
   const marks: Mark[] = stopNearStart
     ? []
-    : [{at: 0, kind: 'start', label: pctLabel(trip.startSoC)}];
+    : [{ at: 0, kind: 'start', label: pctLabel(trip.startSoC) }];
   if (plan.primary) {
     marks.push({
       at: pct(plan.primary.alongKm),
@@ -164,7 +190,7 @@ export function JourneyBar({trip}: {trip: ActiveTrip}) {
     : plan.primary
     ? 'More stops ahead'
     : 'Can’t finish yet';
-  marks.push({at: 100, kind: 'end', label: finishLabel});
+  marks.push({ at: 100, kind: 'end', label: finishLabel });
 
   const a11y = [
     `Journey ${trip.origin.label} to ${trip.destination.label}.`,
@@ -190,40 +216,43 @@ export function JourneyBar({trip}: {trip: ActiveTrip}) {
               // The last label hangs off the right edge, not past it.
               m.kind === 'end'
                 ? styles.markLabelEnd
-                : {left: `${Math.min(70, Math.max(0, m.at))}%`},
+                : { left: `${Math.min(70, Math.max(0, m.at))}%` },
             ]}
-            numberOfLines={1}>
+            numberOfLines={1}
+          >
             {m.label}
           </Text>
         ))}
       </View>
       <View style={styles.track}>
-        <View style={[styles.trackDone, {width: `${here}%`}]} />
+        <View style={[styles.trackDone, { width: `${here}%` }]} />
         {plan.backup && (
           <View
             style={[
               styles.dot,
               styles.dotBackup,
-              {left: `${pct(plan.backup.alongKm)}%`},
+              { left: `${pct(plan.backup.alongKm)}%` },
             ]}
           />
         )}
+        {plan.itinerary?.stops.slice(1).map(stop => <View key={stop.station.id}
+          style={[styles.dot, styles.dotStop, {left: `${pct(stop.alongKm)}%`}]} />)}
         {plan.primary && (
           <View
             style={[
               styles.dot,
               styles.dotStop,
-              {left: `${pct(plan.primary.alongKm)}%`},
+              { left: `${pct(plan.primary.alongKm)}%` },
             ]}
           />
         )}
-        <View style={[styles.car, {left: `${here}%`}]}>
+        <View style={[styles.car, { left: `${here}%` }]}>
           <Icon name="car" size={14} color={colors.ink} />
         </View>
       </View>
       <View style={styles.legend}>
-        <Text style={styles.legendText}>{trip.origin.label}</Text>
-        <Text style={styles.legendText}>{trip.destination.label}</Text>
+        <Text style={styles.legendText}>Start</Text>
+        <Text style={styles.legendText}>Destination</Text>
       </View>
     </View>
   );
@@ -231,7 +260,9 @@ export function JourneyBar({trip}: {trip: ActiveTrip}) {
 
 /* ------------------------------------------------------------ stop details -- */
 
-export function ChargeConfidencePill({level}: {level: ChargeConfidence}) {
+export function ChargeConfidencePill({ level }: { level: ChargeConfidence }) {
+  useAppearance();
+
   return (
     <Pill
       label={CHARGE_CONFIDENCE_LABEL[level]}
@@ -241,14 +272,16 @@ export function ChargeConfidencePill({level}: {level: ChargeConfidence}) {
   );
 }
 
-export function RiskPill({risk}: {risk: RouteRisk}) {
+export function RiskPill({ risk }: { risk: RouteRisk }) {
+  useAppearance();
+
   const copy: Record<
     RouteRisk,
-    {label: string; tone: 'lime' | 'info' | 'amber'}
+    { label: string; tone: 'lime' | 'info' | 'amber' }
   > = {
-    low: {label: 'Well covered', tone: 'lime'},
-    medium: {label: 'Watching closely', tone: 'info'},
-    high: {label: 'Thin on options', tone: 'amber'},
+    low: { label: 'Well covered', tone: 'lime' },
+    medium: { label: 'Watching closely', tone: 'info' },
+    high: { label: 'Thin on options', tone: 'amber' },
   };
   return <Pill label={copy[risk].label} tone={copy[risk].tone} />;
 }
@@ -273,17 +306,22 @@ export function StopSummaryCard({
   action?: React.ReactNode;
   onPress?: () => void;
 }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const m = stop.metrics;
   return (
     <Card
       tone="lime"
       onPress={onPress}
-      accessibilityLabel={`Charging stop ${stop.station.name}`}>
+      accessibilityLabel={`Charging stop ${stop.station.name}`}
+    >
       <View style={styles.pickRow}>
         <Pill label="PlugOrbit pick" tone="dark" icon="sparkles" uppercase />
         <ChargeConfidencePill level={stop.chargeConfidence} />
       </View>
       <Text style={styles.stopName}>{stop.station.name}</Text>
+      <Text style={{color: colors.inkSoft, fontSize: 14, lineHeight: 21, marginBottom: 10}}>{stop.station.address || 'Address not published'}</Text>
       <Text style={styles.stopAvail}>
         {availabilityHeadline(stop.station, vehicle, now)}
       </Text>
@@ -331,7 +369,9 @@ export function StopSummaryCard({
 }
 
 /** Detour + wait + charge + back to route = the whole cost in minutes. */
-export function StopBreakdown({metrics}: {metrics: StopMetrics}) {
+export function StopBreakdown({ metrics }: { metrics: StopMetrics }) {
+  useAppearance();
+
   const w = metrics.wait;
   const waitText =
     w.basis === 'none'
@@ -355,7 +395,9 @@ export function StopBreakdown({metrics}: {metrics: StopMetrics}) {
   );
 }
 
-export function CostBreakdown({metrics}: {metrics: StopMetrics}) {
+export function CostBreakdown({ metrics }: { metrics: StopMetrics }) {
+  useAppearance();
+
   const c = metrics.cost;
   const inr = (n: number | null) => (n === null ? 'Not published' : `₹${n}`);
   return (
@@ -370,7 +412,10 @@ export function CostBreakdown({metrics}: {metrics: StopMetrics}) {
 }
 
 /** "Why this charger?" in the driver's words, never the codes. */
-export function ReasonList({stop}: {stop: ScoredStop}) {
+export function ReasonList({ stop }: { stop: ScoredStop }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const reasons = topReasons(stop.reasons, 5);
   return (
     <Card>
@@ -385,8 +430,11 @@ export function ReasonList({stop}: {stop: ScoredStop}) {
 }
 
 /** What it compared and what it set aside, so the choice is never a black box. */
-export function RuledOutNote({trip}: {trip: ActiveTrip}) {
-  const {plan} = trip;
+export function RuledOutNote({ trip }: { trip: ActiveTrip }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
+  const { plan } = trip;
   const groups = summariseRuledOut(plan.ruledOut).slice(0, 3);
   if (plan.considered === 0) {
     return null;
@@ -419,7 +467,10 @@ const LOG_ICON: Record<LogEntry['kind'], IconName> = {
  * What PlugOrbit saw and chose to tell you or not. Silence is part of the
  * product, so it is shown: "checked 40 times, told you 3".
  */
-export function CopilotLog({trip}: {trip: ActiveTrip}) {
+export function CopilotLog({ trip }: { trip: ActiveTrip }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const items = [...trip.log].reverse().slice(0, 8);
   return (
     <Card>
@@ -454,6 +505,9 @@ export function ChangeBanner({
   trip: ActiveTrip;
   onKeep: () => void;
 }) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const c = trip.lastChange;
   if (!c || c.acknowledged || !trip.plan.primary) {
     return null;
@@ -462,7 +516,7 @@ export function ChangeBanner({
     <Card tone="lime">
       <View style={styles.statusHead}>
         <Icon name="repeat" size={16} color={colors.limeDark} />
-        <Text style={[styles.kicker, {color: colors.limeDark}]}>
+        <Text style={[styles.kicker, { color: colors.limeDark }]}>
           Plan changed
         </Text>
       </View>
@@ -482,7 +536,10 @@ export function ChangeBanner({
 }
 
 /** A small pulse so "monitoring" reads as alive without being noisy. */
-export function MonitoringFooter({text}: {text: string}) {
+export function MonitoringFooter({ text }: { text: string }) {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const pulse = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -504,26 +561,26 @@ export function MonitoringFooter({text}: {text: string}) {
   }, [pulse]);
   return (
     <View style={styles.monitor} accessible accessibilityLabel={text}>
-      <Animated.View style={[styles.monitorDot, {opacity: pulse}]} />
+      <Animated.View style={[styles.monitorDot, { opacity: pulse }]} />
       <Text style={styles.monitorText}>{text}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {flex: 1},
-  pressed: {opacity: 0.9},
-  kicker: {...type.micro, textTransform: 'uppercase'},
-  statusHead: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  statusHeadline: {...type.h1, color: '#FFFFFF', marginTop: spacing.sm},
+const baseStyles = StyleSheet.create({
+  flex: { flex: 1 },
+  pressed: { opacity: 0.9 },
+  kicker: { ...type.micro, textTransform: 'uppercase' },
+  statusHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusHeadline: { ...type.h1, color: '#FFFFFF', marginTop: spacing.sm },
   statusDetail: {
     ...type.body,
     color: colors.chipText,
     marginTop: 6,
     lineHeight: 20,
   },
-  onLight: {color: colors.ink},
-  onLightSoft: {color: colors.inkSoft},
+  onLight: { color: colors.ink },
+  onLightSoft: { color: colors.inkSoft },
 
   strip: {
     flexDirection: 'row',
@@ -538,10 +595,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.limeHaloBorder,
   },
-  stripAlert: {borderColor: colors.danger},
-  stripIcon: {width: 24, alignItems: 'center'},
-  stripHeadline: {...type.heading, color: '#FFFFFF'},
-  stripDetail: {...type.caption, color: colors.chipText, marginTop: 2},
+  stripCompact: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: colors.infoSoft,
+    borderColor: colors.inputBorder,
+  },
+  stripHeadlineCompact: { fontSize: 12, lineHeight: 15, color: colors.ink },
+  stripDetailCompact: { fontSize: 11, lineHeight: 14, color: colors.muted },
+  stripActionCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.bg,
+  },
+  stripAlert: { borderColor: colors.danger },
+  stripIcon: { width: 24, alignItems: 'center' },
+  stripHeadline: { ...type.heading, color: '#FFFFFF' },
+  stripDetail: { ...type.caption, color: colors.chipText, marginTop: 2 },
   // The strip as a whole is the button; this just says "go".
   stripAction: {
     width: 40,
@@ -552,16 +624,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lime,
   },
 
-  journey: {paddingTop: spacing.sm},
-  markRow: {height: 18, marginBottom: 6},
+  journey: { paddingTop: spacing.sm },
+  markRow: { height: 18, marginBottom: 6 },
   markLabel: {
     position: 'absolute',
     ...type.micro,
     color: colors.inkSoft,
     letterSpacing: 0,
   },
-  markLabelStop: {color: colors.limeDark},
-  markLabelEnd: {right: 0},
+  markLabelStop: { color: colors.limeDark },
+  markLabelEnd: { right: 0 },
   track: {
     height: 8,
     borderRadius: 4,
@@ -569,7 +641,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 4,
   },
-  trackDone: {height: 8, borderRadius: 4, backgroundColor: colors.lime},
+  trackDone: { height: 8, borderRadius: 4, backgroundColor: colors.lime },
   dot: {
     position: 'absolute',
     marginLeft: -7,
@@ -578,8 +650,8 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 2,
   },
-  dotStop: {backgroundColor: colors.bg, borderColor: colors.lime},
-  dotBackup: {backgroundColor: colors.surface, borderColor: colors.muted},
+  dotStop: { backgroundColor: colors.bg, borderColor: colors.lime },
+  dotBackup: { backgroundColor: colors.surface, borderColor: colors.muted },
   car: {
     position: 'absolute',
     marginLeft: -13,
@@ -597,7 +669,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  legendText: {...type.caption, color: colors.muted},
+  legendText: { ...type.caption, color: colors.muted },
 
   pickRow: {
     flexDirection: 'row',
@@ -606,9 +678,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
-  stopName: {...type.h1, color: colors.ink, marginTop: spacing.md},
-  stopAvail: {...type.bodyStrong, color: colors.inkSoft, marginTop: 4},
-  badgeRow: {flexDirection: 'row', marginTop: spacing.sm},
+  stopName: { ...type.h1, color: colors.ink, marginTop: spacing.md },
+  stopAvail: { ...type.bodyStrong, color: colors.inkSoft, marginTop: 4 },
+  badgeRow: { flexDirection: 'row', marginTop: spacing.sm },
   forCar: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -616,18 +688,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: 2,
   },
-  forCarLine: {...type.caption, color: colors.inkSoft},
-  forCarStrong: {...type.bodyStrong, color: colors.ink},
-  statsRow: {flexDirection: 'row', gap: spacing.md, marginTop: spacing.md},
+  forCarLine: { ...type.caption, color: colors.inkSoft },
+  forCarStrong: { ...type.bodyStrong, color: colors.ink },
+  statsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   statCell: {
     flex: 1,
     padding: spacing.md,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
   },
-  statValue: {...type.heading, color: colors.ink},
-  statLabel: {...type.caption, color: colors.muted, marginTop: 2},
-  backupLine: {...type.label, color: colors.inkSoft, marginTop: spacing.md},
+  statValue: { ...type.heading, color: colors.ink },
+  statLabel: { ...type.caption, color: colors.muted, marginTop: 2 },
+  backupLine: { ...type.label, color: colors.inkSoft, marginTop: spacing.md },
 
   reasonRow: {
     flexDirection: 'row',
@@ -635,10 +707,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 32,
   },
-  reasonText: {...type.body, color: colors.ink, flex: 1},
-  fine: {...type.caption, color: colors.muted, marginTop: spacing.sm},
+  reasonText: { ...type.body, color: colors.ink, flex: 1 },
+  fine: { ...type.caption, color: colors.muted, marginTop: spacing.sm },
 
-  logTitle: {...type.heading, color: colors.ink},
+  logTitle: { ...type.heading, color: colors.ink },
   logSummary: {
     ...type.caption,
     color: colors.muted,
@@ -651,9 +723,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 5,
   },
-  logText: {...type.caption, color: colors.inkSoft, flex: 1, lineHeight: 18},
+  logText: { ...type.caption, color: colors.inkSoft, flex: 1, lineHeight: 18 },
 
-  changeText: {...type.body, color: colors.ink, marginTop: spacing.sm},
+  changeText: { ...type.body, color: colors.ink, marginTop: spacing.sm },
 
   monitor: {
     flexDirection: 'row',
@@ -668,137 +740,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.limeDark,
   },
-  monitorText: {...type.label, color: colors.inkSoft},
-});
-
-/* ------------------------------------------------------------------- modes -- */
-
-export const MODE_LABEL: Record<AssistMode, string> = {
-  guided: 'Guided',
-  assist: 'Orbit Assist',
-};
-
-/**
- * Two ways to travel, one choice. The descriptions say only what each mode
- * really does: Guided recommends and tells you what your plan needs; Orbit Assist
- * also keeps watching and suggests a better stop. Neither changes your plan, pays
- * or starts charging without you.
- */
-export function AssistModeSelector({
-  mode,
-  onChange,
-}: {
-  mode: AssistMode;
-  onChange: (mode: AssistMode) => void;
-}) {
-  return (
-    <View style={modeStyles.group} accessibilityRole="radiogroup">
-      <ChoiceCard
-        icon="route"
-        title="Guided"
-        body="You steer. We recommend your charging stops and tell you what your plan needs. Ideas for improving it wait until you ask."
-        selected={mode === 'guided'}
-        onPress={() => onChange('guided')}
-        testID="mode-guided"
-      />
-      <ChoiceCard
-        icon="sparkles"
-        title="Orbit Assist"
-        body="Automatic. We also keep watching and suggest a better stop or a backup when things change. You approve every change."
-        selected={mode === 'assist'}
-        onPress={() => onChange('assist')}
-        testID="mode-assist"
-      />
-    </View>
-  );
-}
-
-const modeStyles = StyleSheet.create({group: {gap: spacing.sm}});
-
-/* ------------------------------------------------------- the map companion -- */
-
-/**
- * The assistant, kept small over the map while a trip is on: one calm line,
- * and the reasoning a tap away so the map stays clear.
- */
-export function AssistMapPanel({
-  trip,
-  mode,
-  onOpen,
-  onExpandedChange,
-}: {
-  trip: ActiveTrip;
-  mode: AssistMode;
-  onOpen: () => void;
-  /** Lets the screen clear other overlays while the reasoning is showing. */
-  onExpandedChange?: (expanded: boolean) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const status = tripStatus(trip);
-  const alert = status.tone === 'alert';
-  return (
-    <View
-      style={[panelStyles.panel, elevation(2), alert && panelStyles.alert]}
-      testID="assist-map-panel">
-      <Pressable
-        onPress={() => {
-          setOpen(!open);
-          onExpandedChange?.(!open);
-        }}
-        accessibilityRole="button"
-        accessibilityState={{expanded: open}}
-        accessibilityLabel={`Orbit Assist. ${status.headline} ${
-          open ? 'Hide details' : 'Show details'
-        }`}
-        style={panelStyles.head}>
-        <View style={panelStyles.icon}>
-          <Icon name="sparkles" size={16} color={colors.lime} />
-        </View>
-        <Text style={panelStyles.headline} numberOfLines={open ? 3 : 1}>
-          {status.headline}
-        </Text>
-        <Icon
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color={colors.ink}
-        />
-      </Pressable>
-      {open && (
-        <View style={panelStyles.body}>
-          <Text style={panelStyles.detail}>{status.detail}</Text>
-          <Text style={panelStyles.meta}>{`Mode: ${MODE_LABEL[mode]}`}</Text>
-          <PrimaryButton label="Open trip" compact onPress={onOpen} />
-        </View>
-      )}
-    </View>
-  );
-}
-
-const panelStyles = StyleSheet.create({
-  panel: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  alert: {backgroundColor: colors.dangerSoft},
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 40,
-  },
-  icon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headline: {...type.bodyStrong, color: colors.ink, flex: 1},
-  body: {gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xs},
-  detail: {...type.body, color: colors.inkSoft, lineHeight: 19},
-  meta: {...type.caption, color: colors.muted},
+  monitorText: { ...type.label, color: colors.inkSoft },
 });

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useEffect, useRef} from 'react';
 import {Animated, StyleSheet, Text, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -27,6 +28,9 @@ export function showToast(
 }
 
 export function ToastHost() {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const current = useStore(toastStore, s => s.current);
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -69,7 +73,7 @@ export function ToastHost() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   wrap: {
     position: 'absolute',
     left: spacing.lg,

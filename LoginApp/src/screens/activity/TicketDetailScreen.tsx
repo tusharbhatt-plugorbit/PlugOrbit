@@ -1,8 +1,10 @@
-import React, {useState} from 'react';
-import {StyleSheet, Text, TextInput, View} from 'react-native';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useEffect, useState} from 'react';
+import {Linking, StyleSheet, Text, TextInput, View} from 'react-native';
+import {SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_WHATSAPP_URL} from '../../config/support';
 import {describeError} from '../../domain/describeError';
 import type {TicketStatus} from '../../domain/types';
-import {useNavigation, useRoute} from '../../navigation/NavigationContext';
+import {useIsActiveRef, useNavigation, useRoute} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
 import {useApp} from '../../store/appStore';
 import {colors, radii, sizes, spacing, type} from '../../theme';
@@ -18,7 +20,10 @@ import {
   Pill,
   Screen,
   SectionTitle,
+  TextButton,
+  showToast,
 } from '../../ui';
+import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 
 const STATUS: Record<
   TicketStatus,
@@ -32,9 +37,28 @@ const STEPS: TicketStatus[] = ['open', 'in_review', 'resolved'];
 
 /** 23 Ticket detail: the conversation and where the ticket is. */
 export default function TicketDetailScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
+  const contact = async (url: string, channel: string) => {
+    try {await Linking.openURL(url);} catch {showToast(`Could not open ${channel} on this phone.`, 'warn');}
+  };
   const {params} = useRoute<'TicketDetail'>();
   const {support} = useServices();
+  const active = useIsActiveRef();
+  useEffect(() => {
+    if (!support.get) return;
+    let fetching = false;
+    const refresh = async () => {
+      if (!active.current || fetching) return;
+      fetching = true;
+      try {await support.get?.(params.ticketId);} catch { /* Existing messages remain available offline. */ }
+      finally {fetching = false;}
+    };
+    refresh(); const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  }, [active, params.ticketId, support]);
   const ticket = useApp(s => s.tickets.find(t => t.id === params.ticketId));
   const linked = useApp(s =>
     s.history.find(h => h.id === ticket?.linkedSessionId),
@@ -81,6 +105,7 @@ export default function TicketDetailScreen(): React.JSX.Element {
   return (
     <Screen
       title={`#${ticket.number}`}
+      keepFooterWithKeyboard
       stack
       footer={
         ticket.status === 'resolved' ? (
@@ -91,6 +116,7 @@ export default function TicketDetailScreen(): React.JSX.Element {
           <View style={styles.composer}>
             <TextInput
               value={text}
+              maxLength={2000}
               onChangeText={setText}
               placeholder="Write a reply…"
               placeholderTextColor={colors.placeholder}
@@ -121,7 +147,7 @@ export default function TicketDetailScreen(): React.JSX.Element {
                   <Icon
                     name="check"
                     size={12}
-                    color={colors.ink}
+                    color={colors.onAccent}
                     strokeWidth={3}
                   />
                 )}
@@ -152,6 +178,15 @@ export default function TicketDetailScreen(): React.JSX.Element {
         </ListCard>
       )}
 
+      <SectionTitle title="Contact support" />
+      <ListCard>
+        <ListRow icon="mail" title="Email support" subtitle={SUPPORT_EMAIL}
+          onPress={() => contact(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`PlugOrbit ticket #${ticket.number}`)}`, 'email')} />
+        {SUPPORT_PHONE !== '' && <ListRow icon="phone" title="Call support" subtitle={SUPPORT_PHONE}
+          onPress={() => contact(`tel:${SUPPORT_PHONE}`, 'the phone')} />}
+        {SUPPORT_WHATSAPP_URL !== '' && <ListRow icon="message-circle" title="WhatsApp support"
+          onPress={() => contact(`${SUPPORT_WHATSAPP_URL}?text=${encodeURIComponent(`Help with PlugOrbit ticket #${ticket.number}`)}`, 'WhatsApp')} last />}
+      </ListCard>
       <SectionTitle title="Conversation" />
       {ticket.messages.map(m => (
         <View
@@ -161,7 +196,7 @@ export default function TicketDetailScreen(): React.JSX.Element {
             m.from === 'user' ? styles.mine : styles.theirs,
           ]}>
           <Text style={[styles.who, m.from === 'user' && styles.whoMine]}>
-            {m.from === 'user' ? 'You' : 'PlugOrbit support'}
+            {m.from === 'user' ? 'You' : m.author === 'orbit' ? 'Orbit AI' : m.author === 'orbit_guide' ? 'Orbit automated guide' : m.author === 'agent' ? 'PlugOrbit support agent' : 'Saved support message'}
           </Text>
           <Text style={[styles.msg, m.from === 'user' && styles.msgMine]}>
             {m.text}
@@ -171,13 +206,14 @@ export default function TicketDetailScreen(): React.JSX.Element {
           </Text>
         </View>
       ))}
+      {support.get && !/^[0-9a-f]{40}$/.test(ticket.id) && <Notice tone="warn" title="Start a new support request" body="This saved ticket is not in the live support inbox. Open a new ticket so the team can review your issue." action={<TextButton label="Open new ticket" onPress={() => nav.navigate('Support')} />} />}
       {error && <Notice tone="danger" title="Couldn’t send" body={error} />}
-
+      <KeyboardSpacer />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',

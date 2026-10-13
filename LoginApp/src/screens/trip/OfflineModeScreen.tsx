@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {DEFAULT_CENTER} from '../../config/google';
@@ -33,6 +34,9 @@ const AUTO_RETRY_MS = 15_000;
  * never presented as live.
  */
 export default function OfflineModeScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const focused = useIsFocused();
   const now = useNow(15_000);
@@ -111,7 +115,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
       stack
       footer={
         <PrimaryButton
-          label={route ? 'Open cached route' : 'Open Orbit Assist'}
+          label={route ? 'Open cached route' : 'Open Smart Drive'}
           icon={route ? 'route' : 'sparkles'}
           onPress={() => nav.navigate(route ? 'RouteResult' : 'SmartDrive')}
         />
@@ -130,7 +134,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
 
       {smart && (
         <>
-          <Text style={styles.section}>Orbit Assist plan</Text>
+          <Text style={styles.section}>Smart Drive plan</Text>
           <Card tone="lime">
             <Text style={styles.name}>{smart.subline}</Text>
             <Text style={styles.fine}>{smart.lastUpdate}</Text>
@@ -234,7 +238,7 @@ export default function OfflineModeScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.display, color: colors.ink},
   section: {...type.heading, color: colors.ink, marginTop: spacing.sm},
   role: {...type.micro, color: colors.muted, textTransform: 'uppercase'},

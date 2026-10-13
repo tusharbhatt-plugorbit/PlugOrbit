@@ -28,6 +28,7 @@ export function tripStatus(trip: ActiveTrip): CopilotStatus {
       detail: `${trip.destination.label} reached.`,
     };
   }
+  if (plan.itinerary && !plan.itinerary.complete) return {tone: 'alert', headline: 'Charging gap ahead.', detail: 'We could not find a safe charging sequence to the destination. Review the route before departing.'};
   if (plan.mode === 'battery_critical') {
     return {
       tone: 'alert',

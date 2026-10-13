@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
@@ -19,6 +20,7 @@ import {
   TextField,
   ToggleRow,
 } from '../../ui';
+import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 import type {Coords} from '../../utils/geo';
 
 type Issue = {key: string; title: string; sub: string; icon: IconName};
@@ -49,6 +51,9 @@ const ISSUES: Issue[] = [
  * TODO(integration): roadside partner dispatch.
  */
 export default function RoadsideScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const locationDenied = useDemo(s => s.locationDenied);
   const [issue, setIssue] = useState<Issue | null>(null);
@@ -134,7 +139,7 @@ export default function RoadsideScreen(): React.JSX.Element {
           label="Find the nearest charger"
           icon="zap"
           compact
-          onPress={() => nav.navigate('Map')}
+          onPress={() => nav.switchTab('Home')}
         />
       </View>
 
@@ -196,7 +201,7 @@ export default function RoadsideScreen(): React.JSX.Element {
               onValueChange={setSharing}
               last
             />
-
+            <KeyboardSpacer />
           </>
         )}
       </BottomSheet>
@@ -204,7 +209,7 @@ export default function RoadsideScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fine: {...type.caption, color: colors.muted, lineHeight: 18},
   center: {alignItems: 'center'},
   sent: {alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg},

@@ -1,24 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { describeError } from '../../domain/describeError';
-import { PHRASES, kmLabel, pctLabel } from '../../intelligence/copy';
-import { assistModeOf } from '../../intelligence/types';
-import { tripStatus } from '../../intelligence/status';
-import type { ActiveTrip, TripUpdate } from '../../intelligence/types';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useState} from 'react';
+import {Keyboard, StyleSheet, Text, View} from 'react-native';
+import {describeError} from '../../domain/describeError';
+import {PHRASES, kmLabel, pctLabel} from '../../intelligence/copy';
+import {tripStatus} from '../../intelligence/status';
+import type {ActiveTrip, TripUpdate} from '../../intelligence/types';
 import {
   useIsActiveRef,
   useNavigation,
-  useRoute,
 } from '../../navigation/NavigationContext';
-import { RUNS_ON_DEMO_DATA, useServices } from '../../services';
-import { openDirections } from '../../services/directions';
-import { getCurrentLocation } from '../../services/location';
-import type { Coords } from '../../utils/geo';
-import { selectActiveVehicle, selectTrip, useApp } from '../../store/appStore';
-import { colors, spacing, type } from '../../theme';
-import { formatClock } from '../../utils/format';
+import {useServices} from '../../services';
+import {openDirections} from '../../services/directions';
+import {getCurrentLocation} from '../../services/location';
+import {selectActiveVehicle, selectTrip, useApp} from '../../store/appStore';
+import {colors, spacing, type} from '../../theme';
+import {formatClock} from '../../utils/format';
 import {
-  AssistModeSelector,
   Card,
   ChangeBanner,
   CopilotLog,
@@ -26,7 +23,6 @@ import {
   EmptyState,
   JourneyBar,
   KeyValue,
-  IconButton,
   MonitoringFooter,
   Notice,
   PrimaryButton,
@@ -40,82 +36,53 @@ import {
   showToast,
   useTripNow,
 } from '../../ui';
-import { PlaceField } from '../../ui/PlaceField';
+import type {Coords} from '../../utils/geo';
+import {PlaceField} from '../../ui/PlaceField';
+import {ChargingStopCard} from '../../ui/ChargingStopCard';
 
 /**
- * Orbit Assist. Before a trip it asks one question, "Where are we going?". During
+ * Smart Drive. Before a trip it asks one question, "Where are we going?". During
  * one it is the dashboard of a co-pilot that is already handling the charging:
  * a calm status, the one stop that matters, and proof that it is watching.
  */
 export default function SmartDriveScreen(): React.JSX.Element {
+  useAppearance();
+
   const trip = useApp(selectTrip);
-  return trip ? <TripDashboard trip={trip} /> : <TripPlanner />;
+  const [planning, setPlanning] = useState(false);
+  return trip && !planning ? <TripDashboard trip={trip} onPlanNew={() => setPlanning(true)} />
+    : <TripPlanner onPlanned={() => setPlanning(false)} onCancel={trip ? () => setPlanning(false) : undefined} />;
 }
 
 /* ----------------------------------------------------------------- planner -- */
 
-function TripPlanner(): React.JSX.Element {
-  const { width, height } = useWindowDimensions();
+function TripPlanner({onPlanned, onCancel}: {onPlanned: () => void; onCancel?: () => void}): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const active = useIsActiveRef();
-  const { smartDrive } = useServices();
+  const {smartDrive} = useServices();
   const vehicle = useApp(selectActiveVehicle);
   const battery = useApp(s => s.battery);
   const reserve = useApp(s => s.tripPrefs.minArrivalSocPct);
-  const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
-  const { params } = useRoute<'SmartDrive'>();
+  const [locating, setLocating] = useState(false);
   const [from, setFrom] = useState('');
   const [fromCoords, setFromCoords] = useState<Coords | undefined>();
-  const [locating, setLocating] = useState(true);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const locationRequest = useRef(0);
-  const submitting = useRef(false);
-  const locate = async () => {
-    const request = ++locationRequest.current;
-    setLocating(true);
-    setLocationError(null);
-    try {
-      const coords = await getCurrentLocation();
-      if (active.current && request === locationRequest.current) {
-        setFrom('Current location');
-        setFromCoords(coords);
-      }
-    } catch (e) {
-      if (active.current && request === locationRequest.current) {
-        setLocationError(
-          e instanceof Error
-            ? e.message
-            : 'Location unavailable. Enter your starting city.',
-        );
-      }
-    } finally {
-      if (active.current && request === locationRequest.current) {
-        setLocating(false);
-      }
-    }
-  };
-  useEffect(() => {
-    locate();
-    return () => {
-      locationRequest.current += 1;
-    };
-    // Get one fix on entry; changing the origin must not trigger another request.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  // Home's "Where are we going?" hands its destination over here.
-  const [to, setTo] = useState(params?.toLabel ?? '');
+  const [toCoords, setToCoords] = useState<Coords | undefined>();
+  const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ title: string; body: string } | null>(
+  const [error, setError] = useState<{title: string; body: string} | null>(
     null,
   );
 
   if (!vehicle) {
     return (
-      <Screen title="Orbit Assist">
+      <Screen title="Smart Drive">
         <EmptyState
           icon="car"
           title="Add your car first"
-          body="Orbit Assist plans every charge around your battery size and the connectors your car can use."
+          body="Smart Drive plans every charge around your battery size and the connectors your car can use."
           primary={{
             label: 'Add your EV',
             icon: 'plus',
@@ -132,25 +99,20 @@ function TripPlanner(): React.JSX.Element {
   const ready = from.trim() !== '' && to.trim() !== '' && soc !== null && !same;
 
   const start = async () => {
-    if (!ready || submitting.current) {
+    if (!ready) {
       return;
     }
-    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
-      await smartDrive.start({
-        fromLabel: from.trim(),
-        fromCoords,
-        toLabel: to.trim(),
-      });
+      await smartDrive.start({fromLabel: from.trim(), toLabel: to.trim(), fromCoords, toCoords});
+      if (active.current) onPlanned();
     } catch (e) {
       if (active.current) {
         const copy = describeError(e, 'We couldn’t plan this trip.');
-        setError({ title: copy.title, body: copy.body });
+        setError({title: copy.title, body: copy.body});
       }
     }
-    submitting.current = false;
     if (active.current) {
       setBusy(false);
     }
@@ -158,95 +120,58 @@ function TripPlanner(): React.JSX.Element {
 
   return (
     <Screen
-      title="Orbit Assist"
+      title="Smart Drive"
+      onBack={onCancel}
       stack
-      right={
-        <IconButton
-          icon="sparkles"
-          label="Talk to Orbit"
-          onPress={() => nav.navigate('Assistant')}
-        />
-      }
       footer={
-        height >= 700 ? (
-          <PrimaryButton
-            label="Start journey"
-            icon="route"
-            loading={busy}
-            disabled={!ready}
-            onPress={start}
-          />
-        ) : undefined
-      }
-    >
+        <PrimaryButton
+          label="Start Smart Drive"
+          icon="sparkles"
+          loading={busy}
+          disabled={!ready}
+          onPress={start}
+        />
+      }>
       <Text style={styles.lead}>Where are we going?</Text>
+      <Card tone="dark">
+        <Text style={styles.kicker}>Smart Drive</Text>
+        <Text style={styles.heroTitle}>{PHRASES.tagline}</Text>
+        <Text style={styles.heroBody}>
+          Tell us where you’re headed. We work out if and where you need to
+          charge, pick a stop and a backup, and watch the road so you don’t have
+          to.
+        </Text>
+      </Card>
+
       <Card>
         <View style={styles.fields}>
+          <SecondaryButton label={locating ? 'Finding your location...' : 'Use current location'} icon="navigation" compact loading={locating} disabled={locating}
+            onPress={async () => {
+              Keyboard.dismiss(); setLocating(true); setError(null);
+              try {const coords = await getCurrentLocation(); if (active.current) {setFrom('Current location'); setFromCoords(coords);}}
+              catch (e) {if (active.current) setError({title: 'Could not get your location', body: e instanceof Error ? e.message : 'Enable location access and retry.'});}
+              finally {if (active.current) setLocating(false);}
+            }} />
           <PlaceField
             label="From"
             value={from}
-            onChangeText={value => {
-              locationRequest.current += 1;
-              setLocating(false);
-              setLocationError(null);
-              setFromCoords(undefined);
-              setFrom(value);
-            }}
-            placeholder={locating ? 'Finding your location…' : 'Start city'}
+            onChangeText={value => {setFrom(value); setFromCoords(undefined);}}
+            onSelect={place => setFromCoords(place.coords)}
+            placeholder="Start address or location"
             icon="navigation"
-          />
-          <Text style={styles.locationNote} accessibilityLiveRegion="polite">
-            {locating
-              ? 'Finding your current location…'
-              : locationError ??
-                (fromCoords
-                  ? 'Using your device location. You can enter a different start.'
-                  : 'Enter a starting city or use your location.')}
-          </Text>
-          <TextButton
-            label="Use current location"
-            icon="navigation"
-            onPress={() => {
-              if (!locating) {
-                locate();
-              }
-            }}
           />
           <PlaceField
             label="To"
             value={to}
-            onChangeText={setTo}
-            placeholder="Destination city"
+            onChangeText={value => {setTo(value); setToCoords(undefined);}}
+            onSelect={place => setToCoords(place.coords)}
+            placeholder="Destination address or location"
             icon="flag"
             error={
               same ? 'Start and destination are the same place.' : undefined
             }
           />
         </View>
-      </Card>
-
-      {height < 700 && (
-        <PrimaryButton
-          label="Start journey"
-          icon="route"
-          loading={busy}
-          disabled={!ready}
-          onPress={start}
-        />
-      )}
-
-      <SectionTitle title="How should we help?" />
-      <AssistModeSelector mode={mode} onChange={m => smartDrive.setMode(m)} />
-      <Card tone="dark">
-        <Text style={styles.kicker}>Orbit Assist</Text>
-        <Text style={[styles.heroTitle, width < 360 && styles.compactTitle]}>
-          {PHRASES.tagline}
-        </Text>
-        <Text style={styles.heroBody}>
-          {mode === 'guided'
-            ? 'You decide, and we tell you what your plan needs.'
-            : 'We recommend charging stops and a backup, and keep watching. You approve every change.'}
-        </Text>
       </Card>
 
       <Card>
@@ -273,13 +198,6 @@ function TripPlanner(): React.JSX.Element {
         </View>
       </Card>
 
-      {RUNS_ON_DEMO_DATA && (
-        <Notice
-          tone="info"
-          title="Preview data"
-          body="Your starting point can use device GPS. Routes, charger availability and journey monitoring are simulated in this version, so treat plans as a preview."
-        />
-      )}
       {soc === null && (
         <Notice
           tone="warn"
@@ -294,19 +212,21 @@ function TripPlanner(): React.JSX.Element {
 
 /* --------------------------------------------------------------- dashboard -- */
 
-function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
+function TripDashboard({trip, onPlanNew}: {trip: ActiveTrip; onPlanNew: () => void}): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const active = useIsActiveRef();
-  const { smartDrive } = useServices();
+  const {smartDrive} = useServices();
   const vehicle = useApp(selectActiveVehicle);
-  const mode = useApp(s => assistModeOf(s.smartDrive.prefs));
   const now = useTripNow(trip.clockOffsetMs, 15_000);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<{ title: string; body: string } | null>(
+  const [error, setError] = useState<{title: string; body: string} | null>(
     null,
   );
 
-  const { plan } = trip;
+  const {plan} = trip;
   const stop = plan.primary;
   const status = tripStatus(trip);
   const ended = trip.phase === 'arrived';
@@ -333,7 +253,7 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
     } catch (e) {
       if (active.current) {
         const copy = describeError(e, 'Something didn’t go through.');
-        setError({ title: copy.title, body: copy.body });
+        setError({title: copy.title, body: copy.body});
       }
     }
     if (active.current) {
@@ -370,29 +290,14 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
     }
     switch (trip.phase) {
       case 'ready':
-        // Low on battery, the first move is the charger, not the destination.
-        return stop && plan.mode === 'battery_critical'
-          ? {
-              label: `Navigate to ${stop.station.name
-                .split('•')
-                .pop()
-                ?.trim()}`,
-              icon: 'navigation' as const,
-              onPress: () =>
-                act('begin', async () => {
-                  await smartDrive.begin();
-                  await openMaps(stop.station);
-                }),
-            }
-          : {
-              label: 'Start driving',
-              icon: 'navigation' as const,
-              onPress: () =>
-                act('begin', async () => {
-                  await smartDrive.begin();
-                  await openMaps({ id: 'dest', ...destination });
-                }),
-            };
+        return {
+          label: plan.mode === 'battery_critical' && stop ? 'Navigate to nearest reachable charger' : 'Start driving',
+          icon: 'navigation' as const,
+          onPress: () => act('begin', async () => {
+            await smartDrive.begin();
+            await openMaps(stop ? stop.station : {id: 'dest', ...destination});
+          }),
+        };
       case 'at_stop':
         return stop
           ? {
@@ -425,7 +330,7 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
           : {
               label: 'Open navigation',
               icon: 'navigation' as const,
-              onPress: () => openMaps({ id: 'dest', ...destination }),
+              onPress: () => openMaps({id: 'dest', ...destination}),
             };
     }
   })();
@@ -438,15 +343,8 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
 
   return (
     <Screen
-      title="Orbit Assist"
+      title="Smart Drive"
       stack
-      right={
-        <IconButton
-          icon="sparkles"
-          label="Talk to Orbit"
-          onPress={() => nav.navigate('Assistant')}
-        />
-      }
       footer={
         <>
           {!ended && trip.monitoringState !== 'ended' && (
@@ -454,8 +352,6 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
               text={
                 trip.network === 'offline'
                   ? 'Offline. Your plan is saved on this phone.'
-                  : mode === 'guided'
-                  ? 'Guided: we’ll tell you what your plan needs.'
                   : stop
                   ? PHRASES.monitoringStop
                   : PHRASES.monitoringTrip
@@ -467,13 +363,20 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
               label={primaryAction.label}
               icon={primaryAction.icon}
               loading={busy === 'begin' || busy === 'finish'}
+              disabled={(plan.itinerary?.complete === false && !stop) || (!__DEV__ && trip.simulated)}
               onPress={primaryAction.onPress}
             />
           )}
         </>
-      }
-    >
+      }>
       <CopilotStatusCard status={status} />
+      {trip.actuals.endSoc !== null && <>
+      <SecondaryButton label="Payment options" icon="credit-card" compact onPress={() => nav.navigate('PaymentMethods')} />
+      <Notice title="Operator payment" body="Pay through the charger operator until a payment gateway and operator billing integration are connected." />
+      <KeyValue label="Payment status" value={trip.actuals.paymentOk === true ? 'Confirmed' : trip.actuals.paymentOk === false ? 'Failed' : 'Confirm with operator'} />
+      </>}
+      <SecondaryButton label="Plan another trip" icon="route" compact onPress={onPlanNew} />
+      {!__DEV__ && trip.simulated && <Notice tone="warn" title="Replan this saved trip" body="This trip was created by the earlier sample planner. End this trip and start again to search real road chargers." />}
 
       {trip.network === 'offline' && (
         <Notice
@@ -491,12 +394,14 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
       )}
 
       <Card>
-        <Text style={styles.route}>
-          {trip.origin.label} → {trip.destination.label}
-        </Text>
+        <Text style={styles.endpointLabel}>From</Text>
+        <Text style={styles.endpoint}>{trip.origin.label}</Text>
+        <Text style={styles.endpointLabel}>To</Text>
+        <Text style={styles.endpoint}>{trip.destination.label}</Text>
         <KeyValue label="ETA" value={formatClock(trip.eta)} />
         <KeyValue label="Battery now" value={`${pctLabel(trip.currentSoC)}`} />
         <KeyValue label="Arrival without a stop" value={atArrival} />
+        {plan.itinerary && <KeyValue label="Arrival after planned charges" value={plan.itinerary.arrivalSoc ? pctLabel(plan.itinerary.arrivalSoc.expected) : "Route has a charging gap"} />}
         <KeyValue
           label="Charging needed"
           value={trip.chargingRequired ? 'Yes' : 'No'}
@@ -509,6 +414,12 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
         <JourneyBar trip={trip} />
       </Card>
 
+      {plan.itinerary && plan.itinerary.stops.length > 0 && <>
+        <SectionTitle title={`Charging stops (${plan.itinerary.stops.length})`} />
+        {plan.itinerary.stops.map((planned, index) => <ChargingStopCard key={planned.station.id} stop={planned} index={index}
+          onPress={() => nav.navigate('StationDetail', {stationId: planned.station.id})} />)}
+        {!plan.itinerary.complete && <Notice tone="danger" title="Charging gap ahead" body="The available compatible chargers do not cover the whole journey. You can navigate to the reachable first charger. Charge there, then replan or verify another charger before continuing the journey." />}
+      </>}
       <ChangeBanner
         trip={trip}
         onKeep={() => act('keep', () => smartDrive.keepOriginal())}
@@ -558,7 +469,7 @@ function TripDashboard({ trip }: { trip: ActiveTrip }): React.JSX.Element {
 
       <CopilotLog trip={trip} />
 
-      {trip.simulated && !ended && (
+      {__DEV__ && trip.simulated && !ended && (
         <DemoDrive
           trip={trip}
           busy={busy}
@@ -599,7 +510,10 @@ function DemoDrive({
     quietNote?: string,
   ) => Promise<void>;
 }) {
-  const { smartDrive } = useServices();
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
+  const {smartDrive} = useServices();
   const canDrive = trip.phase !== 'ready' && trip.phase !== 'charging';
   const quiet = 'Checked. Nothing you need to do.';
   return (
@@ -666,28 +580,28 @@ function DemoDrive({
   );
 }
 
-const styles = StyleSheet.create({
-  lead: { ...type.display, color: colors.ink },
-  kicker: { ...type.micro, color: colors.lime, textTransform: 'uppercase' },
-  heroTitle: { ...type.h1, color: '#FFFFFF', marginTop: 6 },
+const baseStyles = StyleSheet.create({
+  lead: {...type.display, color: colors.ink},
+  kicker: {...type.micro, color: colors.lime, textTransform: 'uppercase'},
+  heroTitle: {...type.h1, color: '#FFFFFF', marginTop: 6},
   heroBody: {
     ...type.body,
     color: colors.chipText,
     marginTop: spacing.sm,
     lineHeight: 20,
   },
-  fields: { gap: spacing.sm },
-  row: { marginTop: spacing.md },
+  fields: {gap: spacing.sm},
+  row: {marginTop: spacing.md},
   links: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  route: { ...type.h1, color: colors.ink, marginBottom: spacing.sm },
-  center: { alignItems: 'center' },
-  demoTitle: { ...type.heading, color: colors.ink },
+  endpointLabel: {...type.micro, color: colors.muted, textTransform: 'uppercase', marginBottom: 4},
+  endpoint: {...type.body, color: colors.ink, fontSize: 16, fontWeight: '600', lineHeight: 23, marginBottom: spacing.md},
+  route: {...type.h1, color: colors.ink, marginBottom: spacing.sm},
+  center: {alignItems: 'center'},
+  demoTitle: {...type.heading, color: colors.ink},
   demoBody: {
     ...type.caption,
     color: colors.muted,
@@ -695,13 +609,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     lineHeight: 18,
   },
-  demoRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  half: { flexGrow: 1, flexBasis: 140 },
-  compactTitle: { fontSize: 22, lineHeight: 28 },
-  locationNote: { ...type.caption, color: colors.muted, flexShrink: 1 },
+  demoRow: {flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm},
+  half: {flex: 1},
 });

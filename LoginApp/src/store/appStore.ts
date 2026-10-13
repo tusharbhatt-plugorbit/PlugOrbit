@@ -40,12 +40,7 @@ export type AppState = {
   vehicles: Vehicle[];
   activeVehicleId: string | null;
   battery: BatteryReading | null;
-  vehicleLink: {
-    connected: boolean;
-    method: 'oem' | 'obd' | null;
-    /** Made through the Presenter demo switch: the readings are samples. */
-    simulated?: boolean;
-  };
+  vehicleLink: {connected: boolean; method: 'oem' | 'obd' | null};
   filters: StationFilters;
   tripPrefs: TripPreferences;
   alertPrefs: AlertPreferences;

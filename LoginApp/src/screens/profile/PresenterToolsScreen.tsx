@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {DEMO_TIME_SCALE} from '../../domain/charging';
@@ -49,6 +50,9 @@ const SKIP: ReadonlyArray<RouteName> = ['PresenterTools'];
  * return, so a presenter can walk through the hard states on demand.
  */
 export default function PresenterToolsScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {
     session: sessionService,
@@ -120,9 +124,7 @@ export default function PresenterToolsScreen(): React.JSX.Element {
       }
     } catch (e) {
       showToast(
-        e instanceof Error
-          ? e.message
-          : 'Couldn’t start the Orbit Assist demo.',
+        e instanceof Error ? e.message : 'Couldn’t start the Smart Drive demo.',
         'warn',
       );
     }
@@ -178,11 +180,6 @@ export default function PresenterToolsScreen(): React.JSX.Element {
           'noCompatible',
           'No compatible chargers',
           'Nearby searches come back empty',
-        )}
-        {flag(
-          'simulateVehicle',
-          'Simulate a connected car',
-          'Connect car returns a sample 58%, labelled “Demo reading”. Off: it says it isn’t available yet',
           true,
         )}
       </ListCard>
@@ -206,7 +203,7 @@ export default function PresenterToolsScreen(): React.JSX.Element {
         <ListRow
           icon="sparkles"
           iconTone="lime"
-          title="Orbit Assist: Delhi to Jaipur at 72%"
+          title="Smart Drive: Delhi to Jaipur at 72%"
           subtitle="Plan the trip, then drive it in the simulator"
           onPress={startSmartDriveDemo}
         />
@@ -307,7 +304,7 @@ export default function PresenterToolsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   label: {...type.bodyStrong, color: colors.ink},
   sub: {...type.caption, color: colors.muted, marginTop: 2},
   seg: {marginTop: spacing.md},

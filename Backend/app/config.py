@@ -12,7 +12,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
+    support_agent_emails: list[str] = []
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-flash-latest"
+
     firebase_web_api_key: str = ""
+    firebase_http_timeout_seconds: int = Field(default=20, ge=5, le=30)
     # Admin credentials, first source found wins (see app/firebase.py):
     # 1. the key file at firebase_credentials_path, 2. firebase_credentials_json (the
     # key's JSON, or that JSON base64-encoded; for hosts that keep secrets in env vars),
@@ -22,6 +27,8 @@ class Settings(BaseSettings):
     firebase_use_adc: bool = False
     # Only needed with ADC; a key file already names its project.
     firebase_project_id: str = ""
+    # Service account used by IAM to sign custom tokens when no private key is present.
+    firebase_service_account_id: str = ""
     cors_origins: list[str] = ["*"]
 
     # Login/signup one-time codes. The app's code boxes expect 6 digits.
@@ -47,6 +54,7 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""  # falls back to smtp_username
     smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False  # implicit TLS, usually port 465; skips STARTTLS
 
     # SMS delivery of codes (Twilio). Configured when sid, token and from number are all set.
     twilio_account_sid: str = ""

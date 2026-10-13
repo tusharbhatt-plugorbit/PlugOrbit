@@ -1,4 +1,5 @@
-import React, {useRef, useState} from 'react';
+import {useAppearance, useThemedStyles} from '../../appearance';
+import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {billFor} from '../../domain/sessionBill';
@@ -27,6 +28,9 @@ import {
  * store: the driver can retry, switch method, or get help without losing it.
  */
 export default function PaymentFailureScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'PaymentFailure'>();
   const {payment} = useServices();
@@ -34,8 +38,6 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   const methods = useApp(s => s.paymentMethods);
   const now = useNow(60_000);
   const [paying, setPaying] = useState<string | null>(null);
-  // Set synchronously: two taps in the same frame both see paying === null.
-  const inFlight = useRef(false);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,10 +63,6 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   const current = methods.find(m => m.id === session.paymentMethodId) ?? null;
 
   const pay = async (methodId: string) => {
-    if (inFlight.current) {
-      return;
-    }
-    inFlight.current = true;
     setPaying(methodId);
     setError(null);
     try {
@@ -79,7 +77,6 @@ export default function PaymentFailureScreen(): React.JSX.Element {
       setError(describeError(e, 'We couldn’t reach your bank.').body);
     }
     setPaying(null);
-    inFlight.current = false;
   };
 
   return (
@@ -186,7 +183,7 @@ export default function PaymentFailureScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm},
   heroIcon: {
     width: 64,

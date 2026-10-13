@@ -1,3 +1,4 @@
+import {googleRequestIdentityHeaders} from './googleRequestIdentity';
 import {MAX_RESULTS, SEARCH_RADIUS_M, googleApiKey} from '../config/google';
 import type {ConnectorType} from '../domain/types';
 import type {Coords} from '../utils/geo';
@@ -14,6 +15,7 @@ const FIELD_MASK = [
   'places.displayName',
   'places.formattedAddress',
   'places.location',
+  'places.businessStatus',
   'places.evChargeOptions',
   'places.regularOpeningHours',
   'places.currentOpeningHours',
@@ -30,6 +32,7 @@ type ConnectorAggregation = {
 };
 
 type PlaceResult = {
+  businessStatus?: string;
   id?: string;
   displayName?: {text?: string};
   formattedAddress?: string;
@@ -100,6 +103,8 @@ export class PlacesError extends Error {
 }
 
 function describeHours(place: PlaceResult): string | null {
+  if (place.businessStatus === 'CLOSED_PERMANENTLY' || place.businessStatus === 'CLOSED_TEMPORARILY') return 'Closed';
+  if (place.currentOpeningHours?.openNow === false) return 'Closed';
   const regular = place.regularOpeningHours;
   const periods = regular?.periods;
   // A single period that never closes is how Google encodes "open 24 hours".
@@ -170,6 +175,7 @@ export function toCharger(place: PlaceResult): Charger | null {
 export async function fetchNearbyChargers(
   center: Coords,
   signal?: AbortSignal,
+  radius = SEARCH_RADIUS_M,
 ): Promise<Charger[]> {
   if (!googleApiKey) {
     throw new PlacesError('Google API key is not configured.');
@@ -189,6 +195,7 @@ export async function fetchNearbyChargers(
       method: 'POST',
       signal: controller.signal,
       headers: {
+        ...googleRequestIdentityHeaders(),
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
         'X-Goog-FieldMask': FIELD_MASK,
@@ -198,7 +205,7 @@ export async function fetchNearbyChargers(
         maxResultCount: MAX_RESULTS,
         rankPreference: 'DISTANCE',
         locationRestriction: {
-          circle: {center, radius: SEARCH_RADIUS_M},
+          circle: {center, radius},
         },
       }),
     });
@@ -233,4 +240,27 @@ export async function fetchNearbyChargers(
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
   }
+}
+
+
+/** Fetch a saved charger by its stable Google place ID, independent of nearby search. */
+export async function fetchChargerById(placeId: string): Promise<Charger> {
+  if (!googleApiKey) throw new PlacesError('Google API key is not configured.');
+  if (!/^[A-Za-z0-9_-]{1,512}$/.test(placeId)) throw new PlacesError('Invalid saved place ID.', 404);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
+      method: 'GET', signal: controller.signal,
+      headers: {...googleRequestIdentityHeaders(), 'X-Goog-Api-Key': googleApiKey,
+        'X-Goog-FieldMask': FIELD_MASK.split(',').map(field => field.replace(/^places\./, '')).join(',')},
+    });
+    if (!response.ok) throw new PlacesError(`Could not load the saved charger (${response.status}).`, response.status);
+    const charger = toCharger(await response.json());
+    if (!charger || charger.id !== placeId) throw new PlacesError('The saved charger is unavailable.', 404);
+    return charger;
+  } catch (error) {
+    if (error instanceof PlacesError) throw error;
+    throw new PlacesError('Could not load the saved charger. Check your connection.');
+  } finally {clearTimeout(timer);}
 }

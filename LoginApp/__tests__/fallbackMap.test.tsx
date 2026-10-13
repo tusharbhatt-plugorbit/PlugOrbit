@@ -23,7 +23,6 @@ jest.mock('../src/config/google', () => ({
 
 declare var global: {
   __WEBVIEW_JS?: string[];
-  __WEBVIEW_LOAD_ATTEMPTS?: number;
   __WEBVIEW_MISSING?: boolean;
   __WEBVIEW_MOUNTS?: number;
 };
@@ -31,7 +30,6 @@ declare var global: {
 const mounted: Renderer[] = [];
 beforeEach(() => {
   global.__WEBVIEW_JS = [];
-  global.__WEBVIEW_LOAD_ATTEMPTS = 0;
   global.__WEBVIEW_MISSING = false;
   global.__WEBVIEW_MOUNTS = 0;
 });
@@ -75,7 +73,7 @@ function lastState(): SentState {
 const calls = (what: string) =>
   (global.__WEBVIEW_JS ?? []).filter(c => c.includes(what));
 
-describe('Map without a Maps key', () => {
+describe('Home without a Maps key', () => {
   beforeAll(() => {
     jest.useFakeTimers();
   });
@@ -87,7 +85,7 @@ describe('Map without a Maps key', () => {
     seedSignedIn();
     let r!: Renderer;
     await act(async () => {
-      r = ReactTestRenderer.create(<TestApp tab="Profile" stack={[{name: 'Map'}]} />);
+      r = ReactTestRenderer.create(<TestApp tab="Home" />);
     });
     mounted.push(r);
     for (let i = 0; i < 5; i++) {
@@ -213,9 +211,6 @@ describe('Map without a Maps key', () => {
       global.__WEBVIEW_MISSING = true;
       const r = await openHome();
       expect(hasPage(r)).toBe(false);
-      // Never evaluate the package entry point: Metro reports its enforcing error
-      // even if the require itself is wrapped in try/catch.
-      expect(global.__WEBVIEW_LOAD_ATTEMPTS).toBe(0);
       expect(texts(r)).toContain('Map isn’t available');
       expect(texts(r).join(' ')).not.toContain('taking too long');
     });

@@ -1,5 +1,4 @@
 export * from './AsyncView';
-export * from './assistant';
 export * from './Badges';
 export * from './BrandLogo';
 export * from './BottomSheet';

@@ -1,4 +1,5 @@
 import React, {createContext, useContext, useMemo} from 'react';
+import {createBackendSupportService} from './support';
 import {createRouteService} from './mock/routeService';
 import {createSmartDriveService} from './mock/smartDriveService';
 import {createSessionService} from './mock/sessionService';
@@ -13,13 +14,6 @@ import {
 import type {Services} from './types';
 
 export * from './types';
-
-/**
- * True while the services are the mock layer: chargers, their availability and
- * the simulated drive are sample data, not an operator feed or a GPS. Screens use
- * it to say so. Set it to false only when real services replace createMockServices.
- */
-export const RUNS_ON_DEMO_DATA = true;
 
 /** All services backed by the mock layer. Swap per service for a real backend. */
 export function createMockServices(): Services {
@@ -45,7 +39,7 @@ export function ServicesProvider({
   services?: Services;
   children: React.ReactNode;
 }) {
-  const value = useMemo(() => services ?? createMockServices(), [services]);
+  const value = useMemo(() => services ?? {...createMockServices(), station: createStationService(true), route: createRouteService(true), smartDrive: createSmartDriveService(true), support: createBackendSupportService()}, [services]);
   return (
     <ServicesContext.Provider value={value}>
       {children}

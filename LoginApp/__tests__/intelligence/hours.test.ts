@@ -30,3 +30,9 @@ describe('opening hours', () => {
     expect(openStateAt('Mon-Fri', at(12))).toBe('unknown');
   });
 });
+
+it('recognizes Google current and business closure labels',()=>{
+ expect(openStateAt('Closed',Date.now())).toBe('closed');
+ expect(openStateAt('Permanently closed',Date.now())).toBe('closed');
+ expect(openStateAt('Hours unknown',Date.now())).toBe('unknown');
+});

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import type {ConnectorType} from '../../domain/types';
@@ -35,6 +36,7 @@ import {
   showToast,
   useResource,
 } from '../../ui';
+import {KeyboardSpacer} from '../../ui/KeyboardSpacer';
 import {VehicleSpecCard} from '../../ui/VehicleSpecCard';
 
 type Mode = 'pick' | 'custom';
@@ -74,6 +76,9 @@ function matches(m: VehicleModel, q: string): boolean {
  * filter everywhere, so the screen says so plainly.
  */
 export default function VehicleSetupScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'VehicleSetup'>();
   const {vehicle: vehicleService} = useServices();
@@ -218,7 +223,7 @@ export default function VehicleSetupScreen(): React.JSX.Element {
       </Text>
       <Text style={styles.lead}>
         {onboarding
-          ? 'Step 1 of 3. Tell us what you drive.'
+          ? 'Step 1 of 2. Tell us what you drive.'
           : 'Pick your model so we can match chargers.'}
       </Text>
 
@@ -410,14 +415,14 @@ export default function VehicleSetupScreen(): React.JSX.Element {
               helper="Only used for estimates, never as a guarantee."
             />
           </View>
-
+          <KeyboardSpacer />
         </View>
       )}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   heading: {...type.display, color: colors.ink},
   lead: {...type.body, color: colors.muted, marginTop: spacing.xs},
   block: {marginTop: spacing.lg},

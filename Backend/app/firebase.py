@@ -66,9 +66,18 @@ def init_firebase() -> None:
         )
         return
     cred, source = loaded
-    options = {"projectId": settings.firebase_project_id} if settings.firebase_project_id else None
+    if (isinstance(cred, credentials.Certificate) and settings.firebase_project_id
+            and cred.project_id != settings.firebase_project_id):
+        log.error("Firebase service-account project does not match FIREBASE_PROJECT_ID. "
+                  "Use credentials and a Web API key from the same project.")
+        return
+    options = {"httpTimeout": settings.firebase_http_timeout_seconds}
+    if settings.firebase_project_id:
+        options["projectId"] = settings.firebase_project_id
+    if settings.firebase_service_account_id:
+        options["serviceAccountId"] = settings.firebase_service_account_id
     try:
-        app = firebase_admin.initialize_app(cred, options)
+        app = firebase_admin.initialize_app(cred, options or None)
     except Exception as e:
         log.error("Failed to initialise Firebase Admin from %s: %s", source, type(e).__name__)
         return

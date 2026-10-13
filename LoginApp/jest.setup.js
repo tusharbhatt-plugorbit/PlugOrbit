@@ -58,7 +58,6 @@ jest.mock('react-native-webview', () => {
   Object.defineProperty(mod, 'WebView', {
     enumerable: true,
     get() {
-      global.__WEBVIEW_LOAD_ATTEMPTS = (global.__WEBVIEW_LOAD_ATTEMPTS || 0) + 1;
       if (global.__WEBVIEW_MISSING) {
         throw new Error('RNCWebView is not linked');
       }
@@ -96,19 +95,16 @@ global.fetch = jest.fn(() =>
   Promise.reject(new TypeError('Network request failed')),
 );
 
-// Match the native WebView availability without loading its enforcing entry point.
-const turboModules = require('react-native').TurboModuleRegistry;
-const getNativeModule = turboModules.get;
-jest.spyOn(turboModules, 'get').mockImplementation(name => {
-  if (name === 'RNCWebViewModule') {
-    return global.__WEBVIEW_MISSING ? null : {};
-  }
-  return getNativeModule(name);
-});
+// Native constants normally come from the installed APK's signing certificate.
+require('react-native').NativeModules.GoogleRequestIdentity = {
+  packageName: 'com.loginapp',
+  certificateSha1: '5E8F16062EA3CD2C4A0D547876BAA6F38CABF625',
+};
 
-// Deliver decoded camera data without opening hardware during UI tests.
-jest.mock('./src/components/QrCamera', () => {
-  const React = require('react');
-  const {View} = require('react-native');
-  return {QrCamera: props => React.createElement(View, {testID: 'qr-camera', ...props})};
-});
+// Native account picker is mocked; tests never open a user's Google account.
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {configure: jest.fn(), hasPlayServices: jest.fn(), signIn: jest.fn()},
+  isSuccessResponse: r => r?.type === 'success',
+  isErrorWithCode: e => typeof e?.code === 'string',
+  statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED', PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE'},
+}));

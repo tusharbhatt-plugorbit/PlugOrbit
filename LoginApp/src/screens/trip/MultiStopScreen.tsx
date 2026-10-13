@@ -1,5 +1,6 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {describeError} from '../../domain/describeError';
 import {useNavigation} from '../../navigation/NavigationContext';
 import {useServices} from '../../services';
@@ -16,10 +17,14 @@ import {
   Screen,
   SecondaryButton,
 } from '../../ui';
+import type {Coords} from '../../utils/geo';
 import {PlaceField} from '../../ui/PlaceField';
 
 /** 39 Multi-stop trip: plan a whole day, with charging between the stops. */
 export default function MultiStopScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {route: routeService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -27,6 +32,9 @@ export default function MultiStopScreen(): React.JSX.Element {
   const prefs = useApp(s => s.tripPrefs);
 
   const [stops, setStops] = useState<string[]>(['Delhi', 'Neemrana', 'Jaipur']);
+  const [locations, setLocations] = useState<Record<string, Coords>>({});
+  const [draftCoords, setDraftCoords] = useState<Coords | undefined>();
+  const [editingStop, setEditingStop] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,9 +69,12 @@ export default function MultiStopScreen(): React.JSX.Element {
   const addStop = () => {
     const name = draft.trim();
     if (name) {
-      setStops([...stops, name]);
+      setStops(editingStop === null ? [...stops, name] : stops.map((stop, index) => index === editingStop ? name : stop));
+      if (draftCoords) setLocations(previous => ({...previous, [name]: draftCoords}));
     }
     setDraft('');
+    setDraftCoords(undefined);
+    setEditingStop(null);
     setAdding(false);
   };
 
@@ -80,6 +91,9 @@ export default function MultiStopScreen(): React.JSX.Element {
         fromLabel: stops[0],
         toLabel: stops[stops.length - 1],
         via: stops.slice(1, -1),
+        fromCoords: locations[stops[0]],
+        toCoords: locations[stops[stops.length - 1]],
+        viaCoords: stops.slice(1, -1).map(label => locations[label]),
         startSoc: battery.percent,
         strategy: prefs.strategy,
         vehicle,
@@ -123,9 +137,9 @@ export default function MultiStopScreen(): React.JSX.Element {
                 {i === 0 ? 'A' : i === stops.length - 1 ? 'B' : i}
               </Text>
             </View>
-            <Text style={styles.stop} numberOfLines={1}>
-              {s}
-            </Text>
+            <Pressable style={{flex: 1}} accessibilityRole="button" accessibilityLabel={`Edit location ${i + 1}: ${s}`} onPress={() => {setEditingStop(i); setDraft(s); setDraftCoords(locations[s]); setAdding(true);}}>
+              <Text style={styles.stop} numberOfLines={2}>{s}</Text>
+            </Pressable>
             <IconButton
               icon="chevron-up"
               label={`Move ${s} up`}
@@ -157,10 +171,11 @@ export default function MultiStopScreen(): React.JSX.Element {
       {adding ? (
         <Card>
           <PlaceField
-            label="Add destination"
+            label={editingStop === null ? "Add destination" : "Edit location"}
             value={draft}
-            onChangeText={setDraft}
-            placeholder="City"
+            onChangeText={value => {setDraft(value); setDraftCoords(undefined);}}
+            onSelect={place => setDraftCoords(place.coords)}
+            placeholder="Search address, landmark or location"
           />
           <View style={styles.addRow}>
             <SecondaryButton
@@ -168,11 +183,13 @@ export default function MultiStopScreen(): React.JSX.Element {
               compact
               onPress={() => {
                 setAdding(false);
+                setEditingStop(null);
+                setDraftCoords(undefined);
                 setDraft('');
               }}
             />
             <PrimaryButton
-              label="Add"
+              label={editingStop === null ? "Add" : "Save location"}
               compact
               disabled={!draft.trim()}
               onPress={addStop}
@@ -183,7 +200,7 @@ export default function MultiStopScreen(): React.JSX.Element {
         <SecondaryButton
           label="Add destination"
           icon="plus"
-          onPress={() => setAdding(true)}
+          onPress={() => {setEditingStop(null); setDraft(''); setDraftCoords(undefined); setAdding(true);}}
         />
       )}
 
@@ -208,7 +225,7 @@ export default function MultiStopScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.display, color: colors.ink},
   sub: {...type.body, color: colors.muted},
   row: {
@@ -229,7 +246,7 @@ const styles = StyleSheet.create({
   dotEnd: {backgroundColor: colors.lime},
   dotText: {...type.micro, color: colors.ink},
   dotTextOnDark: {color: '#FFFFFF'},
-  stop: {...type.bodyStrong, color: colors.ink, flex: 1},
+  stop: {...type.bodyStrong, color: colors.ink, lineHeight: 20},
   empty: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {colors, radii, spacing, type} from '../theme';
@@ -39,6 +40,9 @@ export function ConfirmActionSheet({
   onCancel,
   children,
 }: Props) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const danger = tone === 'danger';
   return (
     <BottomSheet
@@ -82,7 +86,7 @@ export function ConfirmActionSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   head: {flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start'},
   tile: {
     width: 44,

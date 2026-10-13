@@ -10,7 +10,6 @@ const NAMES: Record<RouteName, true> = {
   Profile: true,
   VehicleSetup: true,
   ManualSoc: true,
-  Map: true,
   StationList: true,
   Filters: true,
   StationDetail: true,
@@ -29,6 +28,7 @@ const NAMES: Record<RouteName, true> = {
   Feedback: true,
   ReportProblem: true,
   Support: true,
+  SupportAgent: true,
   TicketDetail: true,
   Vehicles: true,
   PaymentMethods: true,
@@ -51,7 +51,8 @@ const NAMES: Record<RouteName, true> = {
   Privacy: true,
   SmartDrive: true,
   SmartDriveStop: true,
-  Assistant: true,
+  AIAssistant: true,
+  ReferFriend: true,
   PresenterTools: true,
 };
 

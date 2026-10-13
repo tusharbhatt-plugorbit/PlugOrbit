@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ErrorCopy, describeError, errorTone} from '../../domain/describeError';
@@ -36,6 +37,9 @@ const QUICK: readonly number[] = [20, 40, 60, 80, 100];
  * manual reading; connecting the car is the alternative (AutoSoc).
  */
 export default function ManualSocScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {params} = useRoute<'ManualSoc'>();
   const onboarding = params?.onboarding === true;
@@ -74,8 +78,7 @@ export default function ManualSocScreen(): React.JSX.Element {
       await vehicleService.setBattery(soc);
       showToast(`Battery set to ${soc}%.`, 'success');
       if (onboarding) {
-        // The third step is optional, and has its own Skip.
-        nav.replace('TripPreferences', {onboarding: true});
+        nav.reset('Home');
       } else {
         nav.goBack();
       }
@@ -147,7 +150,7 @@ export default function ManualSocScreen(): React.JSX.Element {
       }>
       <Text style={styles.lead}>
         {onboarding
-          ? 'Step 2 of 3. How full is your battery now?'
+          ? 'Step 2 of 2. How full is your battery now?'
           : `How full is your ${vehicle.make} ${vehicle.model} right now?`}
       </Text>
 
@@ -290,7 +293,7 @@ export default function ManualSocScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   lead: {...type.body, color: colors.muted},
   block: {marginTop: spacing.lg},
   cardHead: {

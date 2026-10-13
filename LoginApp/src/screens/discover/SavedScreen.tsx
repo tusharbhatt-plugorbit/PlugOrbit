@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
@@ -50,6 +51,9 @@ function planErrorMessage(e: unknown): string {
 }
 
 function StationsTab() {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow();
   const {station: stationService} = useServices();
@@ -79,7 +83,7 @@ function StationsTab() {
           icon: 'search',
           onPress: () => nav.navigate('StationList'),
         }}
-        secondary={{label: 'Open the map', onPress: () => nav.navigate('Map')}}
+        secondary={{label: 'Open the map', onPress: () => nav.navigate('Home')}}
       />
     );
   }
@@ -161,6 +165,9 @@ function StationsTab() {
 }
 
 function RoutesTab() {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {route: routeService} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -186,6 +193,8 @@ function RoutesTab() {
       const route = await routeService.plan({
         fromLabel: r.fromLabel,
         toLabel: r.toLabel,
+        fromCoords: r.fromCoords,
+        toCoords: r.toCoords,
         startSoc: battery?.percent ?? 80,
         strategy: r.strategy,
         vehicle,
@@ -269,9 +278,12 @@ function RoutesTab() {
       {savedRoutes.map(r => (
         <Card key={r.id} testID={`saved-route-${r.id}`}>
           <View style={styles.routeHead}>
-            <Text style={styles.routeTitle} numberOfLines={2}>
-              {r.fromLabel} → {r.toLabel}
-            </Text>
+            <View style={{flex: 1, gap: 8}}>
+              <Text style={styles.routeMeta}>FROM</Text>
+              <Text style={styles.routeTitle} selectable>{r.fromLabel}</Text>
+              <Text style={styles.routeMeta}>TO</Text>
+              <Text style={styles.routeTitle} selectable>{r.toLabel}</Text>
+            </View>
             <Pill label={STRATEGY_LABEL[r.strategy]} tone="lime" />
           </View>
           <Text style={styles.routeMeta}>Saved {formatDate(r.savedAt)}</Text>
@@ -301,6 +313,9 @@ function RoutesTab() {
 
 /** 25 Saved stations and routes. */
 export default function SavedScreen(): React.JSX.Element {
+  useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const stationCount = useApp(s => s.favouriteStationIds.length);
   const routeCount = useApp(s => s.savedRoutes.length);
   const [segment, setSegment] = useState<Segment>('stations');
@@ -322,17 +337,17 @@ export default function SavedScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   stack: {gap: spacing.md},
   count: {...type.label, color: colors.inkSoft},
   routeHead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  routeTitle: {...type.heading, color: colors.ink, flex: 1},
+  routeTitle: {...type.heading, color: colors.ink, lineHeight: 23},
   routeMeta: {...type.caption, color: colors.muted, marginTop: spacing.xs},
   routeActions: {
     flexDirection: 'row',

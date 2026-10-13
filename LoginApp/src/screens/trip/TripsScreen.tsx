@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../../appearance';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {timeAgo} from '../../domain/trust';
@@ -27,6 +28,9 @@ import {useHeldReservation} from '../../ui/useHeldReservation';
 
 /** Trips tab: planning, saved routes, energy plans, reservations, multi-stop. */
 export default function TripsScreen(): React.JSX.Element {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const now = useNow(30_000);
   const route = useApp(s => s.activeRoute);
@@ -41,21 +45,23 @@ export default function TripsScreen(): React.JSX.Element {
         <>
           <CopilotStatusCard status={tripStatus(trip)} />
           <PrimaryButton
-            label="Open Orbit Assist"
+            variant="blue"
+            label="Open Smart Drive"
             icon="sparkles"
             onPress={() => nav.navigate('SmartDrive')}
           />
         </>
       ) : (
         <Card tone="lime">
-          <Text style={styles.sdKicker}>Orbit Assist</Text>
+          <Text style={styles.sdKicker}>Smart Drive</Text>
           <Text style={styles.sdTitle}>{PHRASES.tagline}</Text>
           <Text style={styles.sdBody}>
             Say where you’re going. We pick your stop and a backup, and watch
             the road so you don’t have to.
           </Text>
           <PrimaryButton
-            label="Plan a journey"
+            variant="blue"
+            label="Start Smart Drive"
             icon="sparkles"
             compact
             onPress={() => nav.navigate('SmartDrive')}
@@ -63,13 +69,6 @@ export default function TripsScreen(): React.JSX.Element {
           />
         </Card>
       )}
-
-      <SecondaryButton
-        label="Talk to Orbit"
-        icon="mic"
-        compact
-        onPress={() => nav.navigate('Assistant', {listen: true})}
-      />
 
       <Card tone="dark">
         <Text style={styles.kicker}>Plan a trip</Text>
@@ -101,6 +100,7 @@ export default function TripsScreen(): React.JSX.Element {
             cachedLabel={`Planned ${timeAgo(route.computedAt, now)}.`}
           />
           <PrimaryButton
+            variant="blue"
             label="Open route"
             icon="route"
             onPress={() => nav.navigate('RouteResult')}
@@ -171,7 +171,9 @@ export default function TripsScreen(): React.JSX.Element {
               right={<Pill label="Plan" tone="lime" />}
               onPress={() =>
                 nav.navigate('RoutePlanner', {
-                  fromLabel: r.fromLabel,
+                  fromCoords: r.fromCoords,
+        toCoords: r.toCoords,
+        fromLabel: r.fromLabel,
                   toLabel: r.toLabel,
                 })
               }
@@ -224,7 +226,7 @@ export default function TripsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   sdKicker: {
     ...type.micro,
     color: colors.limeDark,

@@ -1,3 +1,4 @@
+import {NativeModules} from 'react-native';
 /**
  * @format
  */
@@ -156,5 +157,28 @@ describe('getIdToken', () => {
     const error = await failureOf(getIdToken());
     expect(error.code).toBe('SERVER');
     expect(await loadSession()).not.toBeNull();
+  });
+});
+
+
+describe('native Firebase phone session refresh', () => {
+  afterEach(() => {delete NativeModules.PlugOrbitPhoneAuth;});
+  test('refreshes with the Firebase SDK without sending a fake refresh token to the backend', async () => {
+    NativeModules.PlugOrbitPhoneAuth = {getSession: jest.fn().mockResolvedValue({uid: 'phone-u', idToken: 'new-native-token', expiresAt: Date.now() + 3600000})};
+    await saveSession({uid: 'phone-u', idToken: 'old', refreshToken: 'native-firebase-phone', expiresAt: 1});
+    expect(await getIdToken()).toBe('new-native-token');
+    expect(NativeModules.PlugOrbitPhoneAuth.getSession).toHaveBeenCalledWith('phone-u');
+  });
+  test('a network failure keeps the phone session for a later retry', async () => {
+    NativeModules.PlugOrbitPhoneAuth = {getSession: jest.fn().mockRejectedValue({code: 'ERROR_NETWORK_REQUEST_FAILED'})};
+    await saveSession({uid: 'phone-u', idToken: 'old', refreshToken: 'native-firebase-phone', expiresAt: 1});
+    await expect(getIdToken()).rejects.toMatchObject({code: 'NETWORK'});
+    expect((await loadSession())?.uid).toBe('phone-u');
+  });
+  test('a missing native user ends the session instead of switching to another account', async () => {
+    NativeModules.PlugOrbitPhoneAuth = {getSession: jest.fn().mockRejectedValue({code: 'AUTH_LOST'}), signOut: jest.fn().mockResolvedValue(null)};
+    await saveSession({uid: 'phone-u', idToken: 'old', refreshToken: 'native-firebase-phone', expiresAt: 1});
+    await expect(getIdToken()).rejects.toMatchObject({code: 'AUTH_LOST'});
+    expect(await loadSession()).toBeNull();
   });
 });

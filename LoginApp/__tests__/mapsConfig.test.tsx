@@ -37,6 +37,24 @@ describe('ChargerMap route', () => {
     return r;
   }
 
+  test('reports Apple Maps user pans without treating camera animations as pans', async () => {
+    const onCenterChange = jest.fn();
+    let r!: Renderer;
+    await act(async () => {
+      r = ReactTestRenderer.create(<ChargerMap {...base} onCenterChange={onCenterChange} />);
+    });
+    mounted.push(r);
+    const map = r.root.findAll(n => n.props.testID === 'map' && typeof n.props.onPanDrag === 'function')[0];
+    const region = {latitude: 28.7, longitude: 77.3, latitudeDelta: 0.08, longitudeDelta: 0.08};
+    await act(async () => map.props.onRegionChangeComplete(region));
+    expect(onCenterChange).not.toHaveBeenCalled();
+    await act(async () => {
+      map.props.onPanDrag();
+      map.props.onRegionChangeComplete(region);
+    });
+    expect(onCenterChange).toHaveBeenCalledWith({latitude: 28.7, longitude: 77.3});
+  });
+
   test('draws a polyline once there are two points', async () => {
     const r = await render([
       {latitude: 28.6, longitude: 77.2},

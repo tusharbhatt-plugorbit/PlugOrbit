@@ -7,10 +7,10 @@ export const ROAD_FACTOR = 1.16;
 export type Path = {points: Coords[]; cum: number[]; totalKm: number};
 
 /** A polyline with cumulative road kilometres at each vertex. */
-export function buildPath(points: readonly Coords[]): Path {
+export function buildPath(points: readonly Coords[], roadFactor = ROAD_FACTOR): Path {
   const cum = [0];
   for (let i = 1; i < points.length; i++) {
-    cum.push(cum[i - 1] + distanceKm(points[i - 1], points[i]) * ROAD_FACTOR);
+    cum.push(cum[i - 1] + distanceKm(points[i - 1], points[i]) * roadFactor);
   }
   return {points: [...points], cum, totalKm: cum[cum.length - 1]};
 }

@@ -1,3 +1,4 @@
+import {useAppearance, useThemedStyles} from '../appearance';
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '../navigation/NavigationContext';
@@ -11,6 +12,9 @@ import {vehicleName} from './session';
 
 /** Compact "Nexon EV • 60%" pill. On dark headers pass tone="dark". */
 export function VehicleSelector({tone = 'dark'}: {tone?: 'dark' | 'light'}) {
+  const {colors}=useAppearance();
+  const styles=useThemedStyles(baseStyles);
+
   const nav = useNavigation();
   const {vehicle: service} = useServices();
   const vehicle = useApp(selectActiveVehicle);
@@ -43,14 +47,14 @@ export function VehicleSelector({tone = 'dark'}: {tone?: 'dark' | 'light'}) {
         </Text>
         {vehicle && battery && (
           <View style={styles.battery}>
-            <Icon name="battery-charging" size={14} color={colors.ink} />
+            <Icon name="battery-charging" size={14} color={colors.onAccent} />
             <Text style={styles.batteryText}>{battery.percent}%</Text>
           </View>
         )}
         <Icon
           name="chevron-down"
           size={14}
-          color={dark ? colors.placeholder : colors.muted}
+          color={dark ? colors.onDarkMuted : colors.muted}
         />
       </Pressable>
       <BottomSheet
@@ -109,7 +113,7 @@ export function VehicleSelector({tone = 'dark'}: {tone?: 'dark' | 'light'}) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   flex: {flex: 1},
   pill: {
     flexDirection: 'row',
@@ -141,7 +145,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     height: 24,
   },
-  batteryText: {...type.micro, color: colors.ink},
+  batteryText: {...type.micro, color: colors.onAccent},
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.inputBorder,
   },
-  optionActive: {borderColor: colors.bg, backgroundColor: colors.limeSoft},
+  optionActive: {borderColor: colors.limeDark, backgroundColor: colors.limeSoft},
   optionIcon: {
     width: 40,
     height: 40,

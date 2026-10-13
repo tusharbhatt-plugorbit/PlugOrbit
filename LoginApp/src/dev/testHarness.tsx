@@ -13,9 +13,6 @@ import type {ChargingSession} from '../domain/types';
 import type {ActiveTrip} from '../intelligence/types';
 import {setTrip} from '../store/smartDriveActions';
 import {resetSmartDriveMock} from '../services/mock/smartDriveService';
-import {resetNearbyCache} from '../hooks/useNearbyStations';
-import {AssistantBridge} from '../assistant/runtime';
-import {AssistantOverlay} from '../app/FloatingAssistant';
 import {ScenarioDriver} from './scenarioDriver';
 
 export const NEXON = {...VEHICLE_CATALOG[0], id: 'veh-1'};
@@ -56,7 +53,6 @@ export function seedSignedIn(
   resetDemo();
   // Presenter overlays are module state; never let one test's charger fill the next's.
   resetSmartDriveMock();
-  resetNearbyCache();
   resetAppStore({
     ...seedState(now),
     hydrated: true,
@@ -99,7 +95,7 @@ export function TestApp({
   services?: Partial<Services>;
 }) {
   const merged = React.useMemo(
-    () => (services ? {...createMockServices(), ...services} : undefined),
+    () => ({...createMockServices(), ...services}),
     [services],
   );
   return (
@@ -109,13 +105,7 @@ export function TestApp({
         initialTab={tab}
         initialStack={stack}
         renderTabBar={() => null}
-        overlay={
-          <>
-            <Probe />
-            <AssistantBridge />
-            <AssistantOverlay />
-          </>
-        }
+        overlay={<Probe />}
       />
     </ServicesProvider>
   );
