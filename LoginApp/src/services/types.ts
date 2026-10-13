@@ -211,6 +211,8 @@ export interface PreferencesService {
 }
 
 export type StartSmartDriveInput = {
+  strategy?: RouteRequest['strategy'];
+  reservePct?: number;
   fromCoords?: {latitude: number; longitude: number};
   toCoords?: {latitude: number; longitude: number};
   fromLabel: string;
@@ -249,6 +251,7 @@ export interface SmartDriveService {
   ask(question: QuestionId): Promise<CopilotAnswer>;
   setEnabled(enabled: boolean): Promise<void>;
   /** `minimal` lets only plan changes and safety alerts through. */
+  setMode(mode:'guided'|'assist'): Promise<void>;
   setVerbosity(verbosity: 'calm' | 'minimal'): Promise<void>;
   /** Remember that the driver doesn't want this preference suggestion again. */
   dismissSuggestion(id: string): Promise<void>;
@@ -272,6 +275,7 @@ export interface SmartDriveDemo {
 }
 
 export type Services = {
+  demo?: boolean;
   smartDrive: SmartDriveService;
   vehicle: VehicleService;
   station: StationService;

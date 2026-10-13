@@ -1,3 +1,5 @@
+import AssistantScreen from '../screens/assistant/AssistantScreen';
+import DashboardScreen from '../screens/home/DashboardScreen';
 import type {Registry} from './AppNavigator';
 
 import ActivityScreen from '../screens/activity/ActivityScreen';
@@ -58,6 +60,9 @@ import VehiclesScreen from '../screens/vehicle/VehiclesScreen';
  * `tabBar: true` keeps the bottom bar visible on that stack screen.
  */
 export const REGISTRY: Registry = {
+  Assistant: {component: AssistantScreen},
+  Dashboard: {component: DashboardScreen},
+  Map: {component: HomeScreen, tabBar: true, tab: 'Home'},
   // Tab roots
   Home: {component: HomeScreen, tabBar: true},
   Trips: {component: TripsScreen, tabBar: true},

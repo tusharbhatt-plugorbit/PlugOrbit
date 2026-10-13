@@ -212,6 +212,7 @@ export type Route = {
 };
 
 export type RouteRequest = {
+  avoidStationIds?: readonly string[];
   fromLabel: string;
   toLabel: string;
   fromCoords?: {latitude: number; longitude: number};

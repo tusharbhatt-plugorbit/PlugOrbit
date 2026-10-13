@@ -73,8 +73,10 @@ export function Card({
 export function SectionTitle({
   title,
   action,
+  compact = false,
 }: {
   title: string;
+  compact?: boolean;
   action?: React.ReactNode;
 }) {
   useAppearance();
@@ -82,7 +84,7 @@ export function SectionTitle({
 
   return (
     <View style={styles.sectionRow}>
-      <Text style={styles.section} accessibilityRole="header">
+      <Text style={[styles.section,compact && {fontSize:16}]} accessibilityRole="header">
         {title}
       </Text>
       {action}

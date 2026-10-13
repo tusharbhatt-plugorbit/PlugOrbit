@@ -1,0 +1,828 @@
+{
+  "get_vehicle_status": [
+    {
+      "status": "ok",
+      "data": {
+        "vehicle": {
+          "id": "veh-1",
+          "make": "Tata",
+          "model": "Nexon EV",
+          "variant": "Long Range",
+          "battery_kwh": 40.5,
+          "connectors": [
+            "CCS2",
+            "Type2"
+          ],
+          "max_dc_kw": 60,
+          "max_ac_kw": 7.2,
+          "range_km_at_100_percent": 300
+        },
+        "battery": {
+          "percent": 65,
+          "source": "the app’s own estimate while on a trip",
+          "updated_min_ago": 0
+        },
+        "live_link": {
+          "connected": false,
+          "method": null,
+          "sample_reading": false
+        }
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "device_store",
+        "as_of": 1768478400000,
+        "demo": false,
+        "trust": "user"
+      },
+      "assumptions": [
+        "Range is a real-world estimate at 100% battery, not a guarantee."
+      ]
+    },
+    {
+      "status": "unavailable",
+      "message": "No car has been added yet. The driver can add one under Vehicles."
+    }
+  ],
+  "get_battery_level": [
+    {
+      "status": "ok",
+      "data": {
+        "percent": 65,
+        "source": "the app’s own estimate while on a trip",
+        "updated_min_ago": 0,
+        "estimated_range_km": 195
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "device_store",
+        "as_of": 1768478400000,
+        "demo": false,
+        "trust": "estimated"
+      },
+      "assumptions": [
+        "Range is the car’s real-world range scaled by the battery percent; speed, load and air-conditioning change it."
+      ]
+    },
+    {
+      "status": "unknown",
+      "message": "The battery level has not been set. Ask the driver for it; they can also set it in Orbit Assist."
+    }
+  ],
+  "get_vehicle_compatibility": [
+    {
+      "status": "ok",
+      "data": {
+        "connectors_the_car_can_use": [
+          "CCS2",
+          "Type2"
+        ],
+        "station": {
+          "id": "st-chargezone-neemrana",
+          "name": "ChargeZone • Neemrana",
+          "connectors_confirmed": true,
+          "compatible": true,
+          "matching_connectors": [
+            {
+              "id": "st-chargezone-neemrana-c1",
+              "type": "CCS2",
+              "power_kw": 60,
+              "power_kw_for_this_car": 60
+            },
+            {
+              "id": "st-chargezone-neemrana-c2",
+              "type": "CCS2",
+              "power_kw": 60,
+              "power_kw_for_this_car": 60
+            },
+            {
+              "id": "st-chargezone-neemrana-c3",
+              "type": "CCS2",
+              "power_kw": 60,
+              "power_kw_for_this_car": 60
+            }
+          ]
+        }
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "sample_data",
+        "as_of": 1768478400000,
+        "demo": true
+      }
+    },
+    {
+      "status": "unavailable",
+      "message": "No car has been added yet, so compatibility cannot be checked."
+    }
+  ],
+  "get_current_location": [
+    {
+      "status": "ok",
+      "data": {
+        "latitude": 28.61,
+        "longitude": 77.21,
+        "precision": "about 1 km",
+        "outside_sample_area": false
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "device_gps",
+        "as_of": 1768478400000,
+        "demo": false,
+        "trust": "estimated"
+      },
+      "assumptions": [
+        "The route planner starts from a named place, so this position is not used to choose the start."
+      ]
+    },
+    {
+      "status": "error",
+      "message": "That check failed unexpectedly."
+    }
+  ],
+  "get_route_options": [
+    {
+      "status": "ok",
+      "data": {
+        "from": "Delhi",
+        "to": "Jaipur",
+        "start_soc_percent": 65,
+        "reserve_percent": 20,
+        "can_reach_without_charging": false,
+        "options": [
+          {
+            "strategy": "fastest",
+            "feasible": true,
+            "distance_km": 282,
+            "total_minutes_including_charging": 280,
+            "arrive_soc_percent": 28,
+            "stop_count": 1,
+            "stops": [
+              "ChargeZone • Neemrana"
+            ],
+            "charging_cost_inr_known": 487,
+            "stops_without_published_price": 0
+          },
+          {
+            "strategy": "cheapest",
+            "feasible": true,
+            "distance_km": 282,
+            "total_minutes_including_charging": 304,
+            "arrive_soc_percent": 28,
+            "stop_count": 1,
+            "stops": [
+              "Glida • Neemrana Hub"
+            ],
+            "charging_cost_inr_known": 408,
+            "stops_without_published_price": 0
+          },
+          {
+            "strategy": "reliable",
+            "feasible": true,
+            "distance_km": 282,
+            "total_minutes_including_charging": 280,
+            "arrive_soc_percent": 28,
+            "stop_count": 1,
+            "stops": [
+              "ChargeZone • Neemrana"
+            ],
+            "charging_cost_inr_known": 487,
+            "stops_without_published_price": 0
+          }
+        ]
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true
+      },
+      "assumptions": [
+        "Starting battery 65% (the app’s own estimate, 0 min old).",
+        "Starting from Delhi, the planner’s default start. The planner needs a named start place, so GPS is not used to choose it.",
+        "Arrival reserve 20% (as the driver asked).",
+        "Energy use comes from the car’s real-world range at 100% battery, at a steady average speed.",
+        "Traffic, weather, elevation and air-conditioning are not included."
+      ]
+    },
+    {
+      "status": "unknown",
+      "message": "The battery level is not known. Ask the driver for it, or they can set it in Orbit Assist."
+    },
+    {
+      "status": "unavailable",
+      "message": "No car has been added yet. The driver can add one under Vehicles."
+    },
+    {
+      "status": "unavailable",
+      "message": "I can only plan to places the planner knows: Delhi, Gurgaon, Noida, Manesar, Neemrana, Jaipur, Agra, Chandigarh. “Atlantis” isn’t one of them."
+    }
+  ],
+  "get_chargers_along_route": [
+    {
+      "status": "ok",
+      "data": {
+        "from": "Delhi",
+        "to": "Jaipur",
+        "strategy": "reliable",
+        "charging_needed": true,
+        "chargers": [
+          {
+            "station_id": "st-chargezone-neemrana",
+            "name": "ChargeZone • Neemrana",
+            "operator": "ChargeZone",
+            "detour_min": 1,
+            "arrive_soc_percent": 23,
+            "charge_to_soc_percent": 70,
+            "charge_min": 19,
+            "cost_inr": 401,
+            "connector": {
+              "id": "st-chargezone-neemrana-c2",
+              "type": "CCS2",
+              "power_kw": 60,
+              "power_kw_for_this_car": 60,
+              "price_per_kwh": 18
+            },
+            "availability": {
+              "status": "available",
+              "free_connectors": 2,
+              "trust": "live",
+              "source": "operator_feed",
+              "updated_min_ago": 1
+            },
+            "wait": {
+              "min_minutes": 0,
+              "max_minutes": 0,
+              "confidence": "high",
+              "basis": "live_queue"
+            },
+            "reliability_percent": 92,
+            "backup": {
+              "station_id": "st-statiq-bawal",
+              "name": "Statiq • Highway Hub",
+              "extra_min": 24
+            }
+          }
+        ]
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true
+      },
+      "assumptions": [
+        "Starting battery 65% (the app’s own estimate, 0 min old).",
+        "Starting from Delhi, the planner’s default start. The planner needs a named start place, so GPS is not used to choose it.",
+        "Arrival reserve 12% (the driver’s saved setting).",
+        "These are the chargers the plan would use, not every charger nearby.",
+        "Availability is live only where its trust says so."
+      ]
+    }
+  ],
+  "get_charger_details": [
+    {
+      "status": "ok",
+      "data": {
+        "id": "st-chargezone-neemrana",
+        "name": "ChargeZone • Neemrana",
+        "operator": "ChargeZone",
+        "address": "NH48, Neemrana",
+        "hours": "Open 24/7",
+        "amenities": [
+          "cafe",
+          "restroom",
+          "food",
+          "parking",
+          "shade"
+        ],
+        "distance_from_route_or_you_km": 106.3,
+        "rating": 4.6,
+        "reliability_percent": 92,
+        "sponsored": false,
+        "control": "PlugOrbit can start charging here after payment is set up.",
+        "connectors_confirmed": true,
+        "connectors": [
+          {
+            "id": "st-chargezone-neemrana-c1",
+            "type": "CCS2",
+            "power_kw": 60,
+            "power_kw_for_this_car": 60,
+            "fits_this_car": true,
+            "status": "occupied",
+            "price_per_kwh": 18,
+            "idle_fee_per_min": 2
+          },
+          {
+            "id": "st-chargezone-neemrana-c2",
+            "type": "CCS2",
+            "power_kw": 60,
+            "power_kw_for_this_car": 60,
+            "fits_this_car": true,
+            "status": "available",
+            "price_per_kwh": 18,
+            "idle_fee_per_min": 2
+          },
+          {
+            "id": "st-chargezone-neemrana-c3",
+            "type": "CCS2",
+            "power_kw": 60,
+            "power_kw_for_this_car": 60,
+            "fits_this_car": true,
+            "status": "available",
+            "price_per_kwh": 18,
+            "idle_fee_per_min": 2
+          },
+          {
+            "id": "st-chargezone-neemrana-c4",
+            "type": "CHAdeMO",
+            "power_kw": 50,
+            "power_kw_for_this_car": 50,
+            "fits_this_car": false,
+            "status": "available",
+            "price_per_kwh": 18,
+            "idle_fee_per_min": 2
+          }
+        ],
+        "status_data": {
+          "trust": "live",
+          "updated_min_ago": 1
+        },
+        "price_data": {
+          "trust": "live",
+          "updated_min_ago": 1
+        }
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "sample_data",
+        "as_of": 1768478400000,
+        "demo": true,
+        "trust": "live"
+      },
+      "assumptions": [
+        "Rating and reliability are null when nobody has rated the charger; they are never guessed.",
+        "Sponsored chargers are labelled but never ranked higher."
+      ]
+    },
+    {
+      "status": "unavailable",
+      "message": "That charger isn’t available right now."
+    }
+  ],
+  "get_charger_availability": [
+    {
+      "status": "ok",
+      "data": {
+        "station_id": "st-chargezone-neemrana",
+        "name": "ChargeZone • Neemrana",
+        "overall_for_this_car": {
+          "status": "available",
+          "free_connectors": 2,
+          "trust": "live",
+          "source": "operator_feed",
+          "updated_min_ago": 1
+        },
+        "connectors_for_this_car": [
+          {
+            "id": "st-chargezone-neemrana-c1",
+            "type": "CCS2",
+            "status": "occupied"
+          },
+          {
+            "id": "st-chargezone-neemrana-c2",
+            "type": "CCS2",
+            "status": "available"
+          },
+          {
+            "id": "st-chargezone-neemrana-c3",
+            "type": "CCS2",
+            "status": "available"
+          }
+        ],
+        "queue_length": null,
+        "queue_note": "Queue length is not reported for this charger. That does not mean there is no queue.",
+        "expected_wait": {
+          "min_minutes": 0,
+          "max_minutes": 0,
+          "confidence": "high",
+          "basis": "live_queue"
+        }
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "sample_data",
+        "as_of": 1768478362000,
+        "demo": true,
+        "trust": "live"
+      },
+      "assumptions": [
+        "Status is from a fresh operator feed.",
+        "Waiting time is a range with a confidence level, never an exact number."
+      ]
+    },
+    {
+      "status": "unavailable",
+      "message": "That charger isn’t available right now."
+    }
+  ],
+  "estimate_route_energy": [
+    {
+      "status": "ok",
+      "data": {
+        "from": "Delhi",
+        "to": "Jaipur",
+        "distance_km": 282,
+        "reserve_percent": 12,
+        "lowest_soc_percent": 18,
+        "meets_reserve": true,
+        "legs": [
+          {
+            "label": "Delhi",
+            "soc_percent": 65,
+            "kind": "start"
+          },
+          {
+            "label": "ChargeZone • Neemrana",
+            "soc_percent": 23,
+            "kind": "stop"
+          },
+          {
+            "label": "Jaipur",
+            "soc_percent": 18,
+            "kind": "arrive"
+          }
+        ]
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true
+      },
+      "assumptions": [
+        "Starting battery 65% (the app’s own estimate, 0 min old).",
+        "Starting from Delhi, the planner’s default start. The planner needs a named start place, so GPS is not used to choose it.",
+        "Arrival reserve 12% (the driver’s saved setting).",
+        "Energy use comes from the car’s real-world range at 100% battery, at a steady average speed.",
+        "Traffic, weather, elevation and air-conditioning are not included.",
+        "Battery after a stop is the planner’s charge target."
+      ]
+    },
+    {
+      "status": "unknown",
+      "message": "The battery level is not known. Ask the driver for it, or they can set it in Orbit Assist."
+    }
+  ],
+  "recommend_charging_stops": [
+    {
+      "status": "ok",
+      "data": {
+        "from": "Delhi",
+        "to": "Jaipur",
+        "strategy": "reliable",
+        "distance_km": 282,
+        "total_minutes_including_charging": 276,
+        "start_soc_percent": 65,
+        "arrive_soc_percent": 18,
+        "reserve_percent": 12,
+        "charging_needed": true,
+        "stop_count": 1,
+        "charging_cost_inr_known": 401,
+        "stops_without_published_price": 0,
+        "stops": [
+          {
+            "station_id": "st-chargezone-neemrana",
+            "name": "ChargeZone • Neemrana",
+            "operator": "ChargeZone",
+            "detour_min": 1,
+            "arrive_soc_percent": 23,
+            "charge_to_soc_percent": 70,
+            "charge_min": 19,
+            "cost_inr": 401,
+            "connector": {
+              "id": "st-chargezone-neemrana-c2",
+              "type": "CCS2",
+              "power_kw": 60,
+              "power_kw_for_this_car": 60,
+              "price_per_kwh": 18
+            },
+            "availability": {
+              "status": "available",
+              "free_connectors": 2,
+              "trust": "live",
+              "source": "operator_feed",
+              "updated_min_ago": 1
+            },
+            "wait": {
+              "min_minutes": 0,
+              "max_minutes": 0,
+              "confidence": "high",
+              "basis": "live_queue"
+            },
+            "reliability_percent": 92,
+            "backup": {
+              "station_id": "st-statiq-bawal",
+              "name": "Statiq • Highway Hub",
+              "extra_min": 24
+            },
+            "why_this_charger": [
+              "Has a CCS2 connector your car can use, about 60 kW for this car.",
+              "You would arrive with about 23%, above your 12% reserve.",
+              "Chosen for reliability: 92% of recent sessions worked.",
+              "Backup if it fails: Statiq • Highway Hub, 24 min extra."
+            ]
+          }
+        ],
+        "meets_stop_limit": false,
+        "avoided_station_ids": [],
+        "other_priorities": [
+          {
+            "strategy": "fastest",
+            "stop_count": 1
+          },
+          {
+            "strategy": "cheapest",
+            "stop_count": 1
+          }
+        ]
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true
+      },
+      "assumptions": [
+        "Starting battery 65% (the app’s own estimate, 0 min old).",
+        "Starting from Delhi, the planner’s default start. The planner needs a named start place, so GPS is not used to choose it.",
+        "Arrival reserve 12% (the driver’s saved setting).",
+        "Energy use comes from the car’s real-world range at 100% battery, at a steady average speed.",
+        "Traffic, weather, elevation and air-conditioning are not included.",
+        "A backup is planned for every stop where a reachable one exists."
+      ]
+    },
+    {
+      "status": "unknown",
+      "message": "The battery level is not known. Ask the driver for it, or they can set it in Orbit Assist."
+    },
+    {
+      "status": "unavailable",
+      "message": "The app is offline, so that can’t be checked right now."
+    }
+  ],
+  "calculate_trip_cost": [
+    {
+      "status": "ok",
+      "data": {
+        "from": "Delhi",
+        "to": "Jaipur",
+        "strategy": "reliable",
+        "charging_needed": true,
+        "total_charging_cost_inr": 401,
+        "stops_without_published_price": 0,
+        "per_stop": [
+          {
+            "name": "ChargeZone • Neemrana",
+            "cost_inr": 401,
+            "energy_added_to_soc_percent": 70
+          }
+        ]
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true
+      },
+      "assumptions": [
+        "Starting battery 65% (the app’s own estimate, 0 min old).",
+        "Starting from Delhi, the planner’s default start. The planner needs a named start place, so GPS is not used to choose it.",
+        "Arrival reserve 12% (the driver’s saved setting).",
+        "Includes GST on the energy price where the price is published.",
+        "Excludes tolls, parking, idle fees and any platform fee.",
+        "A stop with no published price is counted separately, never guessed."
+      ]
+    }
+  ],
+  "get_active_charging_session": [
+    {
+      "status": "ok",
+      "data": {
+        "active": false
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "device_store",
+        "as_of": 1768478400000,
+        "demo": false
+      }
+    }
+  ],
+  "get_user_preferences": [
+    {
+      "status": "ok",
+      "data": {
+        "saved_settings": {
+          "min_arrival_soc_percent": 12,
+          "route_priority": "reliable",
+          "avoid_paid_parking": false,
+          "prefer_amenities": true,
+          "orbit_assist": {
+            "enabled": true,
+            "mode": "assist",
+            "talkativeness": "calm"
+          },
+          "app_language": "en",
+          "precise_location_allowed": true,
+          "vehicle_battery_data_allowed": true
+        },
+        "remembered_by_assistant_unverified": [],
+        "stated_for_this_journey_unverified": null
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "device_store",
+        "as_of": 1768478400000,
+        "demo": false,
+        "trust": "user"
+      },
+      "assumptions": [
+        "saved_settings are the driver’s app settings. The other two blocks are things the driver said earlier; they may be out of date."
+      ]
+    }
+  ],
+  "get_active_trip": [
+    {
+      "status": "ok",
+      "data": {
+        "active": true,
+        "from": "Delhi",
+        "to": "Jaipur",
+        "phase": "driving",
+        "monitoring": "monitoring",
+        "network": "online",
+        "position_is_simulated": true,
+        "minutes_to_destination": 238,
+        "distance_remaining_km": 262,
+        "battery_now_percent": 65,
+        "reserve_percent": 12,
+        "expected_arrival_soc_without_charging": {
+          "expected_percent": 0,
+          "low_percent": 0,
+          "high_percent": 0
+        },
+        "expected_arrival_soc_with_plan": {
+          "expected_percent": 22,
+          "low_percent": 16,
+          "high_percent": 27
+        },
+        "charging_required": true,
+        "readiness": "good_to_drive",
+        "route_risk": "low",
+        "limited_charger_options_ahead": false,
+        "planned_stop": {
+          "station_id": "st-chargezone-neemrana",
+          "name": "ChargeZone • Neemrana",
+          "operator": "ChargeZone",
+          "minutes_until_arrival": 95,
+          "distance_from_driver_km": 105,
+          "arrive_soc": {
+            "expected_percent": 30,
+            "low_percent": 27,
+            "high_percent": 34
+          },
+          "charge_to_percent": 74,
+          "expected_kw_for_this_car": 59,
+          "charge_minutes": {
+            "min": 16,
+            "max": 20
+          },
+          "wait": {
+            "min_minutes": 0,
+            "max_minutes": 10,
+            "confidence": "low",
+            "basis": "reported"
+          },
+          "total_stop_minutes": {
+            "min": 18,
+            "max": 32
+          },
+          "cost_inr": 376,
+          "why": [
+            "On your route",
+            "Live availability",
+            "Reliable recent sessions"
+          ],
+          "data_confidence": "live",
+          "charge_confidence": "high",
+          "caveats": []
+        },
+        "backup_stop": {
+          "station_id": "st-statiq-bawal",
+          "name": "Statiq • Highway Hub",
+          "operator": "Statiq",
+          "minutes_until_arrival": 72,
+          "distance_from_driver_km": 78,
+          "arrive_soc": {
+            "expected_percent": 39,
+            "low_percent": 37,
+            "high_percent": 42
+          },
+          "charge_to_percent": 80,
+          "expected_kw_for_this_car": 58,
+          "charge_minutes": {
+            "min": 15,
+            "max": 19
+          },
+          "wait": {
+            "min_minutes": 0,
+            "max_minutes": 10,
+            "confidence": "low",
+            "basis": "reported"
+          },
+          "total_stop_minutes": {
+            "min": 19,
+            "max": 33
+          },
+          "cost_inr": 410,
+          "why": [
+            "On your route",
+            "Live availability",
+            "Reliable recent sessions"
+          ],
+          "data_confidence": "live",
+          "charge_confidence": "high",
+          "caveats": [],
+          "extra_minutes_vs_main_stop": 1
+        },
+        "other_safe_options": [
+          {
+            "station_id": "st-tata-gurgaon",
+            "name": "Tata Power • Gurgaon",
+            "cost_inr": 139,
+            "total_stop_minutes": {
+              "min": 10,
+              "max": 12
+            }
+          },
+          {
+            "station_id": "st-chargezone-manesar",
+            "name": "ChargeZone • Manesar",
+            "cost_inr": 199,
+            "total_stop_minutes": {
+              "min": 11,
+              "max": 23
+            }
+          },
+          {
+            "station_id": "st-tata-behror",
+            "name": "Tata Power • Behror",
+            "cost_inr": 355,
+            "total_stop_minutes": {
+              "min": 20,
+              "max": 36
+            }
+          }
+        ],
+        "last_checked_min_ago": 0
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true,
+        "trust": "live"
+      },
+      "assumptions": [
+        "The drive is simulated in this build: position and battery come from the app’s own model, not GPS or the car.",
+        "Arrival battery is a band, not a single number.",
+        "Energy use comes from the car’s real-world range at 100% battery, at a steady average speed.",
+        "Traffic, weather, elevation and air-conditioning are not included."
+      ]
+    }
+  ],
+  "explain_plan": [
+    {
+      "status": "ok",
+      "data": {
+        "answer": "This station is slightly farther than the closest option, but it has a stronger recent reliability record, lets you finish with fewer stops and charges your car faster. It should get you back on the road about 11 minutes sooner."
+      },
+      "source": {
+        "system": "plugorbit_app",
+        "kind": "deterministic_engine",
+        "as_of": 1768478400000,
+        "demo": true,
+        "trust": "live"
+      },
+      "assumptions": [
+        "This answer is produced by the planner from its own numbers. Paraphrase it; do not add facts."
+      ]
+    },
+    {
+      "status": "unavailable",
+      "message": "No journey is in progress, so there is no plan to explain. Plan one first."
+    }
+  ]
+}

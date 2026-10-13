@@ -4,6 +4,9 @@
 export type TabName = 'Home' | 'Trips' | 'Charge' | 'Activity' | 'Profile';
 
 export type RouteParams = {
+  Assistant: {listen?: boolean} | undefined;
+  Dashboard: undefined;
+  Map: undefined;
   // Tab roots
   Home: undefined;
   Trips: undefined;
@@ -73,7 +76,7 @@ export type RouteParams = {
   Privacy: undefined; // 40
 
   // Smart Drive
-  SmartDrive: undefined; // the co-pilot: plan a trip, or watch the one in progress
+  SmartDrive: {toLabel?: string} | undefined; // the co-pilot: plan a trip, or watch the one in progress
   SmartDriveStop: undefined; // why this charger, what it costs, ask the co-pilot
 
   AIAssistant: undefined;

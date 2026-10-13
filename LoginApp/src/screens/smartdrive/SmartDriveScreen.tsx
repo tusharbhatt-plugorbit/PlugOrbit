@@ -6,6 +6,7 @@ import {PHRASES, kmLabel, pctLabel} from '../../intelligence/copy';
 import {tripStatus} from '../../intelligence/status';
 import type {ActiveTrip, TripUpdate} from '../../intelligence/types';
 import {
+  useRoute,
   useIsActiveRef,
   useNavigation,
 } from '../../navigation/NavigationContext';
@@ -70,7 +71,8 @@ function TripPlanner({onPlanned, onCancel}: {onPlanned: () => void; onCancel?: (
   const [from, setFrom] = useState('');
   const [fromCoords, setFromCoords] = useState<Coords | undefined>();
   const [toCoords, setToCoords] = useState<Coords | undefined>();
-  const [to, setTo] = useState('');
+  const {params} = useRoute<'SmartDrive'>();
+  const [to, setTo] = useState(params?.toLabel ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{title: string; body: string} | null>(
     null,

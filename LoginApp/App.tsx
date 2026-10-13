@@ -1,3 +1,5 @@
+import {OnboardingScreen} from './src/screens/auth/OnboardingScreen';
+import {hasSeenOnboarding,markOnboardingSeen} from './src/store/onboarding';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -30,7 +32,7 @@ import { BrandLogo } from './src/ui/BrandLogo';
 import { Icon } from './src/ui/Icon';
 import { BrandWordmark } from './src/ui/BrandWordmark';
 
-type Screen = 'welcome' | 'login' | 'signup' | 'app';
+type Screen = 'welcome' | 'onboarding' | 'login' | 'signup' | 'app';
 type AuthStep = 'identify' | 'verify';
 type IdentifierType = 'email' | 'phone' | null;
 
@@ -174,11 +176,13 @@ function AppContent(): React.JSX.Element {
   if (screen === 'welcome') {
     return (
       <Welcome
-        onGetStarted={() => setScreen('signup')}
+        onGetStarted={async () => setScreen(await hasSeenOnboarding() ? 'signup' : 'onboarding')}
         onSignIn={() => setScreen('login')}
       />
     );
   }
+
+  if (screen === 'onboarding') return <OnboardingScreen onDone={() => {markOnboardingSeen();setScreen('signup');}} onBack={() => setScreen('welcome')} />;
 
   // --- LOGIN / SIGNUP SCREEN (OTP based) ---
   return (

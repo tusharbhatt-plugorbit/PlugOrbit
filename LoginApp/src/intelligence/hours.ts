@@ -23,6 +23,7 @@ export function openStateAt(hours: string, at: number): OpenState {
   if (/24\s*\/\s*7|24\s*hours?|always open/i.test(text)) {
     return 'open';
   }
+  if (/^open now$/i.test(text)) return 'open';
   const m = WINDOW.exec(text);
   if (!m) {
     return 'unknown';

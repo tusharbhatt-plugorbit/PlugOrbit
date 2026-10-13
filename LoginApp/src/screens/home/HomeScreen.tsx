@@ -1,3 +1,4 @@
+import {assistantStore,useAssistantState} from '../../assistant/store';
 import {useAppearance, useThemedStyles} from '../../appearance';
 import React, {
   useCallback,
@@ -83,6 +84,7 @@ function HomeScreen(): React.JSX.Element {
   const styles=useThemedStyles(baseStyles);
 
   const nav = useNavigation();
+  const assistantSheetOpen=useAssistantState(s=>s.sheetOpen);
   const appearance=useAppearance();
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
@@ -297,7 +299,7 @@ function HomeScreen(): React.JSX.Element {
       <StatusBar barStyle={appearance.dark ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
-        <View><BrandWordmark light={appearance.dark} size={24} /><Text style={{color:colors.muted,fontSize:11,marginTop:4}}>Find your next charge</Text></View><Pressable accessibilityRole="button" accessibilityLabel="AI assistant" onPress={()=>nav.navigate("AIAssistant")} style={{marginLeft:"auto",marginRight:16,backgroundColor:colors.surface,padding:10,borderRadius:20,borderWidth:1,borderColor:colors.divider}}><Icon name="sparkles" size={18} color={colors.ink}/></Pressable>
+        <View><BrandWordmark light={appearance.dark} size={24} /><Text style={{color:colors.muted,fontSize:11,marginTop:4}}>Find your next charge</Text></View>{focused && !assistantSheetOpen && <Pressable accessibilityRole="button" testID="map-assistant" accessibilityLabel="Open Orbit Assist" onPress={()=>assistantStore.set({sheetOpen:true})} style={{marginLeft:"auto",marginRight:16,backgroundColor:colors.surface,padding:10,borderRadius:20,borderWidth:1,borderColor:colors.divider}}><Icon name="sparkles" size={18} color={colors.ink}/></Pressable>}
         <Pressable
           onPress={() => nav.navigate('Notifications')}
           hitSlop={14}
@@ -482,6 +484,8 @@ function HomeScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.mapButtons} pointerEvents="box-none">
+            <Pressable accessibilityRole="button" accessibilityLabel="Talk to Orbit" style={styles.mapBtn} onPress={() => nav.navigate('Assistant', {listen:true})}><Icon name="mic" size={20} color={colors.ink}/></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Driver dashboard" style={styles.mapBtn} onPress={() => nav.navigate('Dashboard')}><Icon name="car" size={20} color={colors.ink}/></Pressable>
             {!mapBroken && (
               <Pressable
                 onPress={recenter}

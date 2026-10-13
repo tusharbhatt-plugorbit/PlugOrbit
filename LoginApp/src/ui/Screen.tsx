@@ -188,8 +188,8 @@ export function Screen({
         </Text>
         <View style={[styles.side, styles.sideRight]}>
           {right !== undefined && right}
-          {navStateCurrent !== 'AIAssistant' && <Pressable accessibilityRole="button" accessibilityLabel="AI assistant"
-            onPress={() => nav.navigate('AIAssistant')} style={styles.aiButton}>
+          {navStateCurrent !== 'AIAssistant' && navStateCurrent !== 'Assistant' && <Pressable accessibilityRole="button" accessibilityLabel="AI assistant"
+            onPress={() => nav.navigate('Assistant')} style={styles.aiButton}>
             <Icon name="sparkles" size={20} color={colors.electric} />
           </Pressable>}
         </View>

@@ -8,6 +8,7 @@ import {distanceKm} from '../utils/geo';
 import {roadRoute, type RoadGeometry} from './roadRouting';
 import {googleStations} from './mock/stationService';
 import {ApiError} from './types';
+import {openStateAt} from '../intelligence/hours';
 
 export class EmergencyChargerNotFound extends ApiError {}
 
@@ -16,7 +17,7 @@ export async function emergencyChargeRoute(origin: Coords, destination: Coords, 
   const reach = safeReachKm(vehicle, soc, config.absoluteFloorPct, config);
   if (reach <= 0) throw new ApiError('Battery is below the safe driving floor. Do not set off; charge where you are or request roadside assistance.');
   const nearby = await googleStations(origin, true, Math.max(100, Math.min(50000, reach * 1000)));
-  const candidates = nearby.filter(s => evaluateStation(s, vehicle).length === 0 && distanceKm(origin,s) <= reach)
+  const candidates = nearby.filter(s => openStateAt(s.hours,now) === 'open' && evaluateStation(s, vehicle).length === 0 && distanceKm(origin,s) <= reach)
     .sort((a,b) => distanceKm(origin,a)-distanceKm(origin,b));
   let best: {station: Station; road: RoadGeometry} | null = null;
   // An aerial distance is a lower bound: stop once no remaining candidate can beat the best road distance.

@@ -742,3 +742,5 @@ const baseStyles = StyleSheet.create({
   },
   monitorText: { ...type.label, color: colors.inkSoft },
 });
+
+export const MODE_LABEL = {guided:'Guided',assist:'Orbit Assist'} as const;

@@ -101,7 +101,7 @@ function candidatesFor(
 ): Candidate[] {
   const out: Candidate[] = [];
   stations.forEach(s => {
-    if (exclude.has(s.id) || !isCompatible(s, vehicle) || openStateAt(s.hours, Date.now()) === 'closed') {
+    if (exclude.has(s.id) || !isCompatible(s, vehicle) || stationHealth(s,vehicle) === 'offline' || openStateAt(s.hours, Date.now()) !== 'open') {
       return;
     }
     const {along, lateral} = project(path, s);
@@ -413,7 +413,7 @@ function planOnce(
     geometrySource: road ? "road" : "estimate",
     chargingComplete: arriveSoc >= reserve - 0.5,
     emergencyStationId,
-    corridorStations: stations.filter(station => project(path, station).lateral <= MAX_LATERAL_KM && openStateAt(station.hours, now) !== 'closed').sort((a,b) => project(path,a).along-project(path,b).along),
+    corridorStations: stations.filter(station => project(path, station).lateral <= MAX_LATERAL_KM && isCompatible(station,vehicle) && stationHealth(station,vehicle) !== 'offline' && openStateAt(station.hours, now) === 'open').sort((a,b) => project(path,a).along-project(path,b).along),
     stops,
     ...(waypoints.length > 0 ? {via: waypoints.map(w => w.name), viaCoords: waypoints.map(w => w.coords)} : {}),
     computedAt: now,
@@ -471,7 +471,7 @@ export function createRouteService(useRoads = false): RouteService {
     async plan(request) {
       await guard(700);
       const road = await geometry(request);
-      return planOnce(request, new Set(), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
+      return planOnce(request, new Set(request.avoidStationIds ?? []), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
     },
 
     async chooseStation(route, stationId) {
@@ -480,7 +480,7 @@ export function createRouteService(useRoads = false): RouteService {
       const destination = request.toCoords ?? findPlace(request.toLabel)?.coords;
       if (!origin || !destination) throw new ApiError('Choose valid start and destination locations.');
       const station = await createStationService(useRoads).get(stationId, origin);
-      if (evaluateStation(station, request.vehicle).length) throw new ApiError('This station is closed, incompatible, offline, or has unpublished connector details. Verify with the operator before choosing it.');
+      if (openStateAt(station.hours,Date.now()) !== 'open' || evaluateStation(station, request.vehicle).length) throw new ApiError('This station is closed, incompatible, offline, or has unpublished connector details. Verify with the operator before choosing it.');
       const firstLeg = useRoads ? await roadRoute([origin, station]) : undefined;
       const km = firstLeg?.distanceKm ?? distanceKm(origin,station)*ROAD_FACTOR;
       const arrival = evaluateArrival(station,{etaAt:Date.now()+(firstLeg?.durationMin ?? km/AVG_SPEED_KMH*60)*60000,
@@ -499,7 +499,7 @@ export function createRouteService(useRoads = false): RouteService {
     async energyPlan(request): Promise<EnergyPlan> {
       await guard(600);
       const road = await geometry(request);
-      const route = planOnce(request, new Set(), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
+      const route = planOnce(request, new Set(request.avoidStationIds ?? []), Date.now(), undefined, road, await stationsFor(road), road?.emergencyStation?.id);
       const legs: EnergyPlan['legs'] = [
         {label: route.fromLabel, socPercent: route.startSoc, kind: 'start'},
         ...route.stops.flatMap(s => [

@@ -1,3 +1,5 @@
+import {AssistantOverlay} from './FloatingAssistant';
+import {AssistantBridge} from '../assistant/runtime';
 import React, {useEffect, useMemo, useRef} from 'react';
 import {AppState as RNAppState} from 'react-native';
 import {AppNavigator} from '../navigation/AppNavigator';
@@ -62,6 +64,8 @@ export default function MainApp({bootOverride}: Props): React.JSX.Element {
       )}
       overlay={
         <>
+          <AssistantBridge />
+          <AssistantOverlay />
           <SessionBanner />
           <ToastHost />
         </>

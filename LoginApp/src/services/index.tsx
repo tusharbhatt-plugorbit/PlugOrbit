@@ -14,10 +14,12 @@ import {
 import type {Services} from './types';
 
 export * from './types';
+export const RUNS_ON_DEMO_DATA = false;
 
 /** All services backed by the mock layer. Swap per service for a real backend. */
 export function createMockServices(): Services {
   return {
+    demo:true,
     smartDrive: createSmartDriveService(),
     vehicle: createVehicleService(),
     station: createStationService(),
@@ -39,7 +41,7 @@ export function ServicesProvider({
   services?: Services;
   children: React.ReactNode;
 }) {
-  const value = useMemo(() => services ?? {...createMockServices(), station: createStationService(true), route: createRouteService(true), smartDrive: createSmartDriveService(true), support: createBackendSupportService()}, [services]);
+  const value = useMemo(() => services ?? {...createMockServices(), demo:false, station: createStationService(true), route: createRouteService(true), smartDrive: createSmartDriveService(true), support: createBackendSupportService()}, [services]);
   return (
     <ServicesContext.Provider value={value}>
       {children}

@@ -1,3 +1,5 @@
+import {AssistantBridge} from '../assistant/runtime';
+import {AssistantOverlay} from '../app/FloatingAssistant';
 import React from 'react';
 import {AppNavigator} from '../navigation/AppNavigator';
 import {useNavigationState} from '../navigation/NavigationContext';
@@ -88,8 +90,10 @@ export function TestApp({
   tab,
   stack = [],
   services,
+  assistant=false,
 }: {
   tab?: TabName;
+  assistant?:boolean;
   stack?: ReadonlyArray<{name: RouteName; params?: unknown}>;
   /** Override individual services (fakes) on top of the mocks. */
   services?: Partial<Services>;
@@ -105,7 +109,7 @@ export function TestApp({
         initialTab={tab}
         initialStack={stack}
         renderTabBar={() => null}
-        overlay={<Probe />}
+        overlay={<><Probe />{assistant && <><AssistantBridge /><AssistantOverlay /></>}</>}
       />
     </ServicesProvider>
   );

@@ -42,6 +42,7 @@ export class ScenarioDriver {
       path?: Path;
       config?: SmartDriveConfig;
       quiet?: boolean;
+      mode?: "guided" | "assist";
       now?: number;
     } = {},
   ) {
@@ -86,6 +87,7 @@ export class ScenarioDriver {
       world: this.world(),
       config: this.config,
       quiet: this.opts.quiet,
+      mode: this.opts.mode,
     });
     this.trip = update.trip;
     this.told.push(...update.notifications);

@@ -3,6 +3,7 @@ import type {RouteName} from './params';
 // Declared as a Record so adding a route to params.ts without listing it here
 // is a compile error, which keeps deep-link validation complete.
 const NAMES: Record<RouteName, true> = {
+  Assistant: true, Dashboard: true, Map: true,
   Home: true,
   Trips: true,
   Charge: true,

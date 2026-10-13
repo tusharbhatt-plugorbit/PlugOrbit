@@ -157,6 +157,7 @@ function evaluate(trip: ActiveTrip, event: TripEvent): TripUpdate {
     world: worldAt(event.at, offline, !trip.simulated),
     config: DEFAULT_SMART_DRIVE_CONFIG,
     quiet: appStore.get().smartDrive.prefs.verbosity === 'minimal',
+    mode:appStore.get().smartDrive.prefs.mode ?? 'assist',
   });
 }
 
@@ -348,8 +349,8 @@ export function createSmartDriveService(useRoads = false): SmartDriveService {
         now,
         world: worldAt(now, false, useRoads),
         config: DEFAULT_SMART_DRIVE_CONFIG,
-        reservePct: prefs.minArrivalSocPct,
-        profile: profileFromPrefs(prefs),
+        reservePct: input.reservePct ?? prefs.minArrivalSocPct,
+        profile: profileFromPrefs({...prefs,strategy:input.strategy ?? prefs.strategy}),
         preferAmenities: prefs.preferAmenities,
         simulated: !useRoads,
       });
@@ -450,6 +451,8 @@ export function createSmartDriveService(useRoads = false): SmartDriveService {
         setTrip({...trip, smartDriveEnabled: enabled});
       }
     },
+
+    async setMode(mode) {await guard(100);setSmartDrivePrefs({mode});},
 
     async setVerbosity(verbosity) {
       await guard(100);

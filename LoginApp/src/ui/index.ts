@@ -25,3 +25,6 @@ export * from './useResource';
 export * from './PlaceField';
 export * from './SessionRing';
 export * from './StationMiniMap';
+
+export * from './assistant';
+export * from './battery';

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .firebase import init_firebase
 from .routes import auth, otp, users, assistant, support, google_browser
+from .ai.router import router as orbit_router
 from .services.delivery import log_startup_notice
 
 
@@ -32,6 +33,7 @@ app.include_router(users.router)
 app.include_router(assistant.router)
 app.include_router(support.router)
 app.include_router(google_browser.router)
+app.include_router(orbit_router)
 
 
 @app.get("/health", tags=["health"])

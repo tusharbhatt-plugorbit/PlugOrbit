@@ -10,7 +10,7 @@ import {createRouteService} from '../src/services/mock/routeService';
 import {VEHICLE_CATALOG} from '../src/services/mock/data';
 import {resetDemo} from '../src/store/demoStore';
 const points=[{latitude:28.61,longitude:77.21},{latitude:29.2,longitude:77.7},{latitude:30.32,longitude:78.03}];
-const charger={id:'highway',name:'Highway charger',address:'Highway',latitude:29.2,longitude:77.7,powerKw:60,available:null,total:2,hours:null,pricePerKwh:null,availabilityUpdatedAt:null,connectors:[{type:'CCS2',powerKw:60,count:2,available:null,outOfService:null}]};
+const charger={id:'highway',name:'Highway charger',address:'Highway',latitude:29.2,longitude:77.7,powerKw:60,available:null,total:2,hours:'Open 24/7',pricePerKwh:null,availabilityUpdatedAt:null,connectors:[{type:'CCS2',powerKw:60,count:2,available:null,outOfService:null}]};
 beforeEach(()=>{jest.clearAllMocks();resetDemo();(fetchNearbyChargers as jest.Mock).mockResolvedValue([charger]);(roadRoute as jest.Mock).mockResolvedValue({points,distanceKm:220,durationMin:240});});
 it('searches across the road and deduplicates results',async()=>{const stations=await loadRouteStations(points);const calls=(fetchNearbyChargers as jest.Mock).mock.calls;expect(calls.length).toBeGreaterThan(3);expect(calls[0][0]).toEqual(points[0]);expect(calls.at(-1)[0]).toEqual(points[2]);expect(calls.every(c=>c[2]===25000)).toBe(true);expect(stations.map(s=>s.id)).toEqual(['g-highway']);});
 it('preserves API failures instead of reporting no chargers',async()=>{(fetchNearbyChargers as jest.Mock).mockRejectedValue(new PlacesError('API key rejected',403));await expect(loadRouteStations(points)).rejects.toThrow('API key rejected');});
@@ -33,7 +33,7 @@ it('shows actual route stations without an invented charging plan when connector
  (fetchNearbyChargers as jest.Mock).mockResolvedValue([{...charger,connectors:[]}]);
  const route=await createRouteService(true).plan({fromLabel:'Start',toLabel:'End',fromCoords:points[0],toCoords:points[2],startSoc:25,strategy:'fastest',vehicle:{...VEHICLE_CATALOG[0],id:'car',rangeKm100:250},safetyReservePct:12,avoidPaidParking:false});
  expect(route.chargingComplete).toBe(false);expect(route.stops).toEqual([]);
- expect(route.corridorStations?.map(s=>s.id)).toEqual(['g-highway']);
+ expect(route.corridorStations).toEqual([]);
 });
 it('does not list Google-reported closed stations on the manual route',async()=>{
  (fetchNearbyChargers as jest.Mock).mockResolvedValue([{...charger,hours:'Closed'}]);
@@ -51,4 +51,10 @@ it('replans a manual route through the driver-selected compatible charger',async
  expect(chosen.stops[0].station.id).toBe('g-highway');expect(chosen.fromLabel).toBe('Start');expect(chosen.toLabel).toBe('End');
  (fetchChargerById as jest.Mock).mockResolvedValue({...charger,hours:'Closed'});
  await expect(service.chooseStation!(route,'g-highway')).rejects.toThrow('closed');
+});
+
+it('excludes unpublished hours from manual route choices',async()=>{
+ (fetchNearbyChargers as jest.Mock).mockResolvedValue([{...charger,hours:null}]);
+ const route=await createRouteService(true).plan({fromLabel:'Start',toLabel:'End',fromCoords:points[0],toCoords:points[2],startSoc:60,strategy:'fastest',vehicle:{...VEHICLE_CATALOG[0],id:'car',rangeKm100:250},safetyReservePct:12,avoidPaidParking:false});
+ expect(route.stops).toEqual([]);expect(route.corridorStations).toEqual([]);
 });

@@ -169,6 +169,8 @@ export default function TripPreferencesScreen(): React.JSX.Element {
       </ListCard>
 
       <SectionTitle title="Smart Drive" />
+      <SegmentedControl options={[{value:'guided',label:'Guided'},{value:'assist',label:'Orbit Assist'}]} value={sd.prefs.mode ?? 'assist'} onChange={mode=>smartDrive.setMode(mode)} />
+      <Text style={styles.help}>Guided limits optional suggestions. Safety alerts stay active in both modes.</Text>
       <ListCard>
         <ToggleRow
           title="Smart Drive on for new trips"

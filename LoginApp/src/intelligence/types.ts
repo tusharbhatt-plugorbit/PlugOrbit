@@ -559,6 +559,7 @@ export type TripOutcome = {
 };
 
 export type SmartDrivePrefs = {
+  mode?: AssistMode;
   /** Start trips with Smart Drive on. */
   enabled: boolean;
   /** `minimal` lets only plan changes and safety alerts through. */
@@ -582,3 +583,6 @@ export const INITIAL_SMART_DRIVE: SmartDriveState = {
   dismissed: [],
   prefs: {enabled: true, verbosity: 'calm'},
 };
+
+export type AssistMode = 'guided' | 'assist';
+export function assistModeOf(prefs:{mode?:AssistMode}):AssistMode {return prefs.mode ?? 'assist';}

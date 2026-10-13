@@ -5,6 +5,7 @@ import type {RouteName, RouteParams} from '../navigation/params';
  * preview harness to open any screen directly. IDs refer to mock data.
  */
 export const ROUTE_FIXTURES: {[K in RouteName]: RouteParams[K]} = {
+  Assistant: undefined, Dashboard: undefined, Map: undefined,
   Home: undefined,
   Trips: undefined,
   Charge: undefined,

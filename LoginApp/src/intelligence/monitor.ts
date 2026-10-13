@@ -38,6 +38,7 @@ import {
 const LOG_LIMIT = 40;
 
 export type MonitorContext = {
+  mode?: 'guided' | 'assist';
   vehicle: Vehicle;
   world: World;
   config: SmartDriveConfig;
@@ -509,6 +510,7 @@ export function processEvent(
     event: effective,
     config,
     quiet: ctx.quiet === true,
+    mode:ctx.mode,
     now,
   });
   const told = decisions.filter(d => d.notify && d.draft);

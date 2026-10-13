@@ -41,6 +41,7 @@ export default function TripsScreen(): React.JSX.Element {
 
   return (
     <Screen title="Trips" hideBack stack>
+      <SecondaryButton label="Talk to Orbit" icon="mic" compact onPress={() => nav.navigate('Assistant',{listen:true})} />
       {trip ? (
         <>
           <CopilotStatusCard status={tripStatus(trip)} />
