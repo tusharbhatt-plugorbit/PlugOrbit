@@ -2,6 +2,7 @@ import {useAppearance, useThemedStyles} from '../appearance';
 import React, {
   ComponentType,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useReducer,
@@ -208,7 +209,12 @@ function Host({
     }
   }, [leaving, progress, onLeft]);
 
-  const Component = config.component;
+  const globalNavState = useContext(NavigationStateContext);
+  const frozenNavState = useRef(globalNavState);
+  if (entryValue.focused || leaving) frozenNavState.current = globalNavState;
+  const entryContext = useMemo(() => ({key: entryValue.key,name:entryValue.name,params:entryValue.params,
+    focused:entryValue.focused && !leaving}),[entryValue.key,entryValue.name,entryValue.params,entryValue.focused,leaving]);
+  const Component = useMemo(() => React.memo(config.component), [config.component]);
   return (
     <Animated.View
       style={[
@@ -231,15 +237,11 @@ function Host({
       pointerEvents={entryValue.focused ? 'auto' : 'none'}
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}>
-      <EntryContext.Provider
-        value={{
-          key: entryValue.key,
-          name: entryValue.name,
-          params: entryValue.params,
-          focused: entryValue.focused && !leaving,
-        }}>
+      <NavigationStateContext.Provider value={frozenNavState.current}>
+      <EntryContext.Provider value={entryContext}>
         <Component />
       </EntryContext.Provider>
+      </NavigationStateContext.Provider>
     </Animated.View>
   );
 }
