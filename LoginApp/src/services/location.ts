@@ -85,7 +85,27 @@ export function getCurrentLocation(): Promise<Coords> {
         finish(() =>
           resolve({latitude: coords.latitude, longitude: coords.longitude}),
         ),
-      error => finish(() => reject(toLocationError(error))),
+      error => {
+        if (done) return;
+        if (Platform.OS !== 'android' || error.code === 1) {
+          finish(() => reject(toLocationError(error)));
+          return;
+        }
+        // Try Android's network/GPS provider when a precise Play Services fix
+        // is unavailable (including phones using approximate permission).
+        Geolocation.setRNConfiguration({
+          skipPermissionRequests: false,
+          authorizationLevel: 'whenInUse',
+          enableBackgroundLocationUpdates: false,
+          locationProvider: 'android',
+        });
+        configured = false;
+        Geolocation.getCurrentPosition(
+          ({coords}) => finish(() => resolve({latitude: coords.latitude, longitude: coords.longitude})),
+          fallbackError => finish(() => reject(toLocationError(fallbackError))),
+          {enableHighAccuracy: false, timeout: NATIVE_TIMEOUT_MS, maximumAge: 60_000},
+        );
+      },
       {enableHighAccuracy: true, timeout: NATIVE_TIMEOUT_MS, maximumAge: 60_000},
     );
   });

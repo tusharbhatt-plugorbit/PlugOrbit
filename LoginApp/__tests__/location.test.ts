@@ -3,12 +3,14 @@
  */
 
 import Geolocation from '@react-native-community/geolocation';
+import {Platform} from 'react-native';
 import {LocationError, getCurrentLocation} from '../src/services/location';
 
 const getCurrentPosition = Geolocation.getCurrentPosition as jest.Mock;
 
 afterEach(() => {
   getCurrentPosition.mockReset();
+  jest.restoreAllMocks();
 });
 
 test('resolves with the device coordinates', async () => {
@@ -92,4 +94,13 @@ describe('one request at a time, with a JS timeout', () => {
       longitude: 8,
     });
   });
+});
+
+test('retries unavailable Android precise location using the network provider', async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  getCurrentPosition
+    .mockImplementationOnce((_success, error) => error({code: 5, message: 'GPS unavailable'}))
+    .mockImplementationOnce(success => success({coords: {latitude: 12.97, longitude: 77.59}}));
+  await expect(getCurrentLocation()).resolves.toEqual({latitude: 12.97, longitude: 77.59});
+  expect(getCurrentPosition.mock.calls[1][2]).toMatchObject({enableHighAccuracy: false});
 });

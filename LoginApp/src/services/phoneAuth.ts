@@ -51,3 +51,8 @@ export async function verifyPhoneCode(code: string, signal?: AbortSignal): Promi
   } catch (error) {throw phoneError(error);}
 }
 export function cancelPhoneVerification(): void {NativeModules.PlugOrbitPhoneAuth?.cancel().catch(() => {});}
+
+export async function getAutoPhoneCode(): Promise<string | null> {
+  const code = await NativeModules.PlugOrbitPhoneAuth?.getAutoCode?.();
+  return typeof code === 'string' && /^\d{6}$/.test(code) ? code : null;
+}

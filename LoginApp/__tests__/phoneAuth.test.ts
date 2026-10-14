@@ -1,7 +1,7 @@
 import {NativeModules, Platform} from 'react-native';
-import {normalizePhone, requestPhoneCode, verifyPhoneCode} from '../src/services/phoneAuth';
+import {normalizePhone, requestPhoneCode, verifyPhoneCode, getAutoPhoneCode} from '../src/services/phoneAuth';
 
-const native = {sendCode: jest.fn(), verifyCode: jest.fn(), cancel: jest.fn().mockResolvedValue(null)};
+const native = {sendCode: jest.fn(), verifyCode: jest.fn(), getAutoCode: jest.fn(), cancel: jest.fn().mockResolvedValue(null)};
 beforeEach(() => {jest.replaceProperty(Platform, 'OS', 'android'); jest.clearAllMocks(); NativeModules.PlugOrbitPhoneAuth = native;});
 afterEach(() => {delete NativeModules.PlugOrbitPhoneAuth; jest.restoreAllMocks();});
 
@@ -9,6 +9,15 @@ test('normalizes Indian and international numbers without changing their country
   expect(normalizePhone('98765 43210')).toBe('+919876543210');
   expect(normalizePhone('+44 7700 900123')).toBe('+447700900123');
   expect(() => normalizePhone('123')).toThrow();
+});
+
+test('retrieves only a complete SMS code detected by Firebase', async () => {
+  native.getAutoCode.mockResolvedValue('123456');
+  await expect(getAutoPhoneCode()).resolves.toBe('123456');
+  native.getAutoCode.mockResolvedValue(null);
+  await expect(getAutoPhoneCode()).resolves.toBeNull();
+  native.getAutoCode.mockResolvedValue('123');
+  await expect(getAutoPhoneCode()).resolves.toBeNull();
 });
 test('requests a real SMS without returning a development code', async () => {
   native.sendCode.mockResolvedValue({instant: false});

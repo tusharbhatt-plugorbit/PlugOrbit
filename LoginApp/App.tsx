@@ -20,7 +20,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {AppearanceProvider} from './src/appearance';
 import MainApp from './src/app/MainApp';
 import { ServicesProvider } from './src/services';
-import {hasNativePhoneAuth, requestPhoneCode, verifyPhoneCode, cancelPhoneVerification} from './src/services/phoneAuth';
+import {hasNativePhoneAuth, requestPhoneCode, verifyPhoneCode, cancelPhoneVerification, getAutoPhoneCode} from './src/services/phoneAuth';
 import {signInWithGoogle} from './src/services/googleSignIn';
 import { OtpError, requestOtp, verifyOtp } from './src/services/otpApi';
 import { clearSession, loadSession, saveSession } from './src/services/session';
@@ -315,6 +315,20 @@ function AuthScreen({
   const t = darkMode ? darkAuthTheme : lightAuthTheme;
   const isSignup = mode === 'signup';
   const identifierType = detectIdentifierType(identifier);
+
+  useEffect(() => {
+    if (step !== 'verify' || identifierType !== 'phone' || !hasNativePhoneAuth()) return;
+    let active = true;
+    const readCode = async () => {
+      try {
+        const code = await getAutoPhoneCode();
+        if (active && code) setOtp(code);
+      } catch { /* Manual entry remains available if automatic retrieval expires. */ }
+    };
+    void readCode();
+    const timer = setInterval(readCode, 1000);
+    return () => {active = false; clearInterval(timer);};
+  }, [step, identifierType, identifier]);
 
   const cancelPending = useCallback(() => {
     pendingRef.current?.abort();
@@ -779,7 +793,8 @@ function AuthScreen({
                   }
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
-                  autoComplete="sms-otp"
+                  autoComplete={identifierType === 'email' ? 'email-otp' : 'sms-otp'}
+                  importantForAutofill="yes"
                   maxLength={OTP_LENGTH}
                   autoFocus
                 />

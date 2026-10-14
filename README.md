@@ -251,6 +251,16 @@ cd LoginApp
 npm run android -- --device DEVICE_SERIAL --no-packager
 ```
 
+After pulling updates, run `npm ci` from `LoginApp` and restart Metro with
+`npm start -- --reset-cache`. Rebuild with the Android command above: the phone
+OTP autofill update includes native Kotlin code, so a JavaScript reload alone
+does not install it.
+
+On the connected phone, check location with both precise and approximate
+permission, then request a phone OTP and check automatic filling when Firebase
+retrieves the SMS. Manual OTP entry remains available. Also check email OTP
+entry and backend connectivity through the forwarded port 8000.
+
 Alternative: set `API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000`, connect phone and
 computer to the same network, and allow backend traffic through the development
 firewall. The backend must listen on `0.0.0.0`. Metro connectivity must also be

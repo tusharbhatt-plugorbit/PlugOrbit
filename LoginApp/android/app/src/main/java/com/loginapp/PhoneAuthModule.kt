@@ -82,6 +82,11 @@ class PhoneAuthModule(context: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod
+    fun getAutoCode(promise: Promise) {
+        promise.resolve(instantCredential?.smsCode)
+    }
+
+    @ReactMethod
     fun verifyCode(code: String, promise: Promise) {
         val credential = instantCredential ?: verificationId?.let { PhoneAuthProvider.getCredential(it, code) }
         if (credential == null) {promise.reject("OTP_EXPIRED", "Request a new verification code."); return}
