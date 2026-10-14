@@ -35,7 +35,7 @@ router = APIRouter(prefix="/orbit-assist", tags=["assistant"])
 def _build_provider(settings: AiSettings) -> tuple[LLMProvider | None, str | None]:
     if not settings.configured:
         return None, "No model API key is configured on the server (ANTHROPIC_API_KEY)."
-    if not settings.anthropic_api_key.strip() and settings.gemini_api_key.strip():
+    if not settings.anthropic_api_key.strip() and (settings.gemini_api_key.strip() or (settings.gemini_use_vertex and settings.gemini_vertex_project_id.strip())):
         from .providers.gemini_provider import GeminiProvider
         return GeminiProvider(settings), None
     try:

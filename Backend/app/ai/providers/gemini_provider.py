@@ -4,6 +4,7 @@ import time
 import uuid
 from types import SimpleNamespace
 import httpx
+from ..gemini_transport import generate_content
 from .base import Finished,ModelTurn,ModelUsage,ProviderError,TextDelta
 
 class GeminiProvider:
@@ -17,9 +18,9 @@ class GeminiProvider:
             # Listing models can succeed even when this project cannot generate.
             # Probe once per ten minutes; never send user data in a health check.
             async with httpx.AsyncClient(timeout=10) as client:
-                response=await client.post('https://generativelanguage.googleapis.com/v1beta/models/'+self.model+':generateContent',headers={'x-goog-api-key':self.settings.gemini_api_key},json={'contents':[{'role':'user','parts':[{'text':'Reply OK.'}]}],'generationConfig':{'maxOutputTokens':8}})
+                response=await generate_content(client,self.settings,{'contents':[{'role':'user','parts':[{'text':'Reply OK.'}]}],'generationConfig':{'maxOutputTokens':8}})
             self._reason=None if response.is_success else ('Google denied this AI project access. Resolve project access with Google.' if response.status_code in (401,403) else 'The AI provider is temporarily unavailable.')
-        except httpx.HTTPError:self._reason='Could not reach the AI provider. Check the server connection.'
+        except Exception:self._reason='Could not authenticate with the AI provider. Check Vertex AI access and server credentials.'
         self._health_at=time.monotonic();return self._reason
     def _contents(self,messages):
         contents=[];calls={}
@@ -51,12 +52,12 @@ class GeminiProvider:
                  'generationConfig':{'maxOutputTokens':self.settings.assistant_max_output_tokens}}
         if declarations:payload['tools']=[{'functionDeclarations':declarations}]
         async def request(client):
-            return await client.post('https://generativelanguage.googleapis.com/v1beta/models/'+self.model+':generateContent',headers={'x-goog-api-key':self.settings.gemini_api_key},json=payload)
+            return await generate_content(client,self.settings,payload)
         try:
             if self.client is not None:response=await request(self.client)
             else:
                 async with httpx.AsyncClient(timeout=self.settings.assistant_request_timeout_s) as client:response=await request(client)
-        except httpx.HTTPError as exc:raise ProviderError('PROVIDER_UNAVAILABLE','Could not reach the AI provider.',retryable=True) from exc
+        except Exception as exc:raise ProviderError('PROVIDER_UNAVAILABLE','Could not reach or authenticate with the AI provider.',retryable=True) from exc
         if not response.is_success:
             denied=response.status_code in (401,403)
             if denied:self._health_at=time.monotonic();self._reason='Google denied this AI project access. Resolve project access with Google.'

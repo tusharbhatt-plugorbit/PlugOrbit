@@ -22,6 +22,7 @@ import { ROUTE_FIXTURES } from '../../src/dev/fixtures';
 import { TestApp, probe, seedSignedIn } from '../../src/dev/testHarness';
 import type { RouteName, TabName } from '../../src/navigation/params';
 import { createMemoryStorage, setStorage } from '../../src/store/storage';
+import { Screen } from '../../src/ui/Screen';
 
 const { act } = ReactTestRenderer;
 type Renderer = ReactTestRenderer.ReactTestRenderer;
@@ -186,6 +187,16 @@ describe('consent', () => {
     await press(r, 'Turn on');
     expect(assistantStore.get().settings.aiConsentAt).not.toBeNull();
     expect(allText(r)).toContain('Where are we going?');
+  });
+});
+
+describe('keyboard composer layout', () => {
+  test('keeps Orbit chat composer in the pinned footer while the keyboard is open', async () => {
+    const r = await open('Assistant');
+    const assistantScreen = r.root.findAll(n => n.type === Screen && n.props.title === 'Orbit Assist')[0];
+    expect(assistantScreen).toBeDefined();
+    expect(assistantScreen.props.keepFooterWithKeyboard).toBe(true);
+    expect(r.root.find(n => n.type === TextInput && n.props.accessibilityLabel === 'Type a message to Orbit')).toBeDefined();
   });
 });
 

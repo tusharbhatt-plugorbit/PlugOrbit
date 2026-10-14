@@ -22,6 +22,9 @@ class AiSettings(BaseSettings):
     # and the manual planner. Also read from the standard ANTHROPIC_API_KEY variable.
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
+    gemini_use_vertex: bool = False
+    gemini_vertex_project_id: str = ""
+    gemini_vertex_location: str = "global"
 
     anthropic_api_key: str = Field(
         default="", validation_alias=AliasChoices("ASSISTANT_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
@@ -56,7 +59,7 @@ class AiSettings(BaseSettings):
 
     @property
     def configured(self) -> bool:
-        return bool(self.anthropic_api_key.strip() or self.gemini_api_key.strip())
+        return bool(self.anthropic_api_key.strip() or self.gemini_api_key.strip() or (self.gemini_use_vertex and self.gemini_vertex_project_id.strip()))
 
 
 @lru_cache

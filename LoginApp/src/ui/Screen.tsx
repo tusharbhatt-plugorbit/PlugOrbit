@@ -195,7 +195,7 @@ export function Screen({
         </View>
       </View>
       {headerExtra}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.body, dark && styles.bodyDark]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.body, dark && styles.bodyDark]}>
         <OfflineBanner />
         <KeyboardFocus.Provider value={reveal}>{body}</KeyboardFocus.Provider>
         {footer && (!keyboardOpen || keepFooterWithKeyboard) && (

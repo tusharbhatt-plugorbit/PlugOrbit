@@ -1,6 +1,6 @@
 import {useAppearance,useThemedStyles} from '../../appearance';
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { updateSettings } from '../../assistant/store';
 import { useRoute } from '../../navigation/NavigationContext';
 import { colors, radii, spacing, type } from '../../theme';
@@ -120,8 +120,20 @@ export default function AssistantScreen() {
   const { params } = useRoute<'Assistant'>();
   const { assistant, settings, nav } = view;
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   useAssistantOpened(true);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // A button that says "Talk to Orbit" opens the microphone straight away, once.
   const listened = useRef(false);
@@ -173,6 +185,7 @@ export default function AssistantScreen() {
       <Screen
         title="Orbit Assist"
         scroll={false}
+        keepFooterWithKeyboard
         right={
           <IconButton
             icon="settings"
@@ -190,7 +203,7 @@ export default function AssistantScreen() {
                   view.consented ? 'Type to Orbit' : 'Turn on Orbit’s AI first'
                 }
               />
-              <View style={styles.controls}>
+              {!keyboardOpen ? <View style={styles.controls}>
                 <RoundAction
                   icon={
                     settings.muted || settings.textOnly ? 'volume-x' : 'volume2'
@@ -218,7 +231,7 @@ export default function AssistantScreen() {
                   onPress={() => assistant.replay()}
                 />
                 <RoundAction icon="x" label="End conversation" onPress={end} />
-              </View>
+              </View> : null}
             </View>
           )
         }
@@ -235,6 +248,8 @@ export default function AssistantScreen() {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
         >
           {!view.consented ? (
             <ConsentCard onAccept={() => assistant.grantConsent()} />
@@ -262,11 +277,11 @@ export default function AssistantScreen() {
           )}
         </ScrollView>
 
-        <PermissionNote
+        {!keyboardOpen ? <PermissionNote
           state={view.microphone}
           onOpenSettings={view.openPhoneSettings}
-        />
-        <VoiceStage view={view} />
+        /> : null}
+        {!keyboardOpen ? <VoiceStage view={view} /> : null}
         {view.gateway.health === 'signed_out' ||
         view.gateway.health === 'unavailable' ? (
           <SecondaryButton

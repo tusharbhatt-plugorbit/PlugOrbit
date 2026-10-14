@@ -12,8 +12,9 @@ import { resetDemo } from '../src/store/demoStore';
 import { createMemoryStorage, setStorage } from '../src/store/storage';
 import { resetLocalOtp } from '../src/services/otpApi';
 import { loadSession, resetSessionMemory } from '../src/services/session';
+import { markOnboardingSeen } from '../src/store/onboarding';
 
-const WELCOME_HEADLINE = 'Charge Forward\nA Cleaner Tomorrow';
+const WELCOME_HEADLINE = 'Charge every journey';
 
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
@@ -185,9 +186,10 @@ beforeAll(() => {
   jest.useFakeTimers();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   alertSpy.mockClear();
   setStorage(createMemoryStorage());
+  await markOnboardingSeen();
   resetAppStore();
   resetDemo();
   resetLocalOtp();

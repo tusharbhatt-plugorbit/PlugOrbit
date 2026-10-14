@@ -243,15 +243,12 @@ function Welcome({ onGetStarted, onSignIn }: WelcomeProps): React.JSX.Element {
           <View style={styles.welcomeTop}>
             <BrandWordmark light size={logoSize} />
             <View style={styles.welcomeTagline}>
-              <Text style={[styles.taglineText, compact && styles.taglineCompact]}
-                accessibilityRole="header" accessibilityLabel={'Charge Forward\nA Cleaner Tomorrow'}>
-                Charge Forward
+              <Text
+                style={[styles.welcomeSlogan, compact && styles.taglineCompact]}
+                accessibilityRole="header"
+                accessibilityLabel="Charge every journey">
+                CHARGE EVERY JOURNEY
               </Text>
-              <View style={styles.taglineRow}>
-                <Text style={[styles.taglineText, compact && styles.taglineCompact]}>A</Text>
-                <Text style={[styles.taglineText, compact && styles.taglineCompact, styles.welcomeAccent]}>Cleaner</Text>
-                <Text style={[styles.taglineText, compact && styles.taglineCompact]}>Tomorrow</Text>
-              </View>
             </View>
           </View>
 
@@ -865,6 +862,7 @@ const styles = StyleSheet.create({
 
   welcomeSceneFrame: {position: 'absolute', left: 0, right: 0, bottom: 140, overflow: 'hidden'},
   welcomeTagline: {alignItems: 'center', marginTop: 20},
+  welcomeSlogan: {fontSize: 11, lineHeight: 16, fontWeight: '700', color: 'rgba(255,255,255,0.72)', letterSpacing: 3.2},
   taglineRow: {flexDirection: 'row', justifyContent: 'center', gap: 5},
   taglineText: {fontSize: 22, lineHeight: 28, fontWeight: '700', color: '#FFFFFF'},
   taglineCompact: {fontSize: 19, lineHeight: 25},

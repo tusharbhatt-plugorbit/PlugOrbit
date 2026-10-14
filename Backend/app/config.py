@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     support_agent_emails: list[str] = []
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
+    gemini_use_vertex: bool = False
+    gemini_vertex_project_id: str = ""
+    gemini_vertex_location: str = "global"
+
+    @property
+    def gemini_configured(self) -> bool:
+        return bool(self.gemini_api_key.strip() or (self.gemini_use_vertex and self.gemini_vertex_project_id.strip()))
 
     firebase_web_api_key: str = ""
     firebase_http_timeout_seconds: int = Field(default=20, ge=5, le=30)

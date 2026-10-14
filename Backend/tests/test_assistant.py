@@ -29,6 +29,18 @@ def test_provider_reply_and_context(client, monkeypatch):
     response = client.post("/assistant/chat", json={"message": "Plan a trip", "context": "battery 70%"})
     assert response.json() == {"answer": "Open Trips", "mode": "online"}
 
+def test_vertex_only_configuration_enables_online_chat(client, monkeypatch):
+    monkeypatch.setattr(assistant, "get_settings", lambda: SimpleNamespace(
+        gemini_api_key="", gemini_model="gemini-3.8-flash", gemini_use_vertex=True,
+        gemini_vertex_project_id="plugorbit-783dc", gemini_vertex_location="global"))
+    assert client.get("/assistant/status").json() == {"configured": True}
+    async def generate(_client, _settings, _payload):
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "Vertex is online"}]}}]})
+    monkeypatch.setattr(assistant, "generate_content", generate)
+    response = client.post("/assistant/chat", json={"message": "Status?"})
+    assert response.status_code == 200
+    assert response.json() == {"answer": "Vertex is online", "mode": "online"}
+
 def test_rate_limit_and_validation(client, monkeypatch):
     real = httpx.AsyncClient
     monkeypatch.setattr(assistant.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(lambda _: httpx.Response(429)), **kw))

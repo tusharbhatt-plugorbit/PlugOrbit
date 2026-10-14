@@ -47,3 +47,20 @@ def test_health_probes_generation_and_caches_denial(monkeypatch):
         assert calls[0].method=="POST"
         assert calls[0].url.path.endswith(":generateContent")
     asyncio.run(run())
+
+def test_vertex_transport_uses_adc_bearer_token(monkeypatch):
+    from app.ai import gemini_transport
+    settings=SimpleNamespace(gemini_model="gemini-3.8-flash",gemini_use_vertex=True,
+      gemini_vertex_project_id="plugorbit-783dc",gemini_vertex_location="global")
+    monkeypatch.setattr(gemini_transport,"_vertex_token",lambda: asyncio.sleep(0,result="test-access-token"))
+    calls=[]
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:(calls.append(req) or httpx.Response(200,json={"candidates":[]})))) as client:
+            response=await gemini_transport.generate_content(client,settings,{"contents":[]})
+            assert response.status_code==200
+    asyncio.run(run())
+    request=calls[0]
+    assert request.url.host=="aiplatform.googleapis.com"
+    assert request.url.path.endswith("/locations/global/publishers/google/models/gemini-3.8-flash:generateContent")
+    assert request.headers["Authorization"]=="Bearer test-access-token"
+    assert "x-goog-api-key" not in request.headers

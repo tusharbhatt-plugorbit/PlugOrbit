@@ -169,3 +169,11 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Environment values are embedded by Babel. Track .env so release bundles rebuild
+// when API_BASE_URL or other mobile configuration changes.
+tasks.configureEach { task ->
+    if (task.name.startsWith("createBundle") && task.name.endsWith("JsAndAssets")) {
+        task.inputs.file(rootProject.file("../.env")).optional().withPropertyName("plugorbitEnvironment")
+    }
+}

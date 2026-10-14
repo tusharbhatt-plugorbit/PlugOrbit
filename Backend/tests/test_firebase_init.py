@@ -78,7 +78,7 @@ def test_application_default_credentials_with_project_id(tmp_path, monkeypatch, 
     fb.init_firebase()
     cred, options = initialised[0]
     assert type(cred).__name__ == "ApplicationDefault"
-    assert options == {"projectId": "my-project"}
+    assert options == {"projectId": "my-project", "httpTimeout": 20}
 
 
 def test_nothing_configured_starts_without_firebase(tmp_path, monkeypatch, initialised, caplog):
@@ -122,4 +122,5 @@ def test_adc_passes_explicit_custom_token_signer(tmp_path, monkeypatch, initiali
     assert initialised[0][1] == {
         "projectId": "my-project",
         "serviceAccountId": "signer@my-project.iam.gserviceaccount.com",
+        "httpTimeout": 20,
     }

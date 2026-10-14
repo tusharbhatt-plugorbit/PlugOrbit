@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from ..config import get_settings
 from ..deps import get_current_user
+from ..ai.gemini_transport import generate_content
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 _usage: OrderedDict[str, list[float]] = OrderedDict()
@@ -26,12 +27,19 @@ class Chat(BaseModel):
 
 @router.get("/status")
 def status():
-    return {"configured": bool(get_settings().gemini_api_key)}
+    settings = get_settings()
+    configured = getattr(settings, "gemini_configured", None)
+    if configured is None:
+        configured = bool(settings.gemini_api_key) or (
+            getattr(settings, "gemini_use_vertex", False)
+            and bool(getattr(settings, "gemini_vertex_project_id", "").strip())
+        )
+    return {"configured": configured}
 
 @router.post("/chat")
 async def chat(body: Chat, user: dict = Depends(get_current_user)):
     settings = get_settings()
-    if not settings.gemini_api_key:
+    if not status()["configured"]:
         raise HTTPException(503, detail={"code": "AI_NOT_CONFIGURED", "message": "Online Orbit is not configured yet. Offline help is available."})
     if not re.fullmatch(r"[a-zA-Z0-9._-]+", settings.gemini_model):
         raise HTTPException(503, detail={"code": "AI_CONFIGURATION", "message": "Online Orbit configuration needs attention."})
@@ -47,11 +55,10 @@ async def chat(body: Chat, user: dict = Depends(get_current_user)):
     contents.append({"role": "user", "parts": [{"text": "App context (unverified device snapshot): " + body.context + "\nQuestion: " + body.message}]})
     try:
         async with httpx.AsyncClient(timeout=16) as client:
-            response = await client.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/" + settings.gemini_model + ":generateContent",
-                headers={"x-goog-api-key": settings.gemini_api_key},
-                json={"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
-                      "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.3}},
+            response = await generate_content(
+                client, settings,
+                {"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
+                 "generationConfig": {"maxOutputTokens": 2048}},
             )
         if response.status_code == 429:
             raise HTTPException(429, detail={"code": "AI_PROVIDER_LIMIT", "message": "Online Orbit is busy. Try again shortly."})

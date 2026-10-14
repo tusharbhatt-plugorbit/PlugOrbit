@@ -3,7 +3,7 @@ import React from 'react';
 import {Image, StyleSheet, View} from 'react-native';
 import {colors} from '../theme';
 
-const LOGO_MARK = require('../../assets/brand/logo-mark.png');
+const LOGO_MARK = require('../../assets/brand/plugorbit-mark.png');
 
 // The mark is a navy rounded tile; its corner radius is 232/1024 of its size.
 const TILE_RADIUS = 232 / 1024;
@@ -17,9 +17,8 @@ type Props = {
 };
 
 /**
- * The PlugOrbit mark: a P with a charge bolt, circled by an orbit route. It is
- * a self-contained tile (dark navy, lime and white), so the same image works on
- * the dark header, the white login card and the launcher icon.
+ * The PlugOrbit plug-and-orbit mark, supplied by the product owner. Its navy
+ * tile keeps the white plug legible on both light and dark app surfaces.
  */
 export function BrandLogo({
   size = 40,
